@@ -17,6 +17,7 @@ Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
+//auth
 Route::get('/auth/{provider}/redirect', [AuthController::class, 'redirect']);
 Route::get('/auth/{provider}/callback', [AuthController::class, 'callback']);
 
