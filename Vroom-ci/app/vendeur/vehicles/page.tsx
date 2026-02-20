@@ -1,5 +1,4 @@
 "use client"
-
 import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import { cn } from "@/src/lib/utils"
@@ -14,78 +13,54 @@ import {
     Car, Plus, Eye, Search,
     Tag, Key, MoreHorizontal, Package, CheckCircle2,
     Edit, Trash2, FileText,
+    Trash2Icon,
 } from "lucide-react"
 import Link from "next/link"
 import DetailsCard from "./DetailsVehicles"
 import { EditVehicle } from "./EditVehicle"
-
-interface Vehicule {
-    id: number
-    marque: string
-    modele: string
-    annee: number
-    prix: string
-    type: "vente" | "location"
-    statut: "disponible" | "réservé" | "vendu" | "loué" | "brouillon"
-    carburant: string
-    transmission: string
-    kilometrage: string
-    vues: number
-    datePublication: string
-    couleur: string
-    image: string
-}
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogMedia, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { VendeurStats } from "@/src/types";
+import { vehicule, MesVehicules } from "@/src/types";
+import { api } from "@/src/lib/api";
 
 const CARD = "rounded-2xl md:rounded-3xl shadow-xl border border-border/40 overflow-hidden bg-card/50 backdrop-blur-sm"
-
-const vehicules: Vehicule[] = [
-    { id: 1, marque: "Toyota", modele: "RAV4", annee: 2024, prix: "18 500 000", type: "vente", statut: "disponible", carburant: "Essence", transmission: "Automatique", kilometrage: "12 000", vues: 342, datePublication: "15 Jan 2025", couleur: "Noir", image: "" },
-    { id: 2, marque: "BMW", modele: "X3", annee: 2023, prix: "45 000 / jour", type: "location", statut: "réservé", carburant: "Diesel", transmission: "Automatique", kilometrage: "28 000", vues: 289, datePublication: "10 Jan 2025", couleur: "Blanc", image: "" },
-    { id: 3, marque: "Mercedes", modele: "Classe C", annee: 2023, prix: "25 000 000", type: "vente", statut: "vendu", carburant: "Diesel", transmission: "Automatique", kilometrage: "15 000", vues: 256, datePublication: "05 Jan 2025", couleur: "Gris", image: "" },
-    { id: 4, marque: "Peugeot", modele: "3008", annee: 2024, prix: "35 000 / jour", type: "location", statut: "disponible", carburant: "Essence", transmission: "Automatique", kilometrage: "8 000", vues: 198, datePublication: "20 Jan 2025", couleur: "Bleu", image: "" },
-    { id: 5, marque: "Hyundai", modele: "Tucson", annee: 2023, prix: "16 000 000", type: "vente", statut: "disponible", carburant: "Hybride", transmission: "Automatique", kilometrage: "22 000", vues: 178, datePublication: "18 Jan 2025", couleur: "Rouge", image: "" },
-    { id: 6, marque: "Audi", modele: "Q5", annee: 2022, prix: "55 000 / jour", type: "location", statut: "loué", carburant: "Diesel", transmission: "Automatique", kilometrage: "35 000", vues: 310, datePublication: "02 Jan 2025", couleur: "Noir", image: "" },
-    { id: 7, marque: "Renault", modele: "Clio", annee: 2024, prix: "8 500 000", type: "vente", statut: "brouillon", carburant: "Essence", transmission: "Manuelle", kilometrage: "5 000", vues: 0, datePublication: "—", couleur: "Blanc", image: "" },
-    { id: 8, marque: "Volkswagen", modele: "Golf", annee: 2023, prix: "14 000 000", type: "vente", statut: "disponible", carburant: "Diesel", transmission: "Manuelle", kilometrage: "18 000", vues: 145, datePublication: "22 Jan 2025", couleur: "Gris", image: "" },
-]
-
-function toDetailsVehicule(v: Vehicule) {
-    return {
-        typePublication: v.type as "vente" | "location" | "",
-        marque: v.marque,
-        modele: v.modele,
-        annee: v.annee.toString(),
-        kilometrage: v.kilometrage,
-        carburant: v.carburant,
-        transmission: v.transmission,
-        couleur: v.couleur,
-        nombrePortes: "5",
-        nombrePlaces: "5",
-        description: "",
-        equipements: ["climatisation", "bluetooth", "abs", "airbags", "gps", "camera_recul"],
-        dateDisponibilite: v.type === "vente" ? new Date() : undefined,
-        dateDebutLocation: v.type === "location" ? "2025-02-01" : "",
-        dateFinLocation: v.type === "location" ? "2025-02-15" : "",
-        prix: v.type === "vente" ? v.prix : "",
-        prixParJour: v.type === "location" ? v.prix.replace(" / jour", "") : "",
-        negociable: true,
-    }
-}
-
 export default function VehiclesPage() {
     const [isLoading, setIsLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState("")
-    const [selectedVehicle, setSelectedVehicle] = useState<Vehicule | null>(null)
-    const [editingVehicle, setEditingVehicle] = useState<Vehicule | null>(null)
+    const [stats, setStats] = useState<VendeurStats | null>(null)
+    const [mesvehicules, setMesVehicules] = useState<vehicule[]>([])
 
+    const [detailVehicle, setDetailVehicle] = useState<vehicule | null>(null)
+    const [editingVehicle, setEditingVehicle] = useState<vehicule | null>(null)
+    const [vehicleToDelete, setVehicleToDelete] = useState<vehicule | null>(null)
+    const [deleteOpen, setDeleteOpen] = useState(false);
+
+    const handleDelete = () => {
+        if (!vehicleToDelete) return
+        toast.success("Véhicule supprimé", {
+            description: `${vehicleToDelete?.description?.marque} ${vehicleToDelete?.description?.modele} a été supprimé.`,
+        })
+        setDeleteOpen(false)
+        setVehicleToDelete(null)
+    }
     useEffect(() => {
-        const toastId = toast.loading("Chargement des véhicules...")
-        const load = async () => {
-            await new Promise(r => setTimeout(r, 1500))
-            setIsLoading(false)
-            toast.dismiss(toastId)
+        const fetchVendeurVehicles = async () => {
+            try {
+                setIsLoading(true);
+                const [statsRes, mesVehiculesRes] = await Promise.all([
+                    api.get<VendeurStats>("/stats/mesStats"),
+                    api.get<MesVehicules>("/vehicules/mesVehicules")
+                ]);
+                setStats(statsRes.data ?? null)
+                setMesVehicules(mesVehiculesRes.data?.vehicules ?? [])
+
+            } catch (error) {
+                toast.error(error instanceof Error ? error?.message : "Erreur serveur");
+            } finally {
+                setIsLoading(false);
+            }
         }
-        load()
+        fetchVendeurVehicles()
     }, [])
 
     const getStatutColor = (statut: string) => {
@@ -109,22 +84,22 @@ export default function VehiclesPage() {
             default: return statut
         }
     }
-
-    const stats = [
-        { label: "Total", value: vehicules.length, icon: Package, color: "bg-zinc-900/10 text-zinc-700" },
-        { label: "En vente", value: vehicules.filter(v => v.type === "vente" && v.statut === "disponible").length, icon: Tag, color: "bg-zinc-900/10 text-zinc-700" },
-        { label: "En location", value: vehicules.filter(v => v.type === "location" && (v.statut === "disponible" || v.statut === "loué")).length, icon: Key, color: "bg-blue-500/10 text-blue-600" },
-        { label: "Vendus / Loués", value: vehicules.filter(v => v.statut === "vendu" || v.statut === "loué").length, icon: CheckCircle2, color: "bg-purple-500/10 text-purple-600" },
+ 
+    const statsCards = [
+        { label: "Total", value: mesvehicules.length, icon: Package, color: "bg-zinc-900/10 text-zinc-700" },
+        { label: "En vente", value: mesvehicules.filter(v => v.post_type === "vente" && v.statut === "disponible").length, icon: Tag, color: "bg-zinc-900/10 text-zinc-700" },
+        { label: "En location", value: mesvehicules.filter(v => v.post_type === "location").length, icon: Key, color: "bg-blue-500/10 text-blue-600" },
+        { label: "Vendus / Loués", value: mesvehicules.filter(v => v.statut === "vendu" || v.statut === "loué").length, icon: CheckCircle2, color: "bg-purple-500/10 text-purple-600" },
     ]
 
     const filterVehicles = (tab: string) => {
-        let filtered = vehicules
-        if (tab === "vente") filtered = vehicules.filter(v => v.type === "vente")
-        else if (tab === "location") filtered = vehicules.filter(v => v.type === "location")
-        else if (tab === "vendus") filtered = vehicules.filter(v => v.statut === "vendu" || v.statut === "loué")
+        let filtered = mesvehicules
+        if (tab === "vente") filtered = mesvehicules.filter(v => v.post_type === "vente")
+        else if (tab === "location") filtered = mesvehicules.filter(v => v.post_type === "location")
+        else if (tab === "vendus") filtered = mesvehicules.filter(v => v?.statut === "vendu" || v.statut === "loué")
         if (searchQuery) {
             filtered = filtered.filter(v =>
-                `${v.marque} ${v.modele}`.toLowerCase().includes(searchQuery.toLowerCase())
+                `${v?.description?.marque} ${v?.description?.modele}`.toLowerCase().includes(searchQuery.toLowerCase())
             )
         }
         return filtered
@@ -147,40 +122,40 @@ export default function VehiclesPage() {
         )
     }
 
-    const VehicleCard = ({ v }: { v: Vehicule }) => (
+    const VehicleCard = ({ v }: { v: vehicule }) => (
         <Card className={cn(CARD, "hover:shadow-2xl transition-all duration-300 hover:-translate-y-1")}>
             <CardContent className="p-0">
                 {/* Image placeholder */}
                 <div className="h-40 bg-linear-to-br from-muted/50 to-muted/30 flex items-center justify-center relative">
                     <Car className="h-12 w-12 text-muted-foreground/30" />
-                    <Badge className={cn("absolute top-3 left-3 rounded-full text-xs", getStatutColor(v.statut))}>
-                        {getStatutLabel(v.statut)}
+                    <Badge className={cn("absolute top-3 left-3 rounded-full text-xs", getStatutColor(v?.statut))}>
+                        {getStatutLabel(v?.statut)}
                     </Badge>
                     <Badge className={cn("absolute top-3 right-3 rounded-full text-xs",
-                        v.type === "vente" ? "bg-zinc-900/10 text-zinc-700 border-zinc-900/20" : "bg-blue-500/10 text-blue-600 border-blue-500/20"
+                        v?.post_type === "vente" ? "bg-zinc-900/10 text-zinc-700 border-zinc-900/20" : "bg-blue-500/10 text-blue-600 border-blue-500/20"
                     )}>
-                        {v.type === "vente" ? <Tag className="h-3 w-3 mr-1" /> : <Key className="h-3 w-3 mr-1" />}
-                        {v.type === "vente" ? "Vente" : "Location"}
+                        {v?.post_type === "vente" ? <Tag className="h-3 w-3 mr-1" /> : <Key className="h-3 w-3 mr-1" />}
+                        {v?.post_type === "vente" ? "Vente" : "Location"}
                     </Badge>
                 </div>
 
                 <div className="p-4 space-y-3">
                     <div className="flex items-start justify-between">
                         <div>
-                            <h3 className="font-bold text-base">{v.marque} {v.modele}</h3>
-                            <p className="text-xs text-muted-foreground">{v.annee} &middot; {v.kilometrage} km &middot; {v.carburant}</p>
+                            <h3 className="font-bold text-base">{v?.description.marque} {v?.description.modele}</h3>
+                            <p className="text-xs text-muted-foreground">{v?.description.annee} &middot; {v?.description.kilometrage} km &middot; {v?.description.carburant}</p>
                         </div>
                         <Button variant="ghost" size="icon" className="h-8 w-8 cursor-pointer">
                             <MoreHorizontal className="h-4 w-4" />
                         </Button>
                     </div>
 
-                    <p className="text-lg font-bold text-zinc-700">{v.prix} <span className="text-xs font-normal text-muted-foreground">FCFA</span></p>
+                    <p className="text-lg font-bold text-zinc-700">{v?.prix} <span className="text-xs font-normal text-muted-foreground">FCFA</span></p>
 
                     <Separator />
 
                     <div className="flex items-center justify-center text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1"><Eye className="h-3 w-3" /> {v.vues}</span>
+                        <span className="flex items-center gap-1"><Eye className="h-3 w-3" /> {v?.views_count}</span>
                     </div>
 
                     <div className="flex gap-2">
@@ -188,14 +163,22 @@ export default function VehiclesPage() {
                             variant="outline"
                             size="sm"
                             className="flex-1 gap-1 cursor-pointer rounded-lg text-xs"
-                            onClick={() => setSelectedVehicle(v)}
+                            onClick={()=>setDetailVehicle(v)}
                         >
                             <Eye className="h-3 w-3" /> Détails
                         </Button>
                         <Button variant="outline" size="sm" onClick={() => setEditingVehicle(v)} className="flex-1 gap-1 cursor-pointer rounded-lg text-xs">
                             <Edit className="h-3 w-3" /> Modifier
                         </Button>
-                        <Button variant="outline" size="sm" className="gap-1 cursor-pointer rounded-lg text-xs text-red-500 hover:text-red-600 hover:border-red-200">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1 cursor-pointer rounded-lg text-xs text-red-500 hover:text-red-600 hover:border-red-200"
+                            onClick={() => {
+                                setVehicleToDelete(v)
+                                setDeleteOpen(true)
+                            }}
+                        >
                             <Trash2 className="h-3 w-3" />
                         </Button>
                     </div>
@@ -215,7 +198,7 @@ export default function VehiclesPage() {
                         </div>
                         <div>
                             <h1 className="text-2xl md:text-3xl font-bold">Mes véhicules</h1>
-                            <p className="text-muted-foreground text-sm">{vehicules.length} véhicules au total</p>
+                            <p className="text-muted-foreground text-sm">{stats?.stats?.total_vehicule} véhicules au total</p>
                         </div>
                     </div>
                     <Link href="/vendeur/addVehicle">
@@ -227,7 +210,7 @@ export default function VehiclesPage() {
 
                 {/* Stats */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 animate-in fade-in slide-in-from-bottom duration-500">
-                    {stats.map((s, i) => (
+                    {statsCards.map((s, i) => (
                         <Card key={i} className={cn(CARD, "hover:shadow-lg transition-all duration-300")}>
                             <CardContent className="p-4 flex items-center gap-3">
                                 <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0", s.color)}>
@@ -260,10 +243,10 @@ export default function VehiclesPage() {
                 {/* Tabs + Vehicles */}
                 <Tabs defaultValue="tous" className="animate-in fade-in slide-in-from-bottom duration-500 delay-200">
                     <TabsList className="bg-muted/50 rounded-xl p-1 mb-4 w-full md:w-auto">
-                        <TabsTrigger value="tous" className="rounded-lg cursor-pointer data-[state=active]:bg-zinc-900 data-[state=active]:text-white">Tous</TabsTrigger>
-                        <TabsTrigger value="vente" className="rounded-lg cursor-pointer data-[state=active]:bg-zinc-700 data-[state=active]:text-white">En vente</TabsTrigger>
-                        <TabsTrigger value="location" className="rounded-lg cursor-pointer data-[state=active]:bg-blue-500 data-[state=active]:text-white">En location</TabsTrigger>
-                        <TabsTrigger value="vendus" className="rounded-lg cursor-pointer data-[state=active]:bg-purple-500 data-[state=active]:text-white">Vendus/Loués</TabsTrigger>
+                        <TabsTrigger value="tous" className="rounded-lg cursor-pointer data-[state=active]:bg-white data-[state=active]:text-black">Tous</TabsTrigger>
+                        <TabsTrigger value="vente" className="rounded-lg cursor-pointer data-[state=active]:bg-white data-[state=active]:text-black">En vente</TabsTrigger>
+                        <TabsTrigger value="location" className="rounded-lg cursor-pointer data-[state=active]:bg-white data-[state=active]:text-black">En location</TabsTrigger>
+                        <TabsTrigger value="vendus" className="rounded-lg cursor-pointer data-[state=active]:bg-white data-[state=active]:text-black">Vendus/Loués</TabsTrigger>
                     </TabsList>
 
                     {["tous", "vente", "location", "vendus"].map(tab => (
@@ -286,21 +269,47 @@ export default function VehiclesPage() {
             </div>
 
             {/* Dialog Détails */}
-            {selectedVehicle && (
+            {detailVehicle && (
                 <DetailsCard
-                    isOpen={!!selectedVehicle}
-                    vehicule={toDetailsVehicule(selectedVehicle)}
-                    onClose={() => setSelectedVehicle(null)}
+                    isOpen={!!detailVehicle}
+                    vehicule={detailVehicle}
+                    onClose={() => setDetailVehicle(null)}
                 />
             )}
 
-            {editingVehicle && (
+             {editingVehicle && (
                 <EditVehicle
                     isOpen={!!editingVehicle}
                     onClose={() => setEditingVehicle(null)}
                     onSubmit={() => setEditingVehicle(null)}
                 />
             )}
+
+            <AlertDialog
+                open={deleteOpen}
+                onOpenChange={(open) => {
+                    setDeleteOpen(open)
+                    if (!open) setVehicleToDelete(null)
+                }}
+            >
+                <AlertDialogContent size="sm">
+                    <AlertDialogHeader>
+                        <AlertDialogMedia className="bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive">
+                            <Trash2Icon />
+                        </AlertDialogMedia>
+                        <AlertDialogTitle>Supprimer le véhicule ?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Cette action est irréversible. Le véhicule {vehicleToDelete?.description.marque} sera définitivement supprimé.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel variant="outline">Annuler</AlertDialogCancel>
+                        <AlertDialogAction variant="destructive" onClick={handleDelete}>
+                            Supprimer
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     )
 }

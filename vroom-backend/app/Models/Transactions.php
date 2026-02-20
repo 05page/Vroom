@@ -27,7 +27,6 @@ class Transactions extends Model
         'date_retour_effective',
         'prix_location_jour',
         'caution',
-        'prix_final',
         'note_client',
         'rating_client',
         'note_proprietaire',
@@ -59,7 +58,7 @@ class Transactions extends Model
     const TYPE_VENTE = 'vente';
     const TYPE_LOCATION = 'location';
     //Relations
-    public function user(): BelongsTo
+    public function client(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
     }

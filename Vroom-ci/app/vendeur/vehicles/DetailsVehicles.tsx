@@ -11,78 +11,38 @@ import {
     Gauge, Check, Edit, Trash2, Eye,
     Clock, Shield, MapPin, Sparkles,
 } from "lucide-react"
-
-interface DetailsVehicules {
-    typePublication: "vente" | "location" | ""
-    marque: string
-    modele: string
-    annee: string
-    kilometrage: string
-    carburant: string
-    transmission: string
-    couleur: string
-    nombrePortes: string
-    nombrePlaces: string
-    description: string
-    equipements: string[]
-    dateDisponibilite: Date | undefined
-    dateDebutLocation: string
-    dateFinLocation: string
-    prix: string
-    prixParJour: string
-    negociable: boolean
-}
+import { VehiculeDescription, vehicule } from "@/src/types"
 
 interface Props {
-    isOpen: boolean
-    onClose: () => void
-    vehicule: DetailsVehicules
-    onEdit?: () => void
-    onDelete?: () => void
+    isOpen: boolean;
+    onClose: () => void;
+    vehicule: vehicule;
+    onEdit?: () => void;
+    onDelete?: () => void;
 }
-
-const EQUIPEMENTS_MAP: Record<string, { label: string; icon: typeof Check }> = {
-    climatisation: { label: "Climatisation", icon: Sparkles },
-    gps: { label: "GPS / Navigation", icon: MapPin },
-    camera_recul: { label: "Caméra de recul", icon: Eye },
-    bluetooth: { label: "Bluetooth", icon: Settings },
-    regulateur: { label: "Régulateur de vitesse", icon: Gauge },
-    sieges_chauffants: { label: "Sièges chauffants", icon: Shield },
-    toit_ouvrant: { label: "Toit ouvrant", icon: Car },
-    phares_led: { label: "Phares LED", icon: Sparkles },
-    jantes_alliage: { label: "Jantes alliage", icon: Settings },
-    abs: { label: "ABS", icon: Shield },
-    airbags: { label: "Airbags", icon: Shield },
-    audio_premium: { label: "Audio premium", icon: Sparkles },
-    demarrage_sans_cle: { label: "Démarrage sans clé", icon: Key },
-    capteurs_parking: { label: "Capteurs de parking", icon: Eye },
-    radar_angle_mort: { label: "Radar angle mort", icon: Shield },
-}
-
 const formatDate = (date: Date | undefined) => {
     if (!date) return "—"
     return date.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })
 }
 
-const DetailsCard = ({ isOpen, onClose, vehicule, onEdit, onDelete }: Props) => {
-    const isVente = vehicule.typePublication === "vente"
-    const isLocation = vehicule.typePublication === "location"
 
+const DetailsCard = ({ isOpen, onClose, vehicule, onEdit, onDelete }: Props) => {
+    const isVente = vehicule.post_type === "vente"
+    const isLocation = vehicule.post_type === "location"
     const infos = [
-        { label: "Année", value: vehicule.annee, icon: Calendar },
-        { label: "Kilométrage", value: vehicule.kilometrage ? `${vehicule.kilometrage} km` : "—", icon: Gauge },
-        { label: "Carburant", value: vehicule.carburant || "—", icon: Fuel },
-        { label: "Transmission", value: vehicule.transmission || "—", icon: Settings },
-        { label: "Couleur", value: vehicule.couleur || "—", icon: Palette },
-        { label: "Portes", value: vehicule.nombrePortes || "—", icon: DoorOpen },
-        { label: "Places", value: vehicule.nombrePlaces || "—", icon: Users },
+        { label: "Kilométrage", value: `${vehicule.description?.kilometrage} km`, icon: Gauge },
+        { label: "Carburant", value: vehicule.description?.carburant, icon: Fuel },
+        { label: "Transmission", value: vehicule.description?.transmission, icon: Settings },
+        { label: "Couleur", value: vehicule.description?.couleur, icon: Palette },
+        { label: "Portes", value: vehicule.description?.nombre_portes, icon: DoorOpen },
+        { label: "Places", value: vehicule.description?.nombre_places, icon: Users },
     ]
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose() }}>
             <DialogContent className="max-w-7xl sm:max-w-3xl w-[95vw] max-h-[90vh] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden p-0 gap-0 rounded-2xl border-border/40">
                 <DialogTitle className="sr-only">
-                    {vehicule.marque} {vehicule.modele}
+                    {vehicule.description?.marque} {vehicule?.description?.modele}
                 </DialogTitle>
 
                 {/* Hero image + badges */}
@@ -111,9 +71,9 @@ const DetailsCard = ({ isOpen, onClose, vehicule, onEdit, onDelete }: Props) => 
                     <div className="absolute bottom-4 right-4">
                         <div className="bg-white/90 dark:bg-black/70 backdrop-blur-md rounded-xl px-4 py-2 shadow-lg">
                             <p className="text-lg font-black text-zinc-700">
-                                {isVente ? vehicule.prix : vehicule.prixParJour}
+                                {/* {isVente ? vehicule.prix : vehicule.prixParJour} */}
                                 <span className="text-xs font-normal text-muted-foreground ml-1">
-                                    FCFA{isLocation ? " / jour" : ""}
+                                   {vehicule?.prix} FCFA{isLocation ? " / jour" : ""}
                                 </span>
                             </p>
                         </div>
@@ -125,10 +85,10 @@ const DetailsCard = ({ isOpen, onClose, vehicule, onEdit, onDelete }: Props) => 
                     {/* Title */}
                     <div>
                         <h2 className="text-2xl font-black tracking-tight">
-                            {vehicule.marque} {vehicule.modele}
+                            {vehicule?.description?.marque} {vehicule?.description?.modele}
                         </h2>
                         <p className="text-sm text-muted-foreground mt-0.5">
-                            {vehicule.annee} · {vehicule.carburant} · {vehicule.transmission}
+                            {vehicule?.description?.annee} · {vehicule?.description?.carburant} · {vehicule?.description?.transmission}
                         </p>
                     </div>
 
@@ -158,39 +118,23 @@ const DetailsCard = ({ isOpen, onClose, vehicule, onEdit, onDelete }: Props) => 
                     </div>
 
                     {/* Equipements */}
-                    {vehicule.equipements.length > 0 && (
-                        <div>
-                            <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-3">
-                                Équipements
-                            </h3>
-                            <div className="flex flex-wrap gap-2">
-                                {vehicule.equipements.map((eq) => {
-                                    const mapped = EQUIPEMENTS_MAP[eq]
-                                    const Icon = mapped?.icon || Check
-                                    return (
-                                        <Badge
-                                            key={eq}
-                                            variant="outline"
-                                            className="rounded-full px-3 py-1.5 gap-1.5 bg-muted/20 border-border/40 hover:bg-zinc-900/10 hover:text-zinc-700 hover:border-zinc-900/20 transition-colors cursor-default"
-                                        >
-                                            <Icon className="h-3 w-3" />
-                                            {mapped?.label || eq}
-                                        </Badge>
-                                    )
-                                })}
-                            </div>
-                        </div>
-                    )}
+                    {vehicule?.description?.equipements?.map((eq) => (
+                        <Badge key={eq} variant="outline" className="rounded-full px-3 py-1.5 gap-1.5 ...">
+                            <Check className="h-3 w-3" />
+                            {eq.replace(/_/g, " ")}
+                        </Badge>
+                    ))}
+
 
                     {/* Description */}
-                    {vehicule.description && (
-                        <div>
-                            <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-2">
-                                Description
-                            </h3>
-                            <p className="text-sm text-muted-foreground leading-relaxed">{vehicule.description}</p>
-                        </div>
-                    )}
+                    {/* {vehicule.description && ( */}
+                    <div>
+                        <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                            Description
+                        </h3>
+                        <p className="text-sm text-muted-foreground leading-relaxed"></p>
+                    </div>
+
 
                     {/* Availability & Pricing */}
                     <div>
@@ -206,7 +150,7 @@ const DetailsCard = ({ isOpen, onClose, vehicule, onEdit, onDelete }: Props) => 
                                         </div>
                                         <div>
                                             <p className="text-xs text-muted-foreground">Disponible à partir du</p>
-                                            <p className="font-bold text-sm">{formatDate(vehicule.dateDisponibilite)}</p>
+                                            <p className="font-bold text-sm">{formatDate(vehicule?.date_disponibilite )}</p>
                                         </div>
                                     </div>
                                 )}
@@ -218,7 +162,7 @@ const DetailsCard = ({ isOpen, onClose, vehicule, onEdit, onDelete }: Props) => 
                                             </div>
                                             <div>
                                                 <p className="text-xs text-muted-foreground">Début</p>
-                                                <p className="font-bold text-sm">{vehicule.dateDebutLocation || "—"}</p>
+                                                {/* <p className="font-bold text-sm">{vehicule?.date_publication || "—"}</p> */}
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-3">
@@ -227,7 +171,7 @@ const DetailsCard = ({ isOpen, onClose, vehicule, onEdit, onDelete }: Props) => 
                                             </div>
                                             <div>
                                                 <p className="text-xs text-muted-foreground">Fin</p>
-                                                <p className="font-bold text-sm">{vehicule.dateFinLocation || "—"}</p>
+                                                {/* <p className="font-bold text-sm">{vehicule.dateFinLocation || "—"}</p> */}
                                             </div>
                                         </div>
                                     </div>
@@ -236,24 +180,6 @@ const DetailsCard = ({ isOpen, onClose, vehicule, onEdit, onDelete }: Props) => 
                         </Card>
                     </div>
 
-                    <Separator />
-
-                    {/* Action buttons */}
-                    <div className="flex gap-3">
-                        <Button
-                            className="flex-1 gap-2 bg-zinc-900 hover:bg-zinc-700 text-white font-bold rounded-xl cursor-pointer"
-                            onClick={onEdit}
-                        >
-                            <Edit className="h-4 w-4" /> Modifier l&apos;annonce
-                        </Button>
-                        <Button
-                            variant="outline"
-                            className="gap-2 rounded-xl cursor-pointer text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600 hover:border-red-300"
-                            onClick={onDelete}
-                        >
-                            <Trash2 className="h-4 w-4" /> Supprimer
-                        </Button>
-                    </div>
                 </div>
             </DialogContent>
         </Dialog>

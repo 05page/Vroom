@@ -1,4 +1,4 @@
- <?php
+<?php
 
 namespace App\Http\Controllers;
 
@@ -21,9 +21,7 @@ class TransactionController extends Controller
      * Le GoogleCalendarService n'est plus injecté dans le constructeur 
      * pour éviter des erreurs d'initialisation inutiles pour les utilisateurs non connectés.
      */
-    public function __construct()
-    {
-    }
+    public function __construct() {}
     private function calculerTauxConversion($userId): float
     {
         $rdvTotal = Transactions::where('proprietaire_id', $userId)->count();
@@ -89,46 +87,25 @@ class TransactionController extends Controller
             }
 
             $nosRdv = Transactions::where('proprietaire_id', $user->id)
+                ->with([
+                    'vehicule.description',
+                    'client:id,fullname,email,telephone,adresse'
+                ])
                 ->get();
 
             $stats = [
-                'total_vehicules' => Vehicules::where('created_by', $user->id)->count(),
-
-                'disponibles' => Vehicules::disponible()
-                    ->where('created_by', $user->id)
-                    ->count(),
-
-                'vendus_total' => Vehicules::vendu()
-                    ->where('created_by', $user->id)
-                    ->count(),
-
-                // 'vendus_via_plateforme' => Vehicules::vendu()
-                //     ->where('created_by', $user->id)
-                //     ->where('transaction_method', 'rdv_plateforme')
-                //     ->count(),
-
-                // 'vendus_hors_plateforme' => Vehicules::vendu()
-                //     ->where('created_by', $user->id)
-                //     ->where('transaction_method', 'hors_plateforme')
-                //     ->count(),
-
-                'loues_total' => Vehicules::loue()
-                    ->where('created_by', $user->id)
-                    ->count(),
-
-                'total_vues' => Vehicules::where('created_by', $user->id)
-                    ->sum('views_count'),
-
-                'rdv_en_cours' => Transactions::where('proprietaire_id', $user->id)
-                    ->enAttente()
-                    ->count(),
-
-                'taux_conversion_plateforme' => $this->calculerTauxConversion($user->id),
+                'total_rdv' => Transactions::where('proprietaire_id', $user->id)->count(),
+                'rdv_coming' => Transactions::where('proprietaire_id', $user->id)->confirme()->count(),
+                'rdv_annule' => Transactions::where('proprietaire_id', $user->id)->annule()->count(),
+                'rdv_effectue' => Transactions::where('proprietaire_id', $user->id)->effectue()->count()
             ];
 
             return response()->json([
                 'success' => true,
-                'data' => [$nosRdv, $stats]
+                'data' => [
+                    'list_rdv' => $nosRdv,
+                    'stats' => $stats
+                ]
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
@@ -147,7 +124,7 @@ class TransactionController extends Controller
             $transaction = Transactions::with([
                 'vehicule.description',
                 'vehicule.photos',
-                'user:id,fullname,email,telephone,adresse',
+                'client:id,fullname,email,telephone,adresse',
                 'proprietaire:id,fullname,email,telephone,adresse'
             ])
                 ->where('id', $id)
@@ -469,17 +446,17 @@ class TransactionController extends Controller
             }
 
             Notifications::create([
-                'recever_id'=> $monRdv->user_id,
-                'type'=> Notifications::TYPE_INFO,
-                'title'=> "Annulation de Rendez-vous",
-                'message'=> 'Votre demande de rendez-vous a été annulé'
+                'recever_id' => $monRdv->user_id,
+                'type' => Notifications::TYPE_INFO,
+                'title' => "Annulation de Rendez-vous",
+                'message' => 'Votre demande de rendez-vous a été annulé'
             ]);
 
             Notifications::create([
-                'recever'=> $monRdv->proprietaire_id,
-                'type'=> Notifications::TYPE_INFO,
-                'title'=> "Rendez-vous annulé",
-                'message'=> "Ce rendez-vous a été annulé par l'utilisateur"
+                'recever' => $monRdv->proprietaire_id,
+                'type' => Notifications::TYPE_INFO,
+                'title' => "Rendez-vous annulé",
+                'message' => "Ce rendez-vous a été annulé par l'utilisateur"
             ]);
 
             DB::commit();
@@ -488,7 +465,6 @@ class TransactionController extends Controller
                 'message' => "Votre Rendez-vous a été annulé",
                 'data' => $monRdv
             ], 200);
-
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([

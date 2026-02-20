@@ -7,6 +7,7 @@ use App\Http\Controllers\NotificationsController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\UserInfoController;
 use App\Http\Controllers\VehiculesController;
+use App\Http\Controllers\VendeurStatsController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Laravel\Socialite\Facades\Socialite;
@@ -30,11 +31,18 @@ Route::middleware('auth:sanctum')->group(function () {
     // Routes pour les véhicules
     Route::prefix('vehicules')->group(function () {
         Route::get('/allVehicules', [VehiculesController::class, 'index']);
-        Route::get('/mesVehicules', [VehiculesController::class, 'mesVehicules']);
-        Route::get('/mesStats', [VehiculesController::class, 'mesStats']);
         Route::get('/{id}/vehicule', [VehiculesController::class, 'vehicule']);
-        Route::post('/postVehicules', [VehiculesController::class, 'postVehicules']);
-        Route::post('test-gemini', [VehiculesController::class, 'testGemini']);
+        Route::middleware(['role:vendeur,partenaire'])->group(function () {
+            Route::get('/mesVehicules', [VehiculesController::class, 'mesVehicules']);
+            Route::post('/postVehicules', [VehiculesController::class, 'postVehicules']);
+            Route::put('/updateVehicules/{id}', [VehiculesController::class, 'updateVehicule']);
+            Route::delete('/deleteVehicules/{id}', [VehiculesController::class, 'deleteVehicule']);
+        });
+        // Route::post('test-gemini', [VehiculesController::class, 'testGemini']);
+    });
+
+    Route::prefix('stats')->group(function () {
+        Route::get('mesStats/', [VendeurStatsController::class, 'mesStats']);
     });
 
     // Routes pour les interactions (favoris et alertes)

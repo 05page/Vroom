@@ -39,138 +39,32 @@ import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import Link from "next/link"
 
-interface Vendeur {
-    name: string
-    email: string
-    phone: string
-    adresse: string
-    memberSince: string
-    verified: boolean
-}
-
-interface DashboardStats {
-    revenus: number
-    revenusChange: number
-    annoncesActives: number
-    annoncesChange: number
-    rdvMois: number
-    rdvChange: number
-    noteMoyenne: number
-    totalAvis: number
-    vues: number
-    vuesChange: number
-    messages: number
-    messagesNonLus: number
-}
-
-interface Transaction {
-    id: number
-    type: "vente" | "location"
-    vehicule: string
-    client: string
-    montant: string
-    date: string
-    statut: "confirmé" | "en_attente" | "terminé"
-}
-
-interface VehiculePerf {
-    id: number
-    marque: string
-    modele: string
-    type: "vente" | "location"
-    prix: string
-    vues: number
-    favoris: number
-    messages: number
-    statut: "disponible" | "réservé" | "vendu"
-}
-
-interface MesViculesPerf {
-    id: number
-    marque: string
-    modele: string
-    type: "vente" | "location"
-    prix: string
-    vues: number
-    favoris: number
-    messages: number
-    statut: "disponible" | "réservé" | "vendu"
-}
-
-interface RdvProchain {
-    id: number
-    client: string
-    vehicule: string
-    date: string
-    heure: string
-    lieu: string
-    type: "visite" | "essai" | "finalisation"
-}
-
-
+//Endpoint vendeur
+import { VendeurStats } from "@/src/types"
+import { VendeurRdv } from "@/src/types"
+import { api } from "@/src/lib/api"
+import { useUser } from "@/src/context/UserContext"
 const VendeurDashboard = () => {
     const [isLoading, setIsLoading] = useState(true)
-
-    const [vendeur] = useState<Vendeur>({
-        name: "Kouassi Bernard",
-        email: "bernard.kouassi@gmail.com",
-        phone: "+225 07 89 12 34 56",
-        adresse: "Abidjan, Cocody Riviera",
-        memberSince: "Mars 2024",
-        verified: true,
-    })
-
-    const [stats] = useState<DashboardStats>({
-        revenus: 45750000,
-        revenusChange: 12.5,
-        annoncesActives: 18,
-        annoncesChange: 3,
-        rdvMois: 24,
-        rdvChange: -2,
-        noteMoyenne: 4.8,
-        totalAvis: 87,
-        vues: 1245,
-        vuesChange: 18.3,
-        messages: 56,
-        messagesNonLus: 8,
-    })
-
-    const [transactions] = useState<Transaction[]>([
-        { id: 1, type: "vente", vehicule: "Toyota RAV4 2024", client: "Diallo Amadou", montant: "18 500 000", date: "28 Jan 2025", statut: "confirmé" },
-        { id: 2, type: "location", vehicule: "BMW X3 2023", client: "Traore Fatou", montant: "45 000 / jour", date: "26 Jan 2025", statut: "en_attente" },
-        { id: 3, type: "vente", vehicule: "Mercedes Classe C", client: "Konan Yves", montant: "25 000 000", date: "24 Jan 2025", statut: "terminé" },
-        { id: 4, type: "location", vehicule: "Peugeot 3008 2024", client: "Bamba Issa", montant: "35 000 / jour", date: "22 Jan 2025", statut: "confirmé" },
-        { id: 5, type: "vente", vehicule: "Hyundai Tucson 2023", client: "Coulibaly Marie", montant: "16 000 000", date: "20 Jan 2025", statut: "terminé" },
-    ])
-
-    const [vehiculesPerf] = useState<VehiculePerf[]>([
-        { id: 1, marque: "Toyota", modele: "RAV4 2024", type: "vente", prix: "18 500 000", vues: 342, favoris: 28, messages: 15, statut: "disponible" },
-        { id: 2, marque: "BMW", modele: "X3 2023", type: "location", prix: "45 000 / jour", vues: 289, favoris: 19, messages: 12, statut: "réservé" },
-        { id: 3, marque: "Mercedes", modele: "Classe C 2023", type: "vente", prix: "25 000 000", vues: 256, favoris: 22, messages: 9, statut: "vendu" },
-        { id: 4, marque: "Peugeot", modele: "3008 2024", type: "location", prix: "35 000 / jour", vues: 198, favoris: 14, messages: 7, statut: "disponible" },
-    ])
-
-    const [mesVehiculesPerf] = useState<MesViculesPerf[]>([
-        { id: 1, marque: "Toyota", modele: "RAV4 2024", type: "vente", prix: "18 500 000", vues: 342, favoris: 28, messages: 15, statut: "disponible" },
-        { id: 2, marque: "BMW", modele: "X3 2023", type: "location", prix: "45 000 / jour", vues: 289, favoris: 19, messages: 12, statut: "réservé" },
-        { id: 3, marque: "Mercedes", modele: "Classe C 2023", type: "vente", prix: "25 000 000", vues: 256, favoris: 22, messages: 9, statut: "vendu" },
-        { id: 4, marque: "Peugeot", modele: "3008 2024", type: "location", prix: "35 000 / jour", vues: 198, favoris: 14, messages: 7, statut: "disponible" },
-    ])
-
-    const [rdvProchains] = useState<RdvProchain[]>([
-        { id: 1, client: "Diallo Amadou", vehicule: "Toyota RAV4 2024", date: "02 Fév 2025", heure: "10:00", lieu: "Cocody Riviera", type: "visite" },
-        { id: 2, client: "Ouattara Seydou", vehicule: "BMW X3 2023", date: "03 Fév 2025", heure: "14:30", lieu: "Plateau", type: "essai" },
-        { id: 3, client: "N'Guessan Ahou", vehicule: "Peugeot 3008", date: "05 Fév 2025", heure: "09:00", lieu: "Marcory", type: "finalisation" },
-    ])
+    const [stats, setStats] = useState<VendeurStats | null>(null);
+    const {user} = useUser()
+    const [rdv, setRdv] = useState<VendeurRdv | null>(null);
 
     useEffect(() => {
-        const toastId = toast.loading("Chargement du tableau de bord...")
-        const loadData = async () => {
-            await new Promise(resolve => setTimeout(resolve, 2000))
-            setIsLoading(false)
-            toast.dismiss(toastId)
+        const fetchData = async () => {
+            try {
+                setIsLoading(true);
+                const [statsRes] = await Promise.all([
+                    api.get<VendeurStats>('/stats/mesStats')
+                ]);
+                setStats(statsRes?.data ?? null);
+            } catch (error) {
+                toast.error(error instanceof Error ? error.message : "Erreur serveur")
+            } finally {
+                setIsLoading(false)
+            }
         }
-        loadData()
+        fetchData()
     }, [])
 
     const formatMontant = (montant: number) => {
@@ -312,25 +206,25 @@ const VendeurDashboard = () => {
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div className="flex items-center gap-4">
                             <Avatar className="h-14 w-14 md:h-16 md:w-16 border-4 border-background shadow-xl ring-4 ring-green-500 shrink-0">
-                                <AvatarImage src="" alt={vendeur.name} />
+                                <AvatarImage src="" alt={user?.fullname} />
                                 <AvatarFallback className="text-xl md:text-2xl bg-linear-to-br from-green-500 to-green-600 text-white font-black">
-                                    {vendeur.name.split(" ").map(n => n[0]).join("").toUpperCase()}
+                                    {user?.fullname.split(" ").map(n => n[0]).join("").toUpperCase()}
                                 </AvatarFallback>
                             </Avatar>
                             <div>
                                 <div className="flex items-center gap-2 md:gap-3">
                                     <h1 className="text-xl md:text-2xl font-black tracking-tight">
-                                        Bonjour, {vendeur.name.split(" ")[1]}
+                                        Bonjour, {user?.fullname.split(" ")[1]}
                                     </h1>
                                     <Badge className="bg-green-500 text-white font-bold rounded-full">
                                         Vendeur
                                     </Badge>
-                                    {vendeur.verified && (
+                                    {/* {vendeur.verified && (
                                         <Badge variant="outline" className="bg-zinc-900/10 text-zinc-700 border-zinc-900/20 rounded-full gap-1">
                                             <CheckCircle2 className="h-3 w-3" />
                                             Vérifié
                                         </Badge>
-                                    )}
+                                    )} */}
                                 </div>
                                 <p className="text-xs md:text-sm text-muted-foreground mt-1">
                                     Voici un apercu de votre activite ce mois-ci
@@ -344,7 +238,7 @@ const VendeurDashboard = () => {
                                     Publier un vehicule
                                 </Button>
                             </Link>
-                            <Link href="/vendeur/messages">
+                            {/* <Link href="/vendeur/messages">
                                 <Button variant="outline" size="sm" className="rounded-xl cursor-pointer relative">
                                     <MessageCircle className="h-4 w-4 mr-2" />
                                     Messages
@@ -354,7 +248,7 @@ const VendeurDashboard = () => {
                                         </span>
                                     )}
                                 </Button>
-                            </Link>
+                            </Link> */}
                         </div>
                     </div>
                 </CardContent>
@@ -362,7 +256,7 @@ const VendeurDashboard = () => {
 
             {/* ==================== STATS KPI CARDS ==================== */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
-                <Card className="rounded-2xl md:rounded-3xl shadow-lg border border-border/40 bg-card/50 backdrop-blur-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 animate-in fade-in slide-in-from-left duration-500">
+                <Card className="rounded-2xl md:rounded-3xl shadow-lg border border-border/40 bg-card/50 backdrop-blur-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 animate-in fade-in slide-in-from-left">
                     <CardContent className="p-4">
                         <div className="flex items-center justify-between mb-3">
                             <div className="w-10 h-10 bg-zinc-900/10 rounded-xl flex items-center justify-center shrink-0">
@@ -370,15 +264,15 @@ const VendeurDashboard = () => {
                             </div>
                             <Badge variant="outline" className="bg-zinc-900/10 text-zinc-700 border-zinc-900/20 rounded-full text-[10px] font-bold gap-1">
                                 <ArrowUp className="h-3 w-3" />
-                                {stats.revenusChange}%
+                                {stats?.stats?.total_revenus}
                             </Badge>
                         </div>
-                        <p className="text-xl md:text-2xl font-black text-zinc-700">{formatMontant(stats.revenus)}</p>
+                        <p className="text-xl md:text-2xl font-black text-zinc-700">{formatMontant(Number(stats?.stats?.total_revenus ?? 0))}</p>
                         <p className="text-xs font-semibold text-muted-foreground">Revenus FCFA</p>
                     </CardContent>
                 </Card>
 
-                <Card className="rounded-2xl md:rounded-3xl shadow-lg border border-border/40 bg-card/50 backdrop-blur-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 animate-in fade-in slide-in-from-bottom duration-500">
+                <Card className="rounded-2xl md:rounded-3xl shadow-lg border border-border/40 bg-card/50 backdrop-blur-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 animate-in fade-in slide-in-from-bottom">
                     <CardContent className="p-4">
                         <div className="flex items-center justify-between mb-3">
                             <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center shrink-0">
@@ -386,15 +280,15 @@ const VendeurDashboard = () => {
                             </div>
                             <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20 rounded-full text-[10px] font-bold gap-1">
                                 <ArrowUp className="h-3 w-3" />
-                                +{stats.annoncesChange}
+                                +2
                             </Badge>
                         </div>
-                        <p className="text-xl md:text-2xl font-black text-zinc-700">{stats.annoncesActives}</p>
+                        <p className="text-xl md:text-2xl font-black text-zinc-700">{stats?.stats?.total_vehicule}</p>
                         <p className="text-xs font-semibold text-muted-foreground">Annonces actives</p>
                     </CardContent>
                 </Card>
 
-                <Card className="rounded-2xl md:rounded-3xl shadow-lg border border-border/40 bg-card/50 backdrop-blur-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 animate-in fade-in slide-in-from-bottom duration-500">
+                <Card className="rounded-2xl md:rounded-3xl shadow-lg border border-border/40 bg-card/50 backdrop-blur-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 animate-in fade-in slide-in-from-bottom">
                     <CardContent className="p-4">
                         <div className="flex items-center justify-between mb-3">
                             <div className="w-10 h-10 bg-purple-500/10 rounded-xl flex items-center justify-center shrink-0">
@@ -402,28 +296,28 @@ const VendeurDashboard = () => {
                             </div>
                             <Badge variant="outline" className="bg-purple-500/10 text-purple-600 border-purple-500/20 rounded-full text-[10px] font-bold gap-1">
                                 <ArrowUp className="h-3 w-3" />
-                                {stats.vuesChange}%
+                                {stats?.stats?.total_vues}%
                             </Badge>
                         </div>
-                        <p className="text-xl md:text-2xl font-black text-zinc-700">{stats.vues.toLocaleString()}</p>
+                        <p className="text-xl md:text-2xl font-black text-zinc-700">{Number(stats?.stats?.total_vues_mois ?? 0).toLocaleString()}</p>
                         <p className="text-xs font-semibold text-muted-foreground">Vues ce mois</p>
                     </CardContent>
                 </Card>
 
-                <Card className="rounded-2xl md:rounded-3xl shadow-lg border border-border/40 bg-card/50 backdrop-blur-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 animate-in fade-in slide-in-from-right duration-500">
+                <Card className="rounded-2xl md:rounded-3xl shadow-lg border border-border/40 bg-card/50 backdrop-blur-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 animate-in fade-in slide-in-from-right">
                     <CardContent className="p-4">
                         <div className="flex items-center justify-between mb-3">
                             <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center shrink-0">
                                 <Star className="h-5 w-5 text-amber-600" />
                             </div>
-                            <span className="text-[10px] font-bold text-muted-foreground">{stats.totalAvis} avis</span>
+                            <span className="text-[10px] font-bold text-muted-foreground">0 avis</span>
                         </div>
-                        <p className="text-xl md:text-2xl font-black text-zinc-700">{stats.noteMoyenne}</p>
+                        <p className="text-xl md:text-2xl font-black text-zinc-700">0</p>
                         <div className="flex items-center gap-1 mt-0.5">
                             {Array.from({ length: 5 }).map((_, i) => (
                                 <Star
                                     key={i}
-                                    className={`h-3 w-3 ${i < Math.floor(stats.noteMoyenne)
+                                    className={`h-3 w-3 ${i < Math.floor(0)
                                         ? "fill-amber-400 text-amber-400"
                                         : "text-muted-foreground/20"
                                         }`}
@@ -467,37 +361,37 @@ const VendeurDashboard = () => {
                                 </div>
                                 <div>
                                     <CardTitle className="text-base md:text-lg font-bold">Prochains RDV</CardTitle>
-                                    <p className="text-xs text-muted-foreground">{rdvProchains.length} a venir</p>
+                                    <p className="text-xs text-muted-foreground">{stats?.rdv?.transactions_recentes.length} a venir</p>
                                 </div>
                             </div>
-                            <Badge className="bg-blue-500 text-white font-bold rounded-full">{stats.rdvMois}</Badge>
+                            <Badge className="bg-blue-500 text-white font-bold rounded-full">{stats?.rdv?.total_rdv}</Badge>
                         </div>
                     </CardHeader>
                     <CardContent className="p-4 md:p-6 pt-4 space-y-3">
-                        {rdvProchains.map((rdv) => (
+                        {(stats?.rdv?.transactions_recentes ?? []).map((rdv) => (
                             <div
                                 key={rdv.id}
                                 className="flex items-start gap-3 p-3 rounded-xl bg-muted/30 border border-border/40 hover:shadow-md transition-all duration-300 cursor-pointer group"
                             >
-                                <div className={`w-10 h-10 rounded-xl ${getRdvTypeColor(rdv.type)} flex items-center justify-center shrink-0`}>
+                                <div className={`w-10 h-10 rounded-xl ${getRdvTypeColor(rdv.type_finalisation)} flex items-center justify-center shrink-0`}>
                                     <Calendar className="h-5 w-5" />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center justify-between gap-2">
-                                        <p className="font-bold text-sm truncate">{rdv.client}</p>
-                                        <Badge variant="outline" className={`${getRdvTypeColor(rdv.type)} rounded-full text-[10px] font-bold shrink-0 border-0`}>
-                                            {rdv.type.charAt(0).toUpperCase() + rdv.type.slice(1)}
+                                        <p className="font-bold text-sm truncate">{rdv.client?.fullname}</p>
+                                        <Badge variant="outline" className={`${getRdvTypeColor(rdv.type_finalisation)} rounded-full text-[10px] font-bold shrink-0 border-0`}>
+                                            {rdv.type_finalisation.charAt(0).toUpperCase() + rdv.type_finalisation.slice(1)}
                                         </Badge>
                                     </div>
-                                    <p className="text-xs text-muted-foreground truncate">{rdv.vehicule}</p>
+                                    <p className="text-xs text-muted-foreground truncate">{rdv.vehicule?.description?.marque}</p>
                                     <div className="flex items-center gap-3 mt-1.5">
                                         <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                                             <Clock className="h-3 w-3" />
-                                            {rdv.date} - {rdv.heure}
+                                            {/* {rdv.date} - {rdv.heure} */}
                                         </span>
                                         <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                                             <MapPin className="h-3 w-3" />
-                                            {rdv.lieu}
+                                            {/* {rdv.lieu} */}
                                         </span>
                                     </div>
                                 </div>
@@ -520,7 +414,7 @@ const VendeurDashboard = () => {
                             <Tag className="h-5 w-5 text-zinc-700" />
                         </div>
                         <div>
-                            <p className="text-lg md:text-xl font-black text-zinc-700">12</p>
+                            <p className="text-lg md:text-xl font-black text-zinc-700">{stats?.stats?.total_vehicule_vente}</p>
                             <p className="text-[10px] md:text-xs font-semibold text-muted-foreground">En vente</p>
                         </div>
                     </CardContent>
@@ -531,7 +425,7 @@ const VendeurDashboard = () => {
                             <KeyRound className="h-5 w-5 text-blue-600" />
                         </div>
                         <div>
-                            <p className="text-lg md:text-xl font-black text-zinc-700">6</p>
+                            <p className="text-lg md:text-xl font-black text-zinc-700">{stats?.stats?.total_vehicule_loue}</p>
                             <p className="text-[10px] md:text-xs font-semibold text-muted-foreground">En location</p>
                         </div>
                     </CardContent>
@@ -542,7 +436,7 @@ const VendeurDashboard = () => {
                             <CheckCircle2 className="h-5 w-5 text-purple-600" />
                         </div>
                         <div>
-                            <p className="text-lg md:text-xl font-black text-zinc-700">8</p>
+                            <p className="text-lg md:text-xl font-black text-zinc-700">{stats?.stats?.total_vehicule_vendu}</p>
                             <p className="text-[10px] md:text-xs font-semibold text-muted-foreground">Vendus</p>
                         </div>
                     </CardContent>
@@ -554,17 +448,17 @@ const VendeurDashboard = () => {
                 <Tabs defaultValue="transactions" className="w-full">
                     <div className="p-4 border-b border-border/40">
                         <TabsList className="w-full md:w-auto grid grid-cols-2 md:flex">
-                            <TabsTrigger value="transactions" className="rounded-xl gap-2 data-[state=active]:bg-zinc-900 data-[state=active]:text-white">
+                            <TabsTrigger value="transactions" className="gap-2 data-[state=active]:bg-white data-[state=active]:text-black">
                                 <CircleDollarSign className="h-4 w-4" />
                                 <span className="hidden md:inline">Transactions récentes</span>
                                 <span className="md:hidden">Transactions</span>
                             </TabsTrigger>
-                            <TabsTrigger value="vehicules" className="rounded-xl gap-2 data-[state=active]:bg-blue-500 data-[state=active]:text-white">
+                            <TabsTrigger value="vehicules" className="gap-2 data-[state=active]:bg-white data-[state=active]:text-black">
                                 <Car className="h-4 w-4" />
-                                <span className="hidden md:inline">Top véhicules</span>
+                                <span className="hidden md:inline">Mes récents véhicules</span>
                                 <span className="md:hidden">Véhicules</span>
                             </TabsTrigger>
-                            <TabsTrigger value="mesvehicules" className="rounded-xl gap-2 data-[state=active]:bg-black data-[state=active]:text-white">
+                            <TabsTrigger value="mesvehicules" className="gap-2 data-[state=active]:bg-white data-[state=active]:text-black">
                                 <Car className="h-4 w-4" />
                                 <span className="hidden md:inline">Mon top véhicules</span>
                                 <span className="md:hidden">Top Véhicules</span>
@@ -574,136 +468,156 @@ const VendeurDashboard = () => {
 
                     {/* Transactions Tab */}
                     <TabsContent value="transactions" className="p-4 md:p-6 m-0">
-                        <div className="space-y-3">
-                            {transactions.map((tx) => (
-                                <div
-                                    key={tx.id}
-                                    className="flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-xl bg-muted/30 border border-border/40 hover:shadow-md transition-all duration-300 cursor-pointer group"
-                                >
-                                    <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl ${tx.type === "vente" ? "bg-zinc-900/10" : "bg-blue-500/10"} flex items-center justify-center shrink-0`}>
-                                        {tx.type === "vente" ? (
-                                            <Tag className={`h-5 w-5 md:h-6 md:w-6 text-zinc-700`} />
-                                        ) : (
-                                            <KeyRound className={`h-5 w-5 md:h-6 md:w-6 text-blue-600`} />
-                                        )}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2">
-                                            <p className="font-bold text-sm truncate">{tx.vehicule}</p>
-                                            <Badge variant="outline" className={`${tx.type === "vente" ? "bg-zinc-900/10 text-zinc-700 border-zinc-900/20" : "bg-blue-500/10 text-blue-600 border-blue-500/20"} rounded-full text-[10px] font-bold shrink-0`}>
-                                                {tx.type === "vente" ? "Vente" : "Location"}
-                                            </Badge>
+                        {(stats?.rdv?.transactions_recentes ?? []).length > 0 ? (
+                            <div className="space-y-3">
+                                {(stats?.rdv?.transactions_recentes ?? []).map((tx) => (
+                                    <div
+                                        key={tx.id}
+                                        className="flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-xl bg-muted/30 border border-border/40 hover:shadow-md transition-all duration-300 cursor-pointer group"
+                                    >
+                                        <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl ${tx.type_finalisation === "vente" ? "bg-zinc-900/10" : "bg-blue-500/10"} flex items-center justify-center shrink-0`}>
+                                            {tx.type_finalisation === "vente" ? (
+                                                <Tag className={`h-5 w-5 md:h-6 md:w-6 text-zinc-700`} />
+                                            ) : (
+                                                <KeyRound className={`h-5 w-5 md:h-6 md:w-6 text-blue-600`} />
+                                            )}
                                         </div>
-                                        <div className="flex items-center gap-2 mt-0.5">
-                                            <span className="text-xs text-muted-foreground">{tx.client}</span>
-                                            <span className="text-[10px] text-muted-foreground/50">-</span>
-                                            <span className="text-xs text-muted-foreground">{tx.date}</span>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2">
+                                                <p className="font-bold text-sm truncate">{tx.vehicule?.description.marque}</p>
+                                                <Badge variant="outline" className={`${tx.type_finalisation === "vente" ? "bg-zinc-900/10 text-zinc-700 border-zinc-900/20" : "bg-blue-500/10 text-blue-600 border-blue-500/20"} rounded-full text-[10px] font-bold shrink-0`}>
+                                                    {tx.type_finalisation === "vente" ? "Vente" : "Location"}
+                                                </Badge>
+                                            </div>
+                                            <div className="flex items-center gap-2 mt-0.5">
+                                                <span className="text-xs text-muted-foreground">{tx.client?.fullname}</span>
+                                                <span className="text-[10px] text-muted-foreground/50">-</span>
+                                                {/* <span className="text-xs text-muted-foreground">{tx.date}</span> */}
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className="text-right shrink-0">
-                                        <p className="font-black text-sm">{tx.montant} <span className="text-[10px] font-normal text-muted-foreground">FCFA</span></p>
-                                        <Badge variant="outline" className={`${getStatutColor(tx.statut)} rounded-full text-[10px] font-bold`}>
+                                        <div className="text-right shrink-0">
+                                            <p className="font-black text-sm"> <span className="text-[10px] font-normal text-muted-foreground">FCFA</span></p>
+                                            {/* <Badge variant="outline" className={`${getStatutColor(tx.statut)} rounded-full text-[10px] font-bold`}>
                                             {getStatutLabel(tx.statut)}
-                                        </Badge>
+                                        </Badge> */}
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-muted-foreground text-center py-8">
+                                Aucun véhicule pour le moment
+                            </p>
+                        )
+
+                        }
                     </TabsContent>
 
-                    {/* Top Vehicules Tab */}
+                    {/* Récents véhicules Tab */}
                     <TabsContent value="vehicules" className="p-4 md:p-6 m-0">
-                        <div className="space-y-3">
-                            {vehiculesPerf.map((v, index) => (
-                                <div
-                                    key={v.id}
-                                    className="flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-xl bg-muted/30 border border-border/40 hover:shadow-md transition-all duration-300 cursor-pointer group"
-                                >
-                                    <div className="w-8 h-8 rounded-lg bg-zinc-900/10 flex items-center justify-center shrink-0">
-                                        <span className="text-sm font-black text-zinc-700">#{index + 1}</span>
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2">
-                                            <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">{v.marque}</p>
-                                            <Badge variant="outline" className={`${v.type === "vente" ? "bg-zinc-900/10 text-zinc-700 border-zinc-900/20" : "bg-blue-500/10 text-blue-600 border-blue-500/20"} rounded-full text-[10px] font-bold`}>
-                                                {v.type === "vente" ? "Vente" : "Location"}
+                        {(stats?.top_vehicule_vues?.my_recent_vehicle ?? []).length > 0 ? (
+                            <div className="space-y-3">
+                                {(stats?.top_vehicule_vues?.my_recent_vehicle ?? []).map((v, index) => (
+                                    <div
+                                        key={v.id}
+                                        className="flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-xl bg-muted/30 border border-border/40 hover:shadow-md transition-all duration-300 cursor-pointer group"
+                                    >
+                                        <div className="w-8 h-8 rounded-lg bg-zinc-900/10 flex items-center justify-center shrink-0">
+                                            <span className="text-sm font-black text-zinc-700">#{index + 1}</span>
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2">
+                                                <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">{v?.description?.marque}</p>
+                                                <Badge variant="outline" className={`${v.post_type === "vente" ? "bg-zinc-900/10 text-zinc-700 border-zinc-900/20" : "bg-blue-500/10 text-blue-600 border-blue-500/20"} rounded-full text-[10px] font-bold`}>
+                                                    {v.post_type === "vente" ? "Vente" : "Location"}
+                                                </Badge>
+                                            </div>
+                                            <p className="font-bold text-sm">{v?.description?.modele}</p>
+                                            <div className="flex items-center gap-4 mt-1">
+                                                <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                                    <Eye className="h-3 w-3" />
+                                                    {v?.views_count} vues
+                                                </span>
+                                                <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                                    <Star className="h-3 w-3" />
+                                                    {/* {v.favoris} favoris */}
+                                                </span>
+                                                <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                                    <MessageCircle className="h-3 w-3" />
+                                                    {/* {v.messages} msg */}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="text-right shrink-0">
+                                            <p className="font-black text-sm text-zinc-700">{v?.prix} <span className="text-[10px] font-normal text-muted-foreground">FCFA</span></p>
+                                            <Badge variant="outline" className={`${getStatutColor(v?.statut ?? "")} rounded-full text-[10px] font-bold mt-1`}>
+                                                {v?.statut?.charAt(0).toUpperCase() + v?.statut?.slice(1)}
                                             </Badge>
                                         </div>
-                                        <p className="font-bold text-sm">{v.modele}</p>
-                                        <div className="flex items-center gap-4 mt-1">
-                                            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                                                <Eye className="h-3 w-3" />
-                                                {v.vues} vues
-                                            </span>
-                                            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                                                <Star className="h-3 w-3" />
-                                                {v.favoris} favoris
-                                            </span>
-                                            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                                                <MessageCircle className="h-3 w-3" />
-                                                {v.messages} msg
-                                            </span>
-                                        </div>
                                     </div>
-                                    <div className="text-right shrink-0">
-                                        <p className="font-black text-sm text-zinc-700">{v.prix} <span className="text-[10px] font-normal text-muted-foreground">FCFA</span></p>
-                                        <Badge variant="outline" className={`${getStatutColor(v.statut)} rounded-full text-[10px] font-bold mt-1`}>
-                                            {v.statut.charAt(0).toUpperCase() + v.statut.slice(1)}
-                                        </Badge>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-muted-foreground text-center py-8">
+                                Aucun véhicule pour le moment
+                            </p>
+                        )}
                     </TabsContent>
 
                     {/* Top Vehicules Tab */}
                     <TabsContent value="mesvehicules" className="p-4 md:p-6 m-0">
-                        <div className="space-y-3">
-                            {mesVehiculesPerf.map((v, index) => (
-                                <div
-                                    key={v.id}
-                                    className="flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-xl bg-muted/30 border border-border/40 hover:shadow-md transition-all duration-300 cursor-pointer group"
-                                >
-                                    <div className="w-8 h-8 rounded-lg bg-zinc-900/10 flex items-center justify-center shrink-0">
-                                        <span className="text-sm font-black text-zinc-700">#{index + 1}</span>
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2">
-                                            <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">{v.marque}</p>
-                                            <Badge variant="outline" className={`${v.type === "vente" ? "bg-zinc-900/10 text-zinc-700 border-zinc-900/20" : "bg-blue-500/10 text-blue-600 border-blue-500/20"} rounded-full text-[10px] font-bold`}>
-                                                {v.type === "vente" ? "Vente" : "Location"}
+                        {(stats?.top_vehicule_vues?.my_top_vehicle_most_vues ?? []).length > 0 ? (
+
+                            <div className="space-y-3">
+                                {(stats?.top_vehicule_vues?.my_top_vehicle_most_vues ?? []).map((v, index) => (
+                                    <div
+                                        key={v.id}
+                                        className="flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-xl bg-muted/30 border border-border/40 hover:shadow-md transition-all duration-300 cursor-pointer group"
+                                    >
+                                        <div className="w-8 h-8 rounded-lg bg-zinc-900/10 flex items-center justify-center shrink-0">
+                                            <span className="text-sm font-black text-zinc-700">#{index + 1}</span>
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2">
+                                                <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">{v?.description?.marque}</p>
+                                                <Badge variant="outline" className={`${v.post_type === "vente" ? "bg-zinc-900/10 text-zinc-700 border-zinc-900/20" : "bg-blue-500/10 text-blue-600 border-blue-500/20"} rounded-full text-[10px] font-bold`}>
+                                                    {v.post_type === "vente" ? "vente" : "location"}
+                                                </Badge>
+                                            </div>
+                                            <p className="font-bold text-sm">{v?.description?.modele}</p>
+                                            <div className="flex items-center gap-4 mt-1">
+                                                <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                                    <Eye className="h-3 w-3" />
+                                                    {v?.views_count} vues
+                                                </span>
+                                                <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                                    <Star className="h-3 w-3" />
+                                                    {/* {v.favoris} favoris */}
+                                                </span>
+                                                <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                                    <MessageCircle className="h-3 w-3" />
+                                                    {/* {v.messages} msg */}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="text-right shrink-0">
+                                            <p className="font-black text-sm text-zinc-700">{v?.prix} <span className="text-[10px] font-normal text-muted-foreground">FCFA</span></p>
+                                            <Badge variant="outline" className={`${getStatutColor(v?.statut ?? "")} rounded-full text-[10px] font-bold mt-1`}>
+                                                {v?.statut?.charAt(0).toUpperCase() + v?.statut?.slice(1)}
                                             </Badge>
                                         </div>
-                                        <p className="font-bold text-sm">{v.modele}</p>
-                                        <div className="flex items-center gap-4 mt-1">
-                                            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                                                <Eye className="h-3 w-3" />
-                                                {v.vues} vues
-                                            </span>
-                                            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                                                <Star className="h-3 w-3" />
-                                                {v.favoris} favoris
-                                            </span>
-                                            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                                                <MessageCircle className="h-3 w-3" />
-                                                {v.messages} msg
-                                            </span>
-                                        </div>
                                     </div>
-                                    <div className="text-right shrink-0">
-                                        <p className="font-black text-sm text-zinc-700">{v.prix} <span className="text-[10px] font-normal text-muted-foreground">FCFA</span></p>
-                                        <Badge variant="outline" className={`${getStatutColor(v.statut)} rounded-full text-[10px] font-bold mt-1`}>
-                                            {v.statut.charAt(0).toUpperCase() + v.statut.slice(1)}
-                                        </Badge>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-muted-foreground text-center py-8">
+                                Aucun véhicule pour le moment
+                            </p>
+                        )}
                     </TabsContent>
                 </Tabs>
             </Card>
 
-            {/* ==================== QUICK ACTIONS ==================== */}
             <Card className="rounded-2xl md:rounded-3xl shadow-xl border border-border/40 overflow-hidden animate-in fade-in slide-in-from-bottom duration-500 delay-300 bg-card/50 backdrop-blur-sm">
                 <CardHeader className="p-4 md:p-6 pb-2 md:pb-2">
                     <div className="flex items-center gap-3">
@@ -718,7 +632,7 @@ const VendeurDashboard = () => {
                 </CardHeader>
                 <CardContent className="p-4 md:p-6 pt-4">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-                        <Link href="/vehicles" className="group">
+                        <Link href="/vendeur/addVehicle" className="group">
                             <div className="flex flex-col items-center gap-3 p-4 rounded-2xl bg-zinc-900/5 border border-zinc-900/10 hover:bg-zinc-900/10 hover:border-zinc-900/20 hover:shadow-lg transition-all duration-300 cursor-pointer hover:-translate-y-1">
                                 <div className="w-12 h-12 rounded-xl bg-zinc-900/10 flex items-center justify-center group-hover:scale-110 transition-transform">
                                     <Plus className="h-6 w-6 text-zinc-700" />
@@ -729,14 +643,14 @@ const VendeurDashboard = () => {
                                 </div>
                             </div>
                         </Link>
-                        <Link href="/vehicles" className="group">
+                        <Link href="/vendeur/vehicles" className="group">
                             <div className="flex flex-col items-center gap-3 p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10 hover:bg-blue-500/10 hover:border-blue-500/20 hover:shadow-lg transition-all duration-300 cursor-pointer hover:-translate-y-1">
                                 <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
                                     <Car className="h-6 w-6 text-blue-600" />
                                 </div>
                                 <div className="text-center">
                                     <p className="text-sm font-bold">Mes annonces</p>
-                                    <p className="text-[10px] text-muted-foreground">{stats.annoncesActives} actives</p>
+                                    <p className="text-[10px] text-muted-foreground">{stats?.stats?.total_vehicule} actives</p>
                                 </div>
                             </div>
                         </Link>
@@ -744,15 +658,15 @@ const VendeurDashboard = () => {
                             <div className="flex flex-col items-center gap-3 p-4 rounded-2xl bg-amber-500/5 border border-amber-500/10 hover:bg-amber-500/10 hover:border-amber-500/20 hover:shadow-lg transition-all duration-300 cursor-pointer hover:-translate-y-1">
                                 <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center group-hover:scale-110 transition-transform relative">
                                     <MessageCircle className="h-6 w-6 text-amber-600" />
-                                    {stats.messagesNonLus > 0 && (
+                                    {/* {stats.messagesNonLus > 0 && (
                                         <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center">
                                             {stats.messagesNonLus}
                                         </span>
-                                    )}
+                                    )} */}
                                 </div>
                                 <div className="text-center">
                                     <p className="text-sm font-bold">Messages</p>
-                                    <p className="text-[10px] text-muted-foreground">{stats.messagesNonLus} non lus</p>
+                                    {/* <p className="text-[10px] text-muted-foreground">{stats.messagesNonLus} non lus</p> */}
                                 </div>
                             </div>
                         </Link>
@@ -772,7 +686,7 @@ const VendeurDashboard = () => {
             </Card>
 
             {/* ==================== CONSEILS PRO ==================== */}
-            <Card className="rounded-2xl md:rounded-3xl shadow-xl border border-border/40 overflow-hidden animate-in fade-in slide-in-from-bottom duration-500 delay-300 bg-gradient-to-br from-zinc-900/5 to-zinc-900/5">
+            <Card className="rounded-2xl md:rounded-3xl shadow-xl border border-border/40 overflow-hidden animate-in fade-in slide-in-from-bottom duration-500 delay-300 bg-linear-to-br from-zinc-900/5 to-zinc-900/5">
                 <CardContent className="p-4 md:p-6">
                     <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-8">
                         <div className="flex items-center gap-4 flex-1">

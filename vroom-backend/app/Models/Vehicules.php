@@ -116,6 +116,16 @@ class Vehicules extends Model
         return $query->where('statut', 'loué');
     }
 
+    public function scopeVente($query)
+    {
+        return $query->where('post_type', 'vente');
+    }
+
+    public function scopeLocation($query)
+    {
+        return $query->where('post_type', 'location');
+    }
+
     public function scopeValidee($query)
     {
         return $query->where('status_validation', 'validee');

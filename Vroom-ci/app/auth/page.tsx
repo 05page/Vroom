@@ -28,6 +28,9 @@ const AuthPage = () => {
     const [showConfirmPassword, setShowConfirmPassword] = useState(false)
     const [registerStep, setRegisterStep] = useState(1)
 
+    const handleAuthGoogle = () => {
+        window.location.href = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/google/redirect`;
+    }
     return (
         <div className="min-h-screen flex">
             <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
@@ -149,6 +152,7 @@ const AuthPage = () => {
 
                                     <Button
                                         type="button"
+                                        onClick={()=> handleAuthGoogle()}
                                         variant="outline"
                                         className="w-full h-12 rounded-xl border-gray-200 bg-white hover:bg-gray-50 text-zinc-700 font-bold text-sm cursor-pointer"
                                     >

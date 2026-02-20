@@ -27,12 +27,6 @@ class VehiculesController extends Controller
     {
         try {
             $user = Auth::user();
-            if (!$user) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Utilisateur non authentifié',
-                ], 401);
-            }
 
             $query = Vehicules::with([
                 'creator:id,fullname,email,role',
@@ -51,10 +45,19 @@ class VehiculesController extends Controller
                 ], 200);
             }
 
+            $vehiculeStats = [
+                'total_vehicules' => Vehicules::validee()->count(),
+                'en_vente' => Vehicules::validee()->vente()->count(),
+                'en_location' => Vehicules::validee()->location()->count()
+            ];
+
             return response()->json([
                 'success' => true,
                 'message' => 'Véhicules récupérés avec succès',
-                'data' => $query,
+                'data' => [
+                    'vehicules' => $query,
+                    'statsVehicules' => $vehiculeStats
+                ]
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
@@ -68,12 +71,6 @@ class VehiculesController extends Controller
     {
         try {
             $user = Auth::user();
-            if (!$user) {
-                return response()->json([
-                    'success' => false,
-                    'message' => "Utilisateur non authentifié"
-                ], 401);
-            }
 
             $vehicule = Vehicules::with([
                 'creator:id,fullname,email',
@@ -107,20 +104,6 @@ class VehiculesController extends Controller
         try {
             $user = Auth::user();
 
-            if (!$user) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Utilisateur non authentifié',
-                ], 401);
-            }
-
-            if ($user->role !== "vendeur") {
-                return response()->json([
-                    'success' => false,
-                    'message' => "Accès refusé"
-                ], 403);
-            }
-
             $vehicules = Vehicules::with([
                 'creator:id,fullname,email',
                 'description',
@@ -135,7 +118,7 @@ class VehiculesController extends Controller
                 'total_vehicule_vendu' => Vehicules::vendu()->where('created_by', $user->id)->count(),
                 'total_vehicule_loue' => Vehicules::loue()->where('created_by', $user->id)->count(),
                 'total_vues' => Vehicules::where('created_by', $user->id)->sum('views_count'),
-                'total_revenus'=> Vehicules::vendu()->where('created_by', $user->id)->whereMonth('created_at', Carbon::now()->month)->sum('prix'),
+                'total_revenus' => Vehicules::vendu()->where('created_by', $user->id)->whereMonth('created_at', Carbon::now()->month)->sum('prix'),
             ];
 
             return response()->json([
@@ -155,115 +138,10 @@ class VehiculesController extends Controller
         }
     }
 
-    public function mesStats(): JsonResponse
-    {
-        try {
-            $user = Auth::user();
-
-            if (!$user) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Utilisateur non authentifié',
-                ], 401);
-            }
-
-            // Correction : si le rôle est "vendeur", on AUTORISE (c'était inversé)
-            if ($user->role !== "vendeur" && $user->role !=="partenaire" && $user->role !== "admin") {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Autorisation non accordée. Seuls les vendeurs peuvent accéder à ces statistiques.',
-                ], 403);
-            }
-
-            $stats = [
-                // Correction 1 : count au lieu de count (manquait les parenthèses)
-                'total_vehicule' => Vehicules::disponible()->where('created_by', $user->id)->count(),   
-                'total_vehicule_vendu' => Vehicules::vendu()->where('created_by', $user->id)->count(),
-                'total_vehicule_loue' => Vehicules::loue()->where('created_by', $user->id)->count(),
-                'total_vues' => Vehicules::where('created_by', $user->id)->sum('views_count'),
-                'total_revenus'=> Vehicules::vendu()->where('created_by', $user->id)->whereMonth('created_at', Carbon::now()->month)->sum('prix'),
-
-            ];
-
-            $statsMensuel = [];
-            for($mois = 1; $mois <=12; $mois++){
-                $statsMensuel[] = [
-                    'mois'=> $mois,
-                    'nom_mois'=> Carbon::create()->month($mois)->locale('fr')->translatedFormat('F'),
-                    'ventes'=> Vehicules::vendu()
-                            ->where('created_by', $user->id)
-                            ->whereMonth('created_at', $mois)
-                            ->whereYear('created_at', Carbon::now()->year)
-                            ->count(),
-                            'vues' => VehiculeView::whereHas('vehicule', function($q) use ($user) {
-                        $q->where('created_by', $user->id);
-                    })
-                    ->whereMonth('created_at', $mois)
-                    ->whereYear('created_at', Carbon::now()->year)
-                    ->count(),
-                    'locations'=>Vehicules::loue()
-                             ->whereMonth('created_at', $mois)
-                            ->whereYear('created_at', Carbon::now()->year)
-                            ->count()      
-                ];
-            }
-
-            if($stats == [] && $statsMensuel == []){
-                return response()->json([
-                    'success'=>false,
-                    'message'=>"Aucune stats disponible"
-                ]);
-            }
-
-            $mostVuesVehicle = [
-               //liste des 5 véhicules les plus vus
-               'top_vehicle_most_vues'=> Vehicules::with('description')->where('created_by', $user->id)
-               
-               ->orderByDesc('views_count')
-               ->limit(5)
-               ->get(['id', 'prix', 'statut', 'views_count'])                 
-            ];
-
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'stats'=> $stats,
-                    'stats_mensuel'=> $statsMensuel,
-                    'top_views_vehicle'=> $mostVuesVehicle
-                ]
-            ], 200);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Véhicule introuvable',
-            ], 404);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Erreur lors de la récupération des statistiques',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
     public function postVehicules(Request $request): JsonResponse
     {
         try {
             $user = Auth::user();
-            if (!$user) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Utilisateur non authentifié',
-                ], 401);
-            }
-
-            if ($user->role !== 'vendeur' && $user->role !== 'partenaire') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Vous n\'avez pas la permission de poster un véhicule',
-                ], 403);
-            }
-
             //Créer un nouveau véhicule (Ajoutons les descriptions et photos)
             $validatedData = $request->validate([
                 'post_type' => ['required', Rule::in([
@@ -419,7 +297,7 @@ class VehiculesController extends Controller
             Moderations::create([
                 'moderatable_type' => 'App\Models\Vehicules',
                 'moderable_id' => $vehicule->id,
-                'admin_id' => $user->id,
+                'admin_id' => null,
                 'action' => Moderations::ACTION_VALIDATION,
                 'description' => "Validation du véhicule",
                 'status' => "decision_finale",
@@ -448,7 +326,195 @@ class VehiculesController extends Controller
         }
     }
 
-    public function updateVehicule() {}
-    public function deleteVehicule() {}
+    public function updateVehicule(Request $request, $id): JsonResponse
+    {
+        try {
+            $user = Auth::user();
+            $vehicule = Vehicules::findOrFail($id);
+            $vehiculeDescription = VehiculesDescription::where('vehicule_id', $id)->first();
 
+            // Mettre à jour les informations du véhicule
+            $this->authorize('update', $vehicule);
+            $validatedData = $request->validate([
+                'post_type' => ['sometimes|required', Rule::in([
+                    Vehicules::POST_TYPE_VENTE,
+                    Vehicules::POST_TYPE_LOCATION
+                ])],
+                'type' => ['sometimes|required', Rule::in([
+                    Vehicules::VEHICLE_TYPE_NEUF,
+                    Vehicules::VEHICLE_TYPE_OCCASION
+                ])],
+                'prix' => 'sometimes|required|numeric',
+                'date_disponibilite' => 'sometimes|date',
+
+                'marque' => 'sometimes|required|string|max:500',
+                'modele' => 'sometimes|required|string|max:500',
+                'annee' => 'sometimes|digits:4|integer',
+                'carburant' => 'sometimes|string|max:100',
+                'transmission' => 'sometimes|string|max:100',
+                'kilometrage' => 'sometimes|integer',
+                'couleur' => 'sometimes|string|max:100',
+                'nombre_portes' => 'sometimes|integer',
+                'nombre_places' => 'sometimes|integer',
+                'visite_technique' => ['sometimes', Rule::in([
+                    'à_jour',
+                    'expirée',
+                    'non_concerné'
+                ])],
+                'date_visite_technique' => 'nullable|date',
+                'carte_grise' => ['sometimes', Rule::in([
+                    'à_jour',
+                    'expirée',
+                    'non_concerné'
+                ])],
+                'date_carte_grise' => 'nullable|date',
+                'assurance' => ['sometimes', Rule::in([
+                    'à_jour',
+                    'expirée',
+                    'non_concerné'
+                ])],
+                'historique_accidents' => ['sometimes', Rule::in([
+                    'aucun',
+                    'quelques_accidents',
+                    'nombreux_accidents'
+                ])],
+                'equipements' => 'sometimes|array',
+
+                // Photos
+                //'photos' => 'nullable|array',
+                //'photos.*' => 'image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            ]);
+
+            // Validation avec Gemini pour vérifier la cohérence des données
+            $prompt = "Analysez ce véhicule " . ($validatedData['type'] == 'occasion' ? 'd\'occasion' : 'neuf') . " : " .
+                "marque {$validatedData['marque']}, modèle {$validatedData['modele']}, année {$validatedData['annee']}, " .
+                "carburant {$validatedData['carburant']}, kilométrage {$validatedData['kilometrage']} km, " .
+                "historique d'accidents: {$validatedData['historique_accidents']}, " .
+                "équipements: " . implode(', ', $validatedData['equipements'] ?? []) . ". " .
+                "Répondez au format JSON strict : {\"valide\": true/false, \"prix_suggere\": nombre, \"explication\": \"texte\"}. " .
+                "Le prix doit être en FCFA (XOF) basé sur le marché ivoirien. " .
+                "Si invalide, mettez valide à false et expliquez pourquoi.";
+
+            try {
+                $geminiResponse = retry(3, function () use ($prompt) {
+                    return Gemini::generativeModel(model: 'gemini-2.5-flash')
+                        ->generateContent($prompt);
+                }, 2000);
+
+                $responseText = trim($geminiResponse->text());
+                $responseText = preg_replace('/```json\n?|\n?```/', '', $responseText);
+                $aiResult = json_decode($responseText, true);
+                if (!$aiResult || !isset($aiResult['valide'])) {
+                    throw new \Exception('Format de réponse invalide de l\'IA');
+                }
+
+                if (!$aiResult['valide']) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Le véhicule n\'a pas été validé',
+                        'details' => $aiResult['explication'] ?? 'Données incohérentes',
+                    ], 400);
+                }
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Erreur lors de la validation avec Gemini: ' . $e->getMessage(),
+                ], 500);
+            }
+            DB::beginTransaction();
+            $vehicule->update([
+                'created_by' => $user->id,
+                'post_type' => $validatedData['post_type'],
+                'type' => $validatedData['type'],
+                'statut' => Vehicules::STATUS_DISPONIBLE,
+                'status_validation' => Vehicules::STATUS_VALIDATED,
+                'prix' => $validatedData['prix'],
+                'prix_suggere' => $aiResult['prix_suggere'],
+                'negociable' => false,
+                'date_disponibilite' => now(),
+            ]);
+
+            $vehiculeDescription->updateOrCreate([
+                'vehicule_id' => $vehicule->id,
+                'marque' => $validatedData['marque'],
+                'modele' => $validatedData['modele'],
+                'annee' => $validatedData['annee'] ?? null,
+                'carburant' => $validatedData['carburant'] ?? null,
+                'transmission' => $validatedData['transmission'] ?? null,
+                'kilometrage' => $validatedData['kilometrage'] ?? null,
+                'couleur' => $validatedData['couleur'] ?? null,
+                'nombre_portes' => $validatedData['nombre_portes'] ?? null,
+                'nombre_places' => $validatedData['nombre_places'] ?? null,
+                'visite_technique' => $validatedData['visite_technique'] ?? null,
+                'date_visite_technique' => $validatedData['date_visite_technique'] ?? null,
+                'carte_grise' => $validatedData['carte_grise'] ?? null,
+                'date_carte_grise' => $validatedData['date_carte_grise'] ?? null,
+                'assurance' => $validatedData['assurance'] ?? null,
+                'historique_accidents' => $validatedData['historique_accidents'] ?? null,
+                'equipements' => $validatedData['equipements'] ?? null,
+            ]);
+
+            Notifications::create([
+                'recever_id' => $user->id,
+                'title' => 'Véhicule modifié avec succès',
+                'type' => Notifications::TYPE_SUCCESS,
+                'message' => 'Votre véhicule ' . $vehiculeDescription->marque . ' ' . $vehiculeDescription->modele . ' a été modifié avec succès.',
+                'data' => json_encode([
+                    'vehicule_id' => $vehicule->id,
+                ]),
+            ]);
+
+            Moderations::create([
+                'moderatable_type' => 'App\Models\Vehicules',
+                'moderable_id' => $vehicule->id,
+                'admin_id' => null,
+                'action' => Moderations::ACTION_VALIDATION,
+                'description' => "Validation du véhicule",
+                'status' => "decision_finale",
+                'decision_at' => now()
+            ]);
+
+            DB::commit();
+            return response()->json([
+                'success' => true,
+                'message' => 'Véhicule modifié avec succès',
+                'data' => [
+                    'vehicule' => $vehicule,
+                    'description' => $vehicule->description,
+                    'photos' => $vehicule->photos,
+                    'prix_suggere' => $aiResult['prix_suggere'],
+                    'explication_prix' => $aiResult['explication'],
+                ],
+            ], 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la modification du véhicule',
+                'errors' =>  $e->getMessage(),
+            ], 500);
+        }
+    }
+    public function deleteVehicule($id)
+    {
+        try {
+            $user = Auth::user();
+
+            $this->authorize('delete', Vehicules::findOrFail($id));
+             $vehicule = Vehicules::findOrFail($id);
+
+            $vehicule->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Véhicule supprimé avec succès',
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la suppression du véhicule',
+                'errors' =>  $e->getMessage(),
+            ], 500);
+        }
+    }
 }

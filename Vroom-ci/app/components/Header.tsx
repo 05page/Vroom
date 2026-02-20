@@ -18,27 +18,18 @@ import {
     SheetTitle,
     SheetTrigger,
 } from "@/components/ui/sheet"
-import { Bell, Calendar, Car, Heart, Home, LayoutDashboard, LogOut, Menu, MessageCircle, User } from "lucide-react"
+import { Bell, Calendar, Car, Heart, Home, LayoutDashboard, LogOut, Menu, MessageCircle, User as UserIcon } from "lucide-react"
 import Link from "next/link";
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-
-interface User {
-    id: number;
-    name: string;
-    email: string;
-    role: string;
-}
+import { api } from "@/src/lib/api";
+import { useRouter } from 'next/navigation'
+import { useUser } from "@/src/context/UserContext";
 
 const Header = () => {
     const pathname = usePathname()
-    const [user, setUser] = useState<User>({
-        id: 1,
-        name: "John Doe",
-        email: "john.doe@example.com",
-        role: "vendeur",
-    })
+    const {user} = useUser()
     const [mobileOpen, setMobileOpen] = useState(false)
     const isVendeur = user?.role === "vendeur"
 
@@ -56,7 +47,11 @@ const Header = () => {
         { href: isVendeur ? "/vendeur/rdv" : "/client/rdv", label: "Mes Rendez-vous", icon: Calendar },
         { href: isVendeur ? "/vendeur/messages" : "/messages", label: "Messages", icon: MessageCircle },
     ]
-
+    const router = useRouter();
+    const handleLogout = async () => {
+        await api.logout()
+        router.push("/auth")
+    }
     return (
         <header className="fixed top-0 left-0 right-0 z-50 border-b border-zinc-200 bg-white/80 backdrop-blur-md">
             <div className="container mx-auto flex h-14 md:h-16 items-center justify-between px-4">
@@ -99,13 +94,13 @@ const Header = () => {
                     )}
 
                     <MenubarMenu>
-                            <MenubarTrigger className="cursor-pointer text-zinc-600 hover:text-zinc-900 font-medium text-sm">
-                                <Link href={isVendeur ? "/vendeur/rdv" : "/client/rdv"} className="flex items-center">
-                                    <Calendar className="mr-2 h-4 w-4" />
-                                    Rendez-vous
-                                </Link>
-                            </MenubarTrigger>
-                        </MenubarMenu>
+                        <MenubarTrigger className="cursor-pointer text-zinc-600 hover:text-zinc-900 font-medium text-sm">
+                            <Link href={isVendeur ? "/vendeur/rdv" : "/client/rdv"} className="flex items-center">
+                                <Calendar className="mr-2 h-4 w-4" />
+                                Rendez-vous
+                            </Link>
+                        </MenubarTrigger>
+                    </MenubarMenu>
                 </Menubar>
 
                 {/* Desktop: Profile right */}
@@ -118,14 +113,14 @@ const Header = () => {
                                 </Link>
                             </MenubarTrigger>
                         </MenubarMenu>
-                        
-                    <MenubarMenu>
-                        <MenubarTrigger className="cursor-pointer text-zinc-600 hover:text-zinc-900 font-medium text-sm">
-                            <Link href={isVendeur ? "/vendeur/notifications" : "/client/notifications"} className="flex items-center">
-                                <Bell className="mr-2 h-4 w-4" />
-                            </Link>
-                        </MenubarTrigger>
-                    </MenubarMenu>
+
+                        <MenubarMenu>
+                            <MenubarTrigger className="cursor-pointer text-zinc-600 hover:text-zinc-900 font-medium text-sm">
+                                <Link href={isVendeur ? "/vendeur/notifications" : "/client/notifications"} className="flex items-center">
+                                    <Bell className="mr-2 h-4 w-4" />
+                                </Link>
+                            </MenubarTrigger>
+                        </MenubarMenu>
 
                         <MenubarMenu>
                             <MenubarTrigger className="cursor-pointer">
@@ -134,10 +129,10 @@ const Header = () => {
                                         className={`flex h-8 w-8 items-center justify-center rounded-full border-2 ${user?.role === "client" ? "border-orange-400" : "border-green-400"
                                             }`}
                                     >
-                                        <User className={`h-4 w-4 ${user?.role === "client" ? "text-orange-500" : "text-green-500"}`} />
+                                        <UserIcon className={`h-4 w-4 ${user?.role === "client" ? "text-orange-500" : "text-green-500"}`} />
                                     </div>
                                     <div className="flex flex-col items-start leading-tight">
-                                        <span className="text-sm font-semibold text-zinc-900">{user?.name}</span>
+                                        <span className="text-sm font-semibold text-zinc-900">{user?.fullname}</span>
                                         <Badge className={`text-white text-[10px] font-medium ${user?.role === "client" ? "bg-orange-500" : "bg-green-500"}`}>
                                             {user?.role}
                                         </Badge>
@@ -156,8 +151,10 @@ const Header = () => {
                                 <MenubarSeparator />
                                 <MenubarGroup>
                                     <MenubarItem className="cursor-pointer text-red-500">
-                                        <LogOut className="mr-2 h-4 w-4" />
-                                        Deconnexion
+                                        <Button variant="link" className="cursor-pointer" onClick={() => handleLogout()}>
+                                            <LogOut className="mr-2 h-4 w-4" />
+                                            Deconnexion
+                                        </Button>
                                     </MenubarItem>
                                 </MenubarGroup>
                             </MenubarContent>
@@ -177,10 +174,10 @@ const Header = () => {
                             <div className="flex items-center gap-3">
                                 <div className={`flex h-10 w-10 items-center justify-center rounded-full border-2 ${user?.role === "client" ? "border-orange-400" : "border-green-400"
                                     }`}>
-                                    <User className={`h-5 w-5 ${user?.role === "client" ? "text-orange-500" : "text-green-500"}`} />
+                                    <UserIcon className={`h-5 w-5 ${user?.role === "client" ? "text-orange-500" : "text-green-500"}`} />
                                 </div>
                                 <div>
-                                    <SheetTitle className="text-sm font-bold text-zinc-900">{user?.name}</SheetTitle>
+                                    <SheetTitle className="text-sm font-bold text-zinc-900">{user?.fullname}</SheetTitle>
                                     <Badge className={`text-white font-medium text-[10px] ${user?.role === "client" ? "bg-orange-500" : "bg-green-500"}`}>
                                         {user?.role}
                                     </Badge>

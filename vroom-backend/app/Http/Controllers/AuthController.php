@@ -61,10 +61,11 @@ class AuthController extends Controller
 
             $token = $user->createToken('auth_token')->plainTextToken;
 
-            $redirectUrl = "http://localhost:8080/google-callback?" . http_build_query([
+            // Rediriger vers Next.js avec le token pour stockage en cookie httpOnly
+            $redirectUrl = config('app.frontend_url', 'http://localhost:3000') . "/api/auth/callback?" . http_build_query([
                 'token' => $token,
-                'userName' => $user->fullname,
-                'userRole' => $user->role ?? 'client',
+                'data'=> $user,
+                'role' => $user->role ?? 'client',
             ]);
 
             return redirect($redirectUrl);
@@ -123,7 +124,10 @@ class AuthController extends Controller
                 return response()->json(['success' => false, 'error' => 'Utilisateur non authentifié'], 401);
             }
 
-            return response()->json(['user' => $user], 200);
+            return response()->json([
+                'success'=> true,
+                'data'=> $user
+                ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

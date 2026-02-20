@@ -29,6 +29,7 @@ class User extends Authenticatable
         'telephone',
         'adresse',
         'password',
+        'email_verified_at',
         'google_access_token',
         'google_refresh_token',
         'google_token_expires_at',

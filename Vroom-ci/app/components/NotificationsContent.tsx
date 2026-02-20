@@ -1,5 +1,4 @@
 "use client"
-
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -15,20 +14,16 @@ import {
     Settings,
     CalendarX,
     Clock,
-    MoreHorizontal,
+    CircleCheck,
+    AlertCircle,
 } from "lucide-react"
 import { useEffect, useState } from "react"
-
-interface Notification {
-    id: string
-    type: "cancellation" | "system" | "reminder" | "suggestion"
-    title: string
-    description: string
-    time: string
-    isRead: boolean
-    icon?: React.ReactNode
-    actionUrl?: string
-}
+import { Notifications, MesNotifs } from "@/src/types"
+import { api } from "@/src/lib/api"
+import { toast } from "sonner"
+import { fr } from "date-fns/locale"
+import { formatDistanceToNow } from "date-fns"
+import { useUser } from "@/src/context/UserContext"
 
 function NotificationsLoading() {
     return (
@@ -61,22 +56,24 @@ function NotificationsLoading() {
     )
 }
 
-const getIconByType = (type: Notification["type"]) => {
+const getIconByType = (type: Notifications["type"]) => {
     switch (type) {
         case "cancellation":
             return <CalendarX className="h-5 w-5 text-red-600" />
         case "system":
             return <Settings className="h-5 w-5 text-primary" />
-        case "reminder":
-            return <Calendar className="h-5 w-5 text-amber-600" />
         case "suggestion":
             return <Car className="h-5 w-5 text-blue-600" />
+        case "alert":
+            return <AlertCircle className="h-5 w-5 text-red-600" />
+        case "success":
+            return <CircleCheck className="h-5 w-5 text-green-700" />
         default:
             return <Bell className="h-5 w-5 text-muted-foreground" />
     }
 }
 
-const getIconBgByType = (type: Notification["type"]) => {
+const getIconBgByType = (type: Notifications["type"]) => {
     switch (type) {
         case "cancellation":
             return "bg-red-500/10"
@@ -103,9 +100,9 @@ function EmptyState({ icon: Icon, title, description }: { icon: React.ComponentT
     )
 }
 
-function NotificationItem({ notification }: { notification: Notification }) {
+function NotificationItem({ notification }: { notification: Notifications }) {
     return (
-        <Card className={`rounded-2xl shadow-sm border border-border/40 hover:shadow-md transition-all duration-300 cursor-pointer group ${!notification.isRead ? 'bg-primary/5 border-primary/20' : 'bg-card/50'}`}>
+        <Card className={`rounded-2xl shadow-sm border border-border/40 hover:shadow-md transition-all duration-300 cursor-pointer group ${!notification.is_read ? 'bg-primary/5 border-primary/20' : 'bg-card/50'}`}>
             <CardContent className="p-4">
                 <div className="flex items-start gap-4">
                     <div className={`w-12 h-12 rounded-xl ${getIconBgByType(notification.type)} flex items-center justify-center shrink-0`}>
@@ -116,19 +113,18 @@ function NotificationItem({ notification }: { notification: Notification }) {
                             <div className="space-y-1">
                                 <div className="flex items-center gap-2">
                                     <h4 className="font-bold text-sm text-foreground truncate">{notification.title}</h4>
-                                    {!notification.isRead && (
+                                    {!notification.is_read && (
                                         <span className="w-2 h-2 rounded-full bg-primary shrink-0" />
                                     )}
                                 </div>
-                                <p className="text-sm text-muted-foreground line-clamp-2">{notification.description}</p>
+                                <p className="text-sm text-muted-foreground line-clamp-2">{notification.message}</p>
                             </div>
-                            <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                                <MoreHorizontal className="h-4 w-4" />
-                            </Button>
                         </div>
                         <div className="flex items-center gap-2 mt-2">
                             <Clock className="h-3 w-3 text-muted-foreground" />
-                            <span className="text-xs text-muted-foreground">{notification.time}</span>
+                            <span className="text-xs text-muted-foreground">
+                                {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true, locale: fr })}
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -138,18 +134,33 @@ function NotificationItem({ notification }: { notification: Notification }) {
 }
 
 export function NotificationsContent() {
-    const [isLoading, setIsLoading] = useState(true)
-    const [notifications] = useState<Notification[]>([])
     const [unreadCount] = useState(0)
-
+    const [notifs, setNotifs] = useState<Notifications[]>([]);
+    const [mesNotifs, setMesNotifs] = useState<MesNotifs | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const {user} = useUser()
+    const [isSubmiting, setIsSubmititng] = useState(false)
     useEffect(() => {
-        const loadData = async () => {
-            await new Promise(resolve => setTimeout(resolve, 1500))
-            setIsLoading(false)
+        const fetchData = async () => {
+            try {
+                setIsLoading(true)
+                const [notifRes] = await Promise.all([
+                    api.get<MesNotifs>("/notifications/mesNotifs")
+                ])
+                setNotifs(notifRes?.data?.notifications ?? [])
+            } catch (error) {
+                toast.error(error instanceof Error ? error?.message : "Erreur Serveur")
+            } finally {
+                setIsLoading(false)
+            }
         }
-        loadData()
+        fetchData()
     }, [])
 
+    const MarkAsRead = () => {
+        setIsSubmititng(true)
+        toast.success("Notifications marqué comme lu")
+    }
     if (isLoading) {
         return <NotificationsLoading />
     }
@@ -157,12 +168,12 @@ export function NotificationsContent() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <Card className="rounded-3xl shadow-sm border border-zinc-200 overflow-hidden animate-in fade-in slide-in-from-bottom duration-500 bg-white">
-                <CardContent className="p-6">
+            <Card className="rounded-2xl md:rounded-3xl shadow-sm border border-zinc-200 overflow-hidden animate-in fade-in slide-in-from-bottom duration-500 bg-white">
+                <CardContent className="p-4 md:p-6">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div className="flex items-center gap-4">
-                            <div className="w-14 h-14 rounded-2xl bg-zinc-100 flex items-center justify-center">
-                                <BellRing className="h-7 w-7 text-zinc-700" />
+                        <div className="flex items-center gap-3 md:gap-4">
+                            <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-zinc-100 flex items-center justify-center shrink-0">
+                                <BellRing className="h-6 w-6 md:h-7 md:w-7 text-zinc-700" />
                             </div>
                             <div>
                                 <div className="flex items-center gap-3">
@@ -179,7 +190,7 @@ export function NotificationsContent() {
                             </div>
                         </div>
                         <div className="flex gap-2">
-                            <Button variant="outline" size="sm" className="rounded-xl cursor-pointer border-zinc-200 text-zinc-700 hover:bg-zinc-50">
+                            <Button variant="outline" size="sm" onClick={()=>MarkAsRead()} className="rounded-xl cursor-pointer border-zinc-200 text-zinc-700 hover:bg-zinc-50">
                                 <CheckCheck className="h-4 w-4 mr-2" />
                                 Tout marquer comme lu
                             </Button>
@@ -192,7 +203,7 @@ export function NotificationsContent() {
             </Card>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-in fade-in slide-in-from-bottom duration-500 delay-100">
+            <div className="grid grid-cols-2 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom duration-500 delay-100">
                 <Card className="rounded-2xl shadow-sm border border-zinc-200 bg-white hover:shadow-md transition-all duration-300">
                     <CardContent className="p-4">
                         <div className="flex items-center gap-3">
@@ -200,7 +211,7 @@ export function NotificationsContent() {
                                 <Bell className="h-5 w-5 text-zinc-600" />
                             </div>
                             <div>
-                                <p className="text-2xl font-black text-zinc-900">0</p>
+                                <p className="text-2xl font-black text-zinc-900">{notifs.length}</p>
                                 <p className="text-xs font-semibold text-zinc-500">Total</p>
                             </div>
                         </div>
@@ -211,17 +222,18 @@ export function NotificationsContent() {
                     <CardContent className="p-4">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center">
-                                <CalendarX className="h-5 w-5 text-red-500" />
+                                <Clock className="h-5 w-5 text-red-500" />
                             </div>
                             <div>
-                                <p className="text-2xl font-black text-zinc-900">0</p>
-                                <p className="text-xs font-semibold text-zinc-500">Annulations</p>
+                                <p className="text-2xl font-black text-zinc-900">{notifs.filter(n => !n.is_read).length
+                                }</p>
+                                <p className="text-xs font-semibold text-zinc-500">Non lues</p>
                             </div>
                         </div>
                     </CardContent>
                 </Card>
 
-                <Card className="rounded-2xl shadow-sm border border-zinc-200 bg-white hover:shadow-md transition-all duration-300">
+                {/* <Card className="rounded-2xl shadow-sm border border-zinc-200 bg-white hover:shadow-md transition-all duration-300">
                     <CardContent className="p-4">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
@@ -233,9 +245,9 @@ export function NotificationsContent() {
                             </div>
                         </div>
                     </CardContent>
-                </Card>
+                </Card> */}
 
-                <Card className="rounded-2xl shadow-sm border border-zinc-200 bg-white hover:shadow-md transition-all duration-300">
+                {/* <Card className="rounded-2xl shadow-sm border border-zinc-200 bg-white hover:shadow-md transition-all duration-300">
                     <CardContent className="p-4">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
@@ -247,31 +259,34 @@ export function NotificationsContent() {
                             </div>
                         </div>
                     </CardContent>
-                </Card>
+                </Card> */}
             </div>
 
             {/* Notifications List */}
-            <Card className="rounded-3xl shadow-sm border border-zinc-200 overflow-hidden animate-in fade-in slide-in-from-bottom duration-500 delay-200 bg-white">
+            <Card className="shadow-sm border border-zinc-200 overflow-hidden animate-in fade-in slide-in-from-bottom duration-500 delay-200 bg-white">
                 <Tabs defaultValue="all" className="w-full">
                     <div className="p-4 border-b border-zinc-200">
                         <TabsList className="w-full md:w-auto grid grid-cols-3 md:flex">
-                            <TabsTrigger value="all" className="rounded-xl gap-2 data-[state=active]:bg-zinc-900 data-[state=active]:text-white">
+                            <TabsTrigger value="all" className="gap-2 data-[state=active]:bg-zinc-900 data-[state=active]:text-white">
                                 <Bell className="h-4 w-4" />
                                 <span className="hidden md:inline">Toutes</span>
                             </TabsTrigger>
-                            <TabsTrigger value="cancellations" className="rounded-xl gap-2 data-[state=active]:bg-zinc-900 data-[state=active]:text-white">
-                                <CalendarX className="h-4 w-4" />
-                                <span className="hidden md:inline">Annulations</span>
-                            </TabsTrigger>
-                            <TabsTrigger value="suggestions" className="rounded-xl gap-2 data-[state=active]:bg-zinc-900 data-[state=active]:text-white">
-                                <Car className="h-4 w-4" />
-                                <span className="hidden md:inline">Suggestions</span>
-                            </TabsTrigger>
-                            <TabsTrigger value="reminders" className="rounded-xl gap-2 data-[state=active]:bg-zinc-900 data-[state=active]:text-white">
+                            {user?.role == "vendeur" ? (
+                                <TabsTrigger value="trend" className="gap-2 data-[state=active]:bg-zinc-900 data-[state=active]:text-white">
+                                    <Car className="h-4 w-4" />
+                                    <span className="hidden md:inline">Tendance</span>
+                                </TabsTrigger>
+                            ) : (
+                                <TabsTrigger value="suggestions" className="gap-2 data-[state=active]:bg-zinc-900 data-[state=active]:text-white">
+                                    <Car className="h-4 w-4" />
+                                    <span className="hidden md:inline">Suggestions</span>
+                                </TabsTrigger>
+                            )}
+                            <TabsTrigger value="reminders" className="gap-2 data-[state=active]:bg-zinc-900 data-[state=active]:text-white">
                                 <Calendar className="h-4 w-4" />
                                 <span className="hidden md:inline">Rappels</span>
                             </TabsTrigger>
-                            <TabsTrigger value="system" className="rounded-xl gap-2 data-[state=active]:bg-zinc-900 data-[state=active]:text-white">
+                            <TabsTrigger value="system" className="gap-2 data-[state=active]:bg-zinc-900 data-[state=active]:text-white">
                                 <Settings className="h-4 w-4" />
                                 <span className="hidden md:inline">Système</span>
                             </TabsTrigger>
@@ -279,7 +294,7 @@ export function NotificationsContent() {
                     </div>
 
                     <TabsContent value="all" className="p-6 m-0">
-                        {notifications.length === 0 ? (
+                        {notifs.length === 0 ? (
                             <EmptyState
                                 icon={Bell}
                                 title="Aucune notification"
@@ -287,28 +302,30 @@ export function NotificationsContent() {
                             />
                         ) : (
                             <div className="space-y-3">
-                                {notifications.map((notification) => (
+                                {notifs.map((notification) => (
                                     <NotificationItem key={notification.id} notification={notification} />
                                 ))}
                             </div>
                         )}
                     </TabsContent>
 
-                    <TabsContent value="cancellations" className="p-6 m-0">
-                        <EmptyState
-                            icon={CalendarX}
-                            title="Aucune annulation"
-                            description="Les notifications d'annulation de vos rendez-vous apparaîtront ici."
-                        />
-                    </TabsContent>
-
-                    <TabsContent value="suggestions" className="p-6 m-0">
-                        <EmptyState
-                            icon={Car}
-                            title="Aucune suggestion"
-                            description="Nous vous proposerons des véhicules correspondant à vos critères et préférences."
-                        />
-                    </TabsContent>
+                    {user?.role == "vendeur" ? (
+                        <TabsContent value="trend" className="p-6 m-0">
+                            <EmptyState
+                                icon={Car}
+                                title="Aucune tendance"
+                                description="Découvrez quels types de véhicules attirent le plus d'acheteurs dans votre zone."
+                            />
+                        </TabsContent>
+                    ) : (
+                        <TabsContent value="suggestions" className="p-6 m-0">
+                            <EmptyState
+                                icon={Car}
+                                title="Aucune suggestion"
+                                description="Nous vous proposerons des véhicules correspondant à vos critères et préférences."
+                            />
+                        </TabsContent>
+                    )}
 
                     <TabsContent value="reminders" className="p-6 m-0">
                         <EmptyState
@@ -328,90 +345,6 @@ export function NotificationsContent() {
                 </Tabs>
             </Card>
 
-            {/* Préférences */}
-            <Card className="rounded-3xl shadow-sm border border-zinc-200 overflow-hidden animate-in fade-in slide-in-from-bottom duration-500 delay-300 bg-white">
-                <CardHeader className="pb-4">
-                    <CardTitle className="text-lg font-bold flex items-center gap-2 text-zinc-900">
-                        <Settings className="h-5 w-5 text-zinc-500" />
-                        Préférences de notification
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div className="flex items-center justify-between p-4 rounded-2xl bg-zinc-50 border border-zinc-200">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center">
-                                    <CalendarX className="h-5 w-5 text-red-500" />
-                                </div>
-                                <div>
-                                    <p className="font-bold text-sm text-zinc-900">Annulations</p>
-                                    <p className="text-xs text-zinc-500">RDV annulés</p>
-                                </div>
-                            </div>
-                            <Badge variant="outline" className="bg-zinc-900 text-white border-zinc-900 text-[10px]">
-                                Activé
-                            </Badge>
-                        </div>
-
-                        <div className="flex items-center justify-between p-4 rounded-2xl bg-zinc-50 border border-zinc-200">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
-                                    <Car className="h-5 w-5 text-blue-500" />
-                                </div>
-                                <div>
-                                    <p className="font-bold text-sm text-zinc-900">Suggestions</p>
-                                    <p className="text-xs text-zinc-500">Véhicules recommandés</p>
-                                </div>
-                            </div>
-                            <Badge variant="outline" className="bg-zinc-900 text-white border-zinc-900 text-[10px]">
-                                Activé
-                            </Badge>
-                        </div>
-
-                        <div className="flex items-center justify-between p-4 rounded-2xl bg-zinc-50 border border-zinc-200">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
-                                    <Calendar className="h-5 w-5 text-amber-500" />
-                                </div>
-                                <div>
-                                    <p className="font-bold text-sm text-zinc-900">Rappels</p>
-                                    <p className="text-xs text-zinc-500">Rendez-vous à venir</p>
-                                </div>
-                            </div>
-                            <Badge variant="outline" className="bg-zinc-900 text-white border-zinc-900 text-[10px]">
-                                Activé
-                            </Badge>
-                        </div>
-
-                        <div className="flex items-center justify-between p-4 rounded-2xl bg-zinc-50 border border-zinc-200">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-zinc-100 flex items-center justify-center">
-                                    <Settings className="h-5 w-5 text-zinc-500" />
-                                </div>
-                                <div>
-                                    <p className="font-bold text-sm text-zinc-900">Système</p>
-                                    <p className="text-xs text-zinc-500">Mises à jour</p>
-                                </div>
-                            </div>
-                            <Badge variant="outline" className="bg-zinc-100 text-zinc-500 border-zinc-300 text-[10px]">
-                                Désactivé
-                            </Badge>
-                        </div>
-                    </div>
-
-                    <Separator className="my-4" />
-
-                    <div className="flex items-center justify-between">
-                        <p className="text-sm text-zinc-500">
-                            Gérez vos préférences de notification pour personnaliser votre expérience.
-                        </p>
-                        <Button variant="outline" size="sm" className="rounded-xl border-zinc-200 text-zinc-700 hover:bg-zinc-50">
-                            <Settings className="h-4 w-4 mr-2" />
-                            Paramètres
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
         </div>
     )
 }

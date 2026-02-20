@@ -19,36 +19,34 @@ import { Calendar } from "@/components/ui/calendar"
 import { Card, CardContent } from "@/components/ui/card"
 import { addDays } from "date-fns"
 import { type DateRange } from "react-day-picker"
-interface Rdv {
-    id: number
-    client: string
-    clientPhone: string
-    clientAvatar: string
-    vehicule: string
-    date: string
-    heure: string
-    lieu: string
-    type: "visite" | "essai" | "finalisation" | "livraison"
-    statut: "a_venir" | "passé" | "annulé"
-    notes: string
-}
+import { RdvStats, RdvItem, Rdv } from "@/src/types";
+import { api } from "@/src/lib/api"
 
 const CARD = "rounded-2xl md:rounded-3xl shadow-xl border border-border/40 overflow-hidden bg-card/50 backdrop-blur-sm"
 
-const rdvs: Rdv[] = [
-    { id: 1, client: "Diallo Amadou", clientPhone: "+225 07 12 34 56", clientAvatar: "DA", vehicule: "Toyota RAV4 2024", date: "03 Fév 2025", heure: "10:00", lieu: "Cocody Riviera Palmeraie", type: "visite", statut: "a_venir", notes: "Premier contact, intéressé par la version hybride" },
-    { id: 2, client: "Ouattara Seydou", clientPhone: "+225 05 98 76 54", clientAvatar: "OS", vehicule: "BMW X3 2023", date: "04 Fév 2025", heure: "14:30", lieu: "Plateau, près du CHU", type: "essai", statut: "a_venir", notes: "Souhaite essayer sur autoroute" },
-    { id: 3, client: "N'Guessan Ahou", clientPhone: "+225 01 23 45 67", clientAvatar: "NA", vehicule: "Peugeot 3008 2024", date: "05 Fév 2025", heure: "09:00", lieu: "Marcory zone 4", type: "finalisation", statut: "a_venir", notes: "Documents prêts, signature du contrat" },
-    { id: 4, client: "Bamba Issa", clientPhone: "+225 07 65 43 21", clientAvatar: "BI", vehicule: "Mercedes Classe C", date: "06 Fév 2025", heure: "16:00", lieu: "Cocody Angré", type: "livraison", statut: "a_venir", notes: "Livraison du véhicule après paiement" },
-    { id: 5, client: "Konan Yves", clientPhone: "+225 05 11 22 33", clientAvatar: "KY", vehicule: "Mercedes Classe C", date: "28 Jan 2025", heure: "10:00", lieu: "Plateau", type: "finalisation", statut: "passé", notes: "Vente finalisée avec succès" },
-    { id: 6, client: "Coulibaly Marie", clientPhone: "+225 07 44 55 66", clientAvatar: "CM", vehicule: "Hyundai Tucson 2023", date: "25 Jan 2025", heure: "11:30", lieu: "Cocody Riviera", type: "essai", statut: "passé", notes: "Essai concluant, à relancer" },
-    { id: 7, client: "Soro Ibrahim", clientPhone: "+225 01 77 88 99", clientAvatar: "SI", vehicule: "Volkswagen Golf 2023", date: "20 Jan 2025", heure: "15:00", lieu: "Yopougon", type: "visite", statut: "annulé", notes: "Client a annulé pour raison personnelle" },
-    { id: 8, client: "Koffi Jean", clientPhone: "+225 05 33 22 11", clientAvatar: "KJ", vehicule: "Audi Q5 2022", date: "18 Jan 2025", heure: "09:30", lieu: "Treichville", type: "visite", statut: "passé", notes: "Visite effectuée, en réflexion" },
-]
 
 export default function RdvPage() {
     const [isLoading, setIsLoading] = useState(true)
     const [openCalendar, setOpenCalendar] = useState(false)
+    const [rdvList, setRdvList] = useState<RdvItem[]>([]);
+    const [stats, setStats] = useState<RdvStats | null>(null)
+
+    useEffect(() => {
+        const fetchData = async() => {
+            try{
+                setIsLoading(true)
+                const response = await api.get<Rdv>("/transactions/nosRdv");
+                setRdvList(response?.data?.list_rdv ?? []);
+                setStats(response?.data?.stats ?? null);
+                console.log(response?.data)
+            }catch(error){
+                toast.error(error instanceof Error ? error.message : "Erreur Serveur");
+            }finally{
+                setIsLoading(false)
+            }
+        }
+        fetchData()
+    }, [])
 
     const handleOpenCalendar = () => {
         setOpenCalendar(!openCalendar)
@@ -58,15 +56,6 @@ export default function RdvPage() {
         from: new Date(new Date().getFullYear(), 0, 12),
         to: addDays(new Date(new Date().getFullYear(), 0, 12), 30),
     })
-    useEffect(() => {
-        const toastId = toast.loading("Chargement des rendez-vous...")
-        const load = async () => {
-            await new Promise(r => setTimeout(r, 1500))
-            setIsLoading(false)
-            toast.dismiss(toastId)
-        }
-        load()
-    }, [])
 
     const getTypeColor = (type: string) => {
         switch (type) {
@@ -88,18 +77,18 @@ export default function RdvPage() {
         }
     }
 
-    const stats = [
-        { label: "Total", value: rdvs.length, icon: CalendarDays, color: "bg-zinc-900/10 text-zinc-700" },
-        { label: "À venir", value: rdvs.filter(r => r.statut === "a_venir").length, icon: Clock, color: "bg-blue-500/10 text-blue-600" },
-        { label: "Passés", value: rdvs.filter(r => r.statut === "passé").length, icon: CheckCircle2, color: "bg-zinc-900/10 text-zinc-700" },
-        { label: "Annulés", value: rdvs.filter(r => r.statut === "annulé").length, icon: XCircle, color: "bg-red-500/10 text-red-600" },
+    const nosStats = [
+        { label: "Total", value: rdvList.length, icon: CalendarDays, color: "bg-zinc-900/10 text-zinc-700" },
+        { label: "À venir", value: rdvList.filter(r => r.statut === "confirme").length, icon: Clock, color: "bg-blue-500/10 text-blue-600" },
+        { label: "Effectués", value: rdvList.filter(r => r.statut === "effectue").length, icon: CheckCircle2, color: "bg-green-500/10 text-green-600" },
+        { label: "Annulés", value: rdvList.filter(r => r.statut === "annule").length, icon: XCircle, color: "bg-red-500/10 text-red-600" },
     ]
 
     const filterRdvs = (tab: string) => {
-        if (tab === "a_venir") return rdvs.filter(r => r.statut === "a_venir")
-        if (tab === "passes") return rdvs.filter(r => r.statut === "passé")
-        if (tab === "annules") return rdvs.filter(r => r.statut === "annulé")
-        return rdvs
+        if (tab === "a_venir") return rdvList.filter(r => r?.statut === "confirme")
+        if (tab === "passes") return rdvList.filter(r => r.statut === "effectue")
+        if (tab === "annules") return rdvList.filter(r => r.statut === "annule")
+        return rdvList
     }
 
     if (isLoading) {
@@ -116,7 +105,7 @@ export default function RdvPage() {
         )
     }
 
-    const RdvCard = ({ rdv }: { rdv: Rdv }) => (
+    const RdvCard = ({ rdv }: { rdv: RdvItem }) => (
         <Card className={cn(CARD, "hover:shadow-lg transition-all duration-300",
             rdv.statut === "annulé" && "opacity-60"
         )}>
@@ -128,19 +117,19 @@ export default function RdvPage() {
                             rdv.statut === "a_venir" ? "bg-zinc-900/10 text-zinc-700" : "bg-muted/50 text-muted-foreground"
                         )}>
                             <CalendarIcon className="h-4 w-4 mb-0.5" />
-                            <span className="text-[10px] font-bold leading-none">{rdv.date.split(" ")[0]}</span>
+                            <span className="text-[10px] font-bold leading-none">{rdv.date_rdv.split(" ")[0]}</span>
                         </div>
                         <div className="text-xs text-muted-foreground md:mt-1 md:text-center">
-                            <p className="font-medium">{rdv.date.split(" ").slice(1).join(" ")}</p>
-                            <p>{rdv.heure}</p>
+                            <p className="font-medium">{rdv.date_rdv.split(" ").slice(1).join(" ")}</p>
+                            <p>{rdv.heure_rdv}</p>
                         </div>
                     </div>
 
                     {/* Content */}
                     <div className="flex-1 min-w-0 space-y-2">
                         <div className="flex items-center gap-2 flex-wrap">
-                            <Badge className={cn("rounded-full text-xs", getTypeColor(rdv.type))}>
-                                {getTypeLabel(rdv.type)}
+                            <Badge className={cn("rounded-full text-xs", getTypeColor(rdv?.type_finalisation))}>
+                                {getTypeLabel(rdv?.type_finalisation)}
                             </Badge>
                             {rdv.statut === "annulé" && (
                                 <Badge className="bg-red-500/10 text-red-600 border-red-500/20 rounded-full text-xs">
@@ -151,26 +140,26 @@ export default function RdvPage() {
 
                         <div className="flex items-center gap-2">
                             <div className="w-8 h-8 rounded-full bg-zinc-900/10 flex items-center justify-center text-zinc-700 text-xs font-bold">
-                                {rdv.clientAvatar}
+                                {/* {rdv.clientAvatar} */}
                             </div>
                             <div>
-                                <p className="font-semibold text-sm">{rdv.client}</p>
+                                <p className="font-semibold text-sm">{rdv?.client?.fullname}</p>
                                 <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                    <Car className="h-3 w-3" /> {rdv.vehicule}
+                                    <Car className="h-3 w-3" /> {rdv?.vehicule?.description?.marque}
                                 </p>
                             </div>
                         </div>
 
                         <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-                            <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {rdv.lieu}</span>
-                            <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {rdv.clientPhone}</span>
+                            {/* <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {rdv.lieu}</span> */}
+                            <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {rdv?.client?.telephone}</span>
                         </div>
 
-                        {rdv.notes && (
+                        {/* {rdv.notes && (
                             <p className="text-xs text-muted-foreground bg-muted/30 rounded-lg p-2 italic">
                                 {rdv.notes}
                             </p>
-                        )}
+                        )} */}
                     </div>
 
                     {/* Actions */}
@@ -212,7 +201,7 @@ export default function RdvPage() {
 
                 {/* Stats */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 animate-in fade-in slide-in-from-bottom duration-500">
-                    {stats.map((s, i) => (
+                    {nosStats.map((s, i) => (
                         <Card key={i} className={cn(CARD, "hover:shadow-lg transition-all duration-300")}>
                             <CardContent className="p-4 flex items-center gap-3">
                                 <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0", s.color)}>
@@ -277,20 +266,20 @@ export default function RdvPage() {
                 <Tabs defaultValue="a_venir" className="animate-in fade-in slide-in-from-bottom duration-500 delay-200">
                     <TabsList className="bg-muted/50 rounded-2xl p-1.5 mb-5 h-auto flex-wrap gap-1">
                         <TabsTrigger value="tous" className="rounded-xl cursor-pointer px-4 py-2 text-sm font-medium transition-all data-[state=active]:bg-zinc-900 data-[state=active]:text-white data-[state=active]:shadow-md">
-                            Tous ({rdvs.length})
+                            Tous ({rdvList.length})
                         </TabsTrigger>
                         <TabsTrigger value="a_venir" className="rounded-xl cursor-pointer px-4 py-2 text-sm font-medium transition-all data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=active]:shadow-md">
-                            <Clock className="h-3.5 w-3.5 mr-1.5" /> À venir ({rdvs.filter(r => r.statut === "a_venir").length})
+                            <Clock className="h-3.5 w-3.5 mr-1.5" /> À venir ({rdvList.filter(r => r.statut === "a_venir").length})
                         </TabsTrigger>
                         <TabsTrigger value="passes" className="rounded-xl cursor-pointer px-4 py-2 text-sm font-medium transition-all data-[state=active]:bg-zinc-900 data-[state=active]:text-white data-[state=active]:shadow-md">
-                            <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> Passés ({rdvs.filter(r => r.statut === "passé").length})
+                            <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> Passés ({rdvList.filter(r => r.statut === "passé").length})
                         </TabsTrigger>
                         <TabsTrigger value="annules" className="rounded-xl cursor-pointer px-4 py-2 text-sm font-medium transition-all data-[state=active]:bg-red-500 data-[state=active]:text-white data-[state=active]:shadow-md">
-                            <XCircle className="h-3.5 w-3.5 mr-1.5" /> Annulés ({rdvs.filter(r => r.statut === "annulé").length})
+                            <XCircle className="h-3.5 w-3.5 mr-1.5" /> Annulés ({rdvList.filter(r => r.statut === "annulé").length})
                         </TabsTrigger>
                     </TabsList>
 
-                    {["tous", "a_venir", "passes", "annules"].map(tab => (
+                    {["tous", "confirme", "effectue", "annule"].map(tab => (
                         <TabsContent key={tab} value={tab} className="space-y-3">
                             {filterRdvs(tab).map(r => <RdvCard key={r.id} rdv={r} />)}
                             {filterRdvs(tab).length === 0 && (

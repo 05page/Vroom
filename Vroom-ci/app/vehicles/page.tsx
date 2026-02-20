@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-
 import {
     Car,
     Plus,
@@ -24,35 +23,14 @@ import {
     SlidersHorizontal,
     Heart,
     ShoppingBag,
+    Eye,
 } from "lucide-react"
-
+import { Separator } from "@/components/ui/separator"
 import { useEffect, useState, useMemo } from "react"
-import { toast } from "sonner"
-
-interface Vehicle {
-    id: number
-    marque: string
-    post_type: "vente" | "location"
-    statut: "disponible" | "en vente" | "en location"
-    prix: number
-    modele: string
-    annee: number
-    carburant: string
-}
-
-interface User {
-    id: number
-    name: string
-    email: string
-    role: string
-}
-
-interface StatsVehicules {
-    total: number
-    enVente: number
-    enLocation: number
-    vendus: number
-}
+import { toast } from "sonner";
+import { vehicule, User, AllVehicules, VehiculeStats } from "@/src/types"
+import { api } from "@/src/lib/api"
+import { useUser } from "@/src/context/UserContext"
 
 interface Filters {
     search: string
@@ -64,29 +42,36 @@ interface Filters {
     anneeMax: string
 }
 
-const CARBURANTS = ["Tous", "Essence", "Diesel", "Électrique", "Hybride", "GPL"]
-const STATUTS = ["Tous", "Disponible", "en vente", "location"]
+const CARBURANTS = ["Tous", "Essence", "Diesel", "Hybride", "Électrique"]
+const STATUTS = ["Tous", "Disponible", "Réservé", "Vendu", "Loué"]
 
 const VehiclesPage = () => {
-    const [vehicles] = useState<Vehicle[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [showFilters, setShowFilters] = useState(false)
+    const {user} = useUser();
+    const [vehiculesList, setVehiculesList] = useState<vehicule[]>([])
+    const [stats, setStats] = useState<VehiculeStats | null>(null)
 
-    const [stats] = useState<StatsVehicules>({
-        total: 0,
-        enVente: 0,
-        enLocation: 0,
-        vendus: 0,
-    })
 
-    const [user] = useState<User>({
-        id: 1,
-        name: "John Doe",
-        email: "john.doe@example.com",
-        role: "client",
-    })
-
-    const isVendeur = user.role === "vendeur"
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                setIsLoading(true)
+                const [vehiculeRes] = await Promise.all([
+                    api.get<AllVehicules>('/vehicules/allVehicules')
+                ]);
+                setVehiculesList(vehiculeRes?.data?.vehicules ?? [])
+                setStats(vehiculeRes?.data?.statsVehicules ?? null)
+            } catch (error) {
+                toast.error(error instanceof Error ? error?.message : "Erreur serveur")
+            } finally {
+                setIsLoading(false)
+            }
+        }
+        fetchData()
+    },[])
+    
+    const isVendeur = user?.role === "vendeur"
 
     const [filters, setFilters] = useState<Filters>({
         search: "",
@@ -110,45 +95,29 @@ const VehiclesPage = () => {
         return count
     }, [filters])
 
-    useEffect(() => {
-        const toastId = toast.loading(
-            isVendeur
-                ? "Chargement de vos véhicules..."
-                : "Chargement des véhicules disponibles..."
-        )
-
-        const loadVehicles = async () => {
-            await new Promise(resolve => setTimeout(resolve, 1500))
-            setIsLoading(false)
-            toast.dismiss(toastId)
-        }
-
-        loadVehicles()
-    }, [isVendeur])
-
-    const applyFilters = (list: Vehicle[]): Vehicle[] => {
+    const applyFilters = (list: vehicule[]): vehicule[] => {
         return list.filter(v => {
             if (filters.search) {
                 const q = filters.search.toLowerCase()
                 if (
-                    !v.marque.toLowerCase().includes(q) &&
-                    !v.modele.toLowerCase().includes(q)
+                    !v.description.marque.toLowerCase().includes(q) &&
+                    !v.description.modele.toLowerCase().includes(q)
                 ) return false
             }
-            if (filters.carburant !== "Tous" && v.carburant.toLowerCase() !== filters.carburant.toLowerCase()) return false
+            if (filters.carburant !== "Tous" && v.description.carburant.toLowerCase() !== filters.carburant.toLowerCase()) return false
             if (filters.statut !== "Tous" && v.statut.toLowerCase() !== filters.statut.toLowerCase()) return false
             if (filters.prixMin && v.prix < Number(filters.prixMin)) return false
             if (filters.prixMax && v.prix > Number(filters.prixMax)) return false
-            if (filters.anneeMin && v.annee < Number(filters.anneeMin)) return false
-            if (filters.anneeMax && v.annee > Number(filters.anneeMax)) return false
+            if (filters.anneeMin && v.description.annee < Number(filters.anneeMin)) return false
+            if (filters.anneeMax && v.description.annee > Number(filters.anneeMax)) return false
             return true
         })
     }
 
-    const getVehiclesFiltres = (type: string): Vehicle[] => {
-        let list = vehicles
-        if (type === "vente") list = vehicles.filter(v => v.post_type === "vente")
-        if (type === "location") list = vehicles.filter(v => v.post_type === "location")
+    const getVehiclesFiltres = (type: string): vehicule[] => {
+        let list = vehiculesList
+        if (type === "vente") list = vehiculesList.filter(v => v.post_type === "vente")
+        if (type === "location") list = vehiculesList.filter(v => v.post_type === "location")
         return applyFilters(list)
     }
 
@@ -164,6 +133,37 @@ const VehiclesPage = () => {
         })
         toast.success("Filtres réinitialisés")
     }
+
+    const VehicleCard = ({ v }: { v: vehicule }) => (
+        <Card className="rounded-2xl md:rounded-3xl shadow-sm border border-zinc-200 bg-white hover:shadow-lg transition-all duration-300 hover:-translate-y-1 overflow-hidden">
+            <CardContent className="p-0">
+                <div className="h-40 bg-gradient-to-br from-zinc-100 to-zinc-50 flex items-center justify-center relative">
+                    <Car className="h-12 w-12 text-zinc-300" />
+                    <Badge className={`absolute top-3 left-3 rounded-full text-xs ${v.post_type === "vente"
+                        ? "bg-green-500/10 text-green-600 border-green-500/20"
+                        : "bg-blue-500/10 text-blue-600 border-blue-500/20"
+                        }`}>
+                        {v.post_type === "vente" ? <Tag className="h-3 w-3 mr-1" /> : <KeyRound className="h-3 w-3 mr-1" />}
+                        {v.post_type === "vente" ? "Vente" : "Location"}
+                    </Badge>
+                </div>
+                <div className="p-4 space-y-3">
+                    <div>
+                        <h3 className="font-bold text-base text-zinc-900">{v.description?.marque} {v.description?.modele}</h3>
+                        <p className="text-xs text-zinc-500">{v.description?.annee} &middot; {v.description?.kilometrage} km &middot; {v.description?.carburant}</p>
+                    </div>
+                    <p className="text-lg font-black text-zinc-900">{v.prix?.toLocaleString()} <span className="text-xs font-normal text-zinc-500">FCFA</span></p>
+                    <Separator />
+                    <div className="flex items-center justify-between text-xs text-zinc-500">
+                        <span className="flex items-center gap-1"><Eye className="h-3 w-3" /> {v.views_count} vues</span>
+                        <Button variant="outline" size="sm" className="rounded-lg text-xs cursor-pointer border-zinc-200">
+                            Voir détails
+                        </Button>
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    )
 
     if (isLoading) {
         return (
@@ -244,7 +244,7 @@ const VehiclesPage = () => {
                                         {isVendeur ? "Mes Véhicules" : "Véhicules disponibles"}
                                     </h1>
                                     <Badge className="bg-zinc-900 text-white font-bold rounded-full">
-                                        {stats.total}
+                                        {vehiculesList.length}
                                     </Badge>
                                 </div>
                                 <p className="text-xs md:text-sm text-zinc-500 mt-1">
@@ -351,11 +351,10 @@ const VehiclesPage = () => {
                                         <button
                                             key={c}
                                             onClick={() => setFilters({ ...filters, carburant: c })}
-                                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                                                filters.carburant === c
-                                                    ? "bg-zinc-900 text-white shadow-md"
-                                                    : "bg-zinc-50 text-zinc-600 hover:bg-zinc-100 border border-zinc-200"
-                                            }`}
+                                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${filters.carburant === c
+                                                ? "bg-zinc-900 text-white shadow-md"
+                                                : "bg-zinc-50 text-zinc-600 hover:bg-zinc-100 border border-zinc-200"
+                                                }`}
                                         >
                                             {c}
                                         </button>
@@ -374,11 +373,10 @@ const VehiclesPage = () => {
                                         <button
                                             key={s}
                                             onClick={() => setFilters({ ...filters, statut: s })}
-                                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                                                filters.statut === s
-                                                    ? "bg-zinc-900 text-white shadow-md"
-                                                    : "bg-zinc-50 text-zinc-600 hover:bg-zinc-100 border border-zinc-200"
-                                            }`}
+                                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${filters.statut === s
+                                                ? "bg-zinc-900 text-white shadow-md"
+                                                : "bg-zinc-50 text-zinc-600 hover:bg-zinc-100 border border-zinc-200"
+                                                }`}
                                         >
                                             {s}
                                         </button>
@@ -488,7 +486,7 @@ const VehiclesPage = () => {
                                 <Car className="h-5 w-5 text-zinc-600" />
                             </div>
                             <div>
-                                <p className="text-2xl font-black text-zinc-900">{stats.total}</p>
+                                <p className="text-2xl font-black text-zinc-900">{stats?.total_vehicules ?? 0}</p>
                                 <p className="text-xs font-semibold text-zinc-500">
                                     {isVendeur ? "Publiés" : "Disponibles"}
                                 </p>
@@ -504,7 +502,7 @@ const VehiclesPage = () => {
                                 <Tag className="h-5 w-5 text-green-500" />
                             </div>
                             <div>
-                                <p className="text-2xl font-black text-zinc-900">{stats.enVente}</p>
+                                <p className="text-2xl font-black text-zinc-900">{stats?.en_vente ?? 0}</p>
                                 <p className="text-xs font-semibold text-zinc-500">En vente</p>
                             </div>
                         </div>
@@ -518,7 +516,7 @@ const VehiclesPage = () => {
                                 <KeyRound className="h-5 w-5 text-blue-500" />
                             </div>
                             <div>
-                                <p className="text-2xl font-black text-zinc-900">{stats.enLocation}</p>
+                                <p className="text-2xl font-black text-zinc-900">{stats?.en_location ?? 0}</p>
                                 <p className="text-xs font-semibold text-zinc-500">En location</p>
                             </div>
                         </div>
@@ -539,7 +537,7 @@ const VehiclesPage = () => {
                                 <Car className="h-4 w-4" />
                                 <span className="hidden md:inline">Tous</span>
                                 <Badge variant="secondary" className="rounded-full">
-                                    {stats.total}
+                                    {stats?.total_vehicules ?? 0}
                                 </Badge>
                             </TabsTrigger>
                             <TabsTrigger
@@ -549,7 +547,7 @@ const VehiclesPage = () => {
                                 <Tag className="h-4 w-4" />
                                 <span className="hidden md:inline">En vente</span>
                                 <Badge variant="secondary" className="rounded-full">
-                                    {stats.enVente}
+                                    {stats?.en_vente ?? 0}
                                 </Badge>
                             </TabsTrigger>
                             <TabsTrigger
@@ -559,7 +557,7 @@ const VehiclesPage = () => {
                                 <KeyRound className="h-4 w-4" />
                                 <span className="hidden md:inline">En location</span>
                                 <Badge variant="secondary" className="rounded-full">
-                                    {stats.enLocation}
+                                    {stats?.en_location ?? 0}
                                 </Badge>
                             </TabsTrigger>
                         </TabsList>
@@ -594,7 +592,7 @@ const VehiclesPage = () => {
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                                {/* Les cards de véhicules s'afficheront ici */}
+                                {getVehiclesFiltres("tous").map(v => <VehicleCard key={v.id} v={v} />)}
                             </div>
                         )}
                     </TabsContent>
@@ -623,7 +621,7 @@ const VehiclesPage = () => {
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                                {/* Les cards de véhicules en vente s'afficheront ici */}
+                                {getVehiclesFiltres("vente").map(v => <VehicleCard key={v.id} v={v} />)}
                             </div>
                         )}
                     </TabsContent>
@@ -652,7 +650,7 @@ const VehiclesPage = () => {
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                                {/* Les cards de véhicules en location s'afficheront ici */}
+                                {getVehiclesFiltres("location").map(v => <VehicleCard key={v.id} v={v} />)}
                             </div>
                         )}
                     </TabsContent>
