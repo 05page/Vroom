@@ -40,8 +40,7 @@ import { toast } from "sonner"
 import Link from "next/link"
 
 //Endpoint vendeur
-import { VendeurStats } from "@/src/types"
-import { VendeurRdv } from "@/src/types"
+import { VendeurStats, VendeurRdv, Avis } from "@/src/types"
 import { api } from "@/src/lib/api"
 import { useUser } from "@/src/context/UserContext"
 const VendeurDashboard = () => {
@@ -49,13 +48,23 @@ const VendeurDashboard = () => {
     const [stats, setStats] = useState<VendeurStats | null>(null);
     const {user} = useUser()
     const [rdv, setRdv] = useState<VendeurRdv | null>(null);
+    // Avis reçus par le vendeur connecté
+    const [avisData, setAvisData] = useState<{ avis: Avis[]; note_moyenne: number; total: number } | null>(null)
+
+    // Fetch des avis — séparé car user.id arrive de façon asynchrone via UserContext
+    useEffect(() => {
+        if (!user?.id) return
+        api.get<{ avis: Avis[]; note_moyenne: number; total: number }>(`/avis/vendeur/${user.id}`)
+            .then(res => setAvisData(res.data ?? null))
+            .catch(() => {}) // silencieux si pas d'avis
+    }, [user?.id])
 
     useEffect(() => {
         const fetchData = async () => {
             try {
                 setIsLoading(true);
                 const [statsRes] = await Promise.all([
-                    api.get<VendeurStats>('/stats/mesStats')
+                    api.get<VendeurStats>('/stats/mes-stats')
                 ]);
                 setStats(statsRes?.data ?? null);
             } catch (error) {
@@ -149,8 +158,8 @@ const VendeurDashboard = () => {
                         <CardContent className="p-4 md:p-6">
                             <Skeleton className="h-6 w-48 mb-6" />
                             <div className="flex items-end gap-3 h-48">
-                                {[1, 2, 3, 4, 5, 6].map((i) => (
-                                    <Skeleton key={i} className="flex-1 rounded-t-lg" style={{ height: `${Math.random() * 80 + 20}%` }} />
+                                {[60, 80, 45, 90, 55, 70].map((h, i) => (
+                                    <Skeleton key={i} className="flex-1 rounded-t-lg" style={{ height: `${h}%` }} />
                                 ))}
                             </div>
                         </CardContent>
@@ -310,14 +319,14 @@ const VendeurDashboard = () => {
                             <div className="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center shrink-0">
                                 <Star className="h-5 w-5 text-amber-600" />
                             </div>
-                            <span className="text-[10px] font-bold text-muted-foreground">0 avis</span>
+                            <span className="text-[10px] font-bold text-muted-foreground">{avisData?.total ?? 0} avis</span>
                         </div>
-                        <p className="text-xl md:text-2xl font-black text-zinc-700">0</p>
+                        <p className="text-xl md:text-2xl font-black text-zinc-700">{avisData?.note_moyenne?.toFixed(1) ?? "—"}</p>
                         <div className="flex items-center gap-1 mt-0.5">
                             {Array.from({ length: 5 }).map((_, i) => (
                                 <Star
                                     key={i}
-                                    className={`h-3 w-3 ${i < Math.floor(0)
+                                    className={`h-3 w-3 ${i < Math.floor(avisData?.note_moyenne ?? 0)
                                         ? "fill-amber-400 text-amber-400"
                                         : "text-muted-foreground/20"
                                         }`}
@@ -361,14 +370,14 @@ const VendeurDashboard = () => {
                                 </div>
                                 <div>
                                     <CardTitle className="text-base md:text-lg font-bold">Prochains RDV</CardTitle>
-                                    <p className="text-xs text-muted-foreground">{stats?.rdv?.transactions_recentes.length} a venir</p>
+                                    <p className="text-xs text-muted-foreground">{stats?.rdv?.rdv_recents.length} a venir</p>
                                 </div>
                             </div>
                             <Badge className="bg-blue-500 text-white font-bold rounded-full">{stats?.rdv?.total_rdv}</Badge>
                         </div>
                     </CardHeader>
                     <CardContent className="p-4 md:p-6 pt-4 space-y-3">
-                        {(stats?.rdv?.transactions_recentes ?? []).map((rdv) => (
+                        {(stats?.rdv?.rdv_recents ?? []).map((rdv) => (
                             <div
                                 key={rdv.id}
                                 className="flex items-start gap-3 p-3 rounded-xl bg-muted/30 border border-border/40 hover:shadow-md transition-all duration-300 cursor-pointer group"
@@ -468,9 +477,9 @@ const VendeurDashboard = () => {
 
                     {/* Transactions Tab */}
                     <TabsContent value="transactions" className="p-4 md:p-6 m-0">
-                        {(stats?.rdv?.transactions_recentes ?? []).length > 0 ? (
+                        {(stats?.rdv?.rdv_recents ?? []).length > 0 ? (
                             <div className="space-y-3">
-                                {(stats?.rdv?.transactions_recentes ?? []).map((tx) => (
+                                {(stats?.rdv?.rdv_recents ?? []).map((tx) => (
                                     <div
                                         key={tx.id}
                                         className="flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-xl bg-muted/30 border border-border/40 hover:shadow-md transition-all duration-300 cursor-pointer group"

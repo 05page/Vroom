@@ -1,9 +1,13 @@
 "use client"
 
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Textarea } from "@/components/ui/textarea"
 import {
     Calendar as CalendarIcon,
     CalendarCheck,
@@ -12,23 +16,47 @@ import {
     Car,
     Clock,
     Phone,
+    Star,
     User,
     XCircle,
 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
-import { ClientRdvItem } from "@/src/types"
+import { RendezVous } from "@/src/types"
 import { api } from "@/src/lib/api"
+import { format } from "date-fns"
+import { fr } from "date-fns/locale"
+
+// Formate un datetime ISO en date lisible : "25 février 2026"
+const formatDate = (dt: string) =>
+    format(new Date(dt), "d MMMM yyyy", { locale: fr })
+
+// Formate un datetime ISO en heure : "10:30"
+const formatHeure = (dt: string) =>
+    format(new Date(dt), "HH:mm")
+
+const TYPE_LABELS: Record<string, string> = {
+    visite: "Visite",
+    essai_routier: "Essai routier",
+    premiere_rencontre: "Première rencontre",
+}
 
 const MesRdv = () => {
-    const [rdvList, setRdvList] = useState<ClientRdvItem[]>([])
+    const [rdvList, setRdvList] = useState<RendezVous[]>([])
     const [isLoading, setIsLoading] = useState(true)
+    const [cancelling, setCancelling] = useState<string | null>(null)
+    // État du dialog avis : quel RDV est en cours de notation
+    const [avisRdv, setAvisRdv] = useState<RendezVous | null>(null)
+    const [avisForm, setAvisForm] = useState({ note: 0, commentaire: "" })
+    const [avisLoading, setAvisLoading] = useState(false)
+    // Ensemble des rdv_id pour lesquels un avis a déjà été soumis cette session
+    const [avisSubmis, setAvisSubmis] = useState<Set<string>>(new Set())
 
     useEffect(() => {
         const fetchRdvs = async () => {
             try {
                 setIsLoading(true)
-                const res = await api.get<ClientRdvItem[]>("/transactions/mesRdv")
+                const res = await api.get<RendezVous[]>("/rdv/mes-rdv")
                 setRdvList(res.data ?? [])
             } catch (error) {
                 toast.error(error instanceof Error ? error.message : "Erreur serveur")
@@ -39,61 +67,95 @@ const MesRdv = () => {
         fetchRdvs()
     }, [])
 
-    const getRdvByTab = (tab: string): ClientRdvItem[] => {
+    // Annule un RDV côté backend et met à jour la liste locale
+    const handleAnnuler = async (id: string) => {
+        setCancelling(id)
+        try {
+            await api.post(`/rdv/${id}/annuler`, {})
+            setRdvList(prev =>
+                prev.map(r => r.id === id ? { ...r, statut: "annulé" } : r)
+            )
+            toast.success("Rendez-vous annulé")
+        } catch {
+            toast.error("Impossible d'annuler ce rendez-vous")
+        } finally {
+            setCancelling(null)
+        }
+    }
+
+    // Soumet l'avis au backend puis marque localement le RDV comme noté
+    const handleAvisSubmit = async () => {
+        if (!avisRdv || avisForm.note === 0) {
+            toast.error("Veuillez attribuer une note")
+            return
+        }
+        setAvisLoading(true)
+        try {
+            await api.post("/avis/", {
+                rdv_id: avisRdv.id,
+                note: avisForm.note,
+                commentaire: avisForm.commentaire || null,
+            })
+            setAvisSubmis(prev => new Set([...prev, avisRdv.id]))
+            toast.success("Avis enregistré, merci !")
+            setAvisRdv(null)
+            setAvisForm({ note: 0, commentaire: "" })
+        } catch {
+            toast.error("Impossible d'enregistrer l'avis")
+        } finally {
+            setAvisLoading(false)
+        }
+    }
+
+    const getRdvByTab = (tab: string): RendezVous[] => {
         switch (tab) {
             case "a_venir":
-                return rdvList.filter(r => r.statut === "confirme" || r.statut === "en_attente")
+                return rdvList.filter(r => r.statut === "confirmé" || r.statut === "en_attente")
             case "termines":
-                return rdvList.filter(r => r.statut === "effectue")
+                return rdvList.filter(r => r.statut === "terminé")
             case "annules":
-                return rdvList.filter(r => r.statut === "annule")
+                return rdvList.filter(r => r.statut === "annulé" || r.statut === "refusé")
             default:
                 return rdvList
         }
     }
 
-    const getStatusBadge = (status: string) => {
-        switch (status) {
-            case "confirme":
+    const getStatusBadge = (statut: string) => {
+        switch (statut) {
+            case "confirmé":
                 return <Badge className="bg-green-500/10 text-green-600 border-green-500/20 font-bold text-xs" variant="outline">Confirmé</Badge>
             case "en_attente":
                 return <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 font-bold text-xs" variant="outline">En attente</Badge>
-            case "effectue":
+            case "terminé":
                 return <Badge className="bg-primary/10 text-primary border-primary/20 font-bold text-xs" variant="outline">Terminé</Badge>
-            case "annule":
+            case "annulé":
                 return <Badge className="bg-red-500/10 text-red-600 border-red-500/20 font-bold text-xs" variant="outline">Annulé</Badge>
+            case "refusé":
+                return <Badge className="bg-red-500/10 text-red-600 border-red-500/20 font-bold text-xs" variant="outline">Refusé</Badge>
             default:
-                return <Badge variant="outline" className="font-bold text-xs">{status}</Badge>
+                return <Badge variant="outline" className="font-bold text-xs">{statut}</Badge>
         }
     }
 
-    const getStatusIcon = (status: string) => {
-        switch (status) {
-            case "confirme":
-                return <CalendarCheck className="h-5 w-5 text-green-600" />
-            case "en_attente":
-                return <CalendarClock className="h-5 w-5 text-amber-600" />
-            case "effectue":
-                return <CalendarCheck className="h-5 w-5 text-primary" />
-            case "annule":
-                return <XCircle className="h-5 w-5 text-red-600" />
-            default:
-                return <CalendarIcon className="h-5 w-5 text-muted-foreground" />
+    const getStatusIcon = (statut: string) => {
+        switch (statut) {
+            case "confirmé":   return <CalendarCheck className="h-5 w-5 text-green-600" />
+            case "en_attente": return <CalendarClock className="h-5 w-5 text-amber-600" />
+            case "terminé":    return <CalendarCheck className="h-5 w-5 text-primary" />
+            case "annulé":
+            case "refusé":     return <XCircle className="h-5 w-5 text-red-600" />
+            default:           return <CalendarIcon className="h-5 w-5 text-muted-foreground" />
         }
     }
 
-    const getStatusIconBg = (status: string) => {
-        switch (status) {
-            case "confirme":
-                return "bg-green-500/10"
-            case "en_attente":
-                return "bg-amber-500/10"
-            case "effectue":
-                return "bg-primary/10"
-            case "annule":
-                return "bg-red-500/10"
-            default:
-                return "bg-muted"
+    const getStatusIconBg = (statut: string) => {
+        switch (statut) {
+            case "confirmé":   return "bg-green-500/10"
+            case "en_attente": return "bg-amber-500/10"
+            case "terminé":    return "bg-primary/10"
+            case "annulé":
+            case "refusé":     return "bg-red-500/10"
+            default:           return "bg-muted"
         }
     }
 
@@ -107,8 +169,8 @@ const MesRdv = () => {
         </div>
     )
 
-    const RdvCard = ({ rdv }: { rdv: ClientRdvItem }) => (
-        <Card className={`rounded-2xl shadow-sm border border-zinc-200 hover:shadow-md transition-all duration-300 cursor-pointer group bg-white ${
+    const RdvCard = ({ rdv }: { rdv: RendezVous }) => (
+        <Card className={`rounded-2xl shadow-sm border border-zinc-200 hover:shadow-md transition-all duration-300 bg-white ${
             rdv.statut === "en_attente" ? "bg-amber-500/5 border-amber-500/20" : ""
         }`}>
             <CardContent className="p-4">
@@ -119,7 +181,7 @@ const MesRdv = () => {
                     <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
                             <div className="space-y-1">
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 flex-wrap">
                                     <h4 className="font-bold text-sm text-foreground truncate">
                                         {rdv.vehicule?.description?.marque} {rdv.vehicule?.description?.modele}
                                     </h4>
@@ -128,11 +190,11 @@ const MesRdv = () => {
                                 <div className="flex items-center gap-4 text-xs text-muted-foreground">
                                     <span className="flex items-center gap-1">
                                         <CalendarIcon className="h-3 w-3" />
-                                        {rdv.date_rdv}
+                                        {formatDate(rdv.date_heure)}
                                     </span>
                                     <span className="flex items-center gap-1">
                                         <Clock className="h-3 w-3" />
-                                        {rdv.heure_rdv}
+                                        {formatHeure(rdv.date_heure)}
                                     </span>
                                 </div>
                             </div>
@@ -140,23 +202,51 @@ const MesRdv = () => {
                         <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                             <span className="flex items-center gap-1">
                                 <User className="h-3 w-3" />
-                                {rdv.proprietaire?.fullname}
+                                {rdv.vendeur?.fullname ?? "—"}
                             </span>
-                            <span className="flex items-center gap-1">
-                                <Phone className="h-3 w-3" />
-                                {rdv.proprietaire?.telephone}
-                            </span>
+                            {rdv.vendeur?.telephone && (
+                                <span className="flex items-center gap-1">
+                                    <Phone className="h-3 w-3" />
+                                    {rdv.vendeur.telephone}
+                                </span>
+                            )}
                         </div>
-                        <div className="flex items-center gap-2 mt-2">
+                        <div className="flex items-center justify-between mt-2">
                             <Badge variant="outline" className="text-[10px] rounded-full px-2 py-0">
                                 <Car className="h-2.5 w-2.5 mr-1" />
-                                {rdv.post_type === "vente" ? "Vente" : "Location"}
+                                {TYPE_LABELS[rdv.type] ?? rdv.type}
                             </Badge>
-                            {rdv.type_finalisation && (
-                                <Badge variant="outline" className="text-[10px] rounded-full px-2 py-0">
-                                    {rdv.type_finalisation}
-                                </Badge>
-                            )}
+                            <div className="flex items-center gap-1">
+                                {(rdv.statut === "en_attente" || rdv.statut === "confirmé") && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        disabled={cancelling === rdv.id}
+                                        onClick={() => handleAnnuler(rdv.id)}
+                                        className="text-xs text-red-500 hover:text-red-600 hover:bg-red-50 h-7 px-2 rounded-lg"
+                                    >
+                                        <XCircle className="h-3 w-3 mr-1" />
+                                        {cancelling === rdv.id ? "..." : "Annuler"}
+                                    </Button>
+                                )}
+                                {rdv.statut === "terminé" && !avisSubmis.has(rdv.id) && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => { setAvisRdv(rdv); setAvisForm({ note: 0, commentaire: "" }) }}
+                                        className="text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50 h-7 px-2 rounded-lg"
+                                    >
+                                        <Star className="h-3 w-3 mr-1" />
+                                        Laisser un avis
+                                    </Button>
+                                )}
+                                {rdv.statut === "terminé" && avisSubmis.has(rdv.id) && (
+                                    <span className="text-xs text-zinc-400 flex items-center gap-1">
+                                        <Star className="h-3 w-3 fill-zinc-300" />
+                                        Avis envoyé
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -165,10 +255,10 @@ const MesRdv = () => {
     )
 
     const nosStats = [
-        { label: "Total", value: rdvList.length, icon: CalendarIcon, color: "bg-zinc-100 text-zinc-600" },
-        { label: "À venir", value: getRdvByTab("a_venir").length, icon: CalendarClock, color: "bg-blue-50 text-blue-600" },
+        { label: "Total",    value: rdvList.length,                 icon: CalendarIcon,  color: "bg-zinc-100 text-zinc-600" },
+        { label: "À venir",  value: getRdvByTab("a_venir").length,  icon: CalendarClock, color: "bg-blue-50 text-blue-600" },
         { label: "Terminés", value: getRdvByTab("termines").length, icon: CalendarCheck, color: "bg-green-50 text-green-600" },
-        { label: "Annulés", value: getRdvByTab("annules").length, icon: CalendarX, color: "bg-red-50 text-red-600" },
+        { label: "Annulés",  value: getRdvByTab("annules").length,  icon: CalendarX,     color: "bg-red-50 text-red-600" },
     ]
 
     if (isLoading) {
@@ -176,18 +266,15 @@ const MesRdv = () => {
             <div className="pt-20 px-4 md:px-6 space-y-4 md:space-y-6 max-w-6xl mx-auto mb-12">
                 <Card className="rounded-2xl md:rounded-3xl shadow-sm border border-zinc-200 overflow-hidden bg-white">
                     <CardContent className="p-4 md:p-6">
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                            <div className="flex items-center gap-4">
-                                <Skeleton className="h-14 w-14 rounded-2xl" />
-                                <div className="space-y-2">
-                                    <Skeleton className="h-8 w-48" />
-                                    <Skeleton className="h-4 w-64" />
-                                </div>
+                        <div className="flex items-center gap-4">
+                            <Skeleton className="h-14 w-14 rounded-2xl" />
+                            <div className="space-y-2">
+                                <Skeleton className="h-8 w-48" />
+                                <Skeleton className="h-4 w-64" />
                             </div>
                         </div>
                     </CardContent>
                 </Card>
-
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {[1, 2, 3, 4].map((i) => (
                         <Card key={i} className="rounded-2xl shadow-sm border border-zinc-200 bg-white">
@@ -203,15 +290,7 @@ const MesRdv = () => {
                         </Card>
                     ))}
                 </div>
-
                 <Card className="rounded-2xl md:rounded-3xl shadow-sm border border-zinc-200 overflow-hidden bg-white">
-                    <div className="p-4 border-b border-zinc-200">
-                        <div className="flex gap-2">
-                            {[1, 2, 3, 4].map((i) => (
-                                <Skeleton key={i} className="h-10 w-28 rounded-lg" />
-                            ))}
-                        </div>
-                    </div>
                     <div className="p-6 space-y-4">
                         {[1, 2, 3].map((i) => (
                             <Card key={i} className="rounded-2xl">
@@ -238,24 +317,22 @@ const MesRdv = () => {
             {/* Header */}
             <Card className="rounded-2xl md:rounded-3xl shadow-sm border border-zinc-200 overflow-hidden animate-in fade-in slide-in-from-bottom duration-500 bg-white">
                 <CardContent className="p-4 md:p-6">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div className="flex items-center gap-3 md:gap-4">
-                            <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-zinc-100 flex items-center justify-center shrink-0">
-                                <CalendarIcon className="h-6 w-6 md:h-7 md:w-7 text-zinc-700" />
+                    <div className="flex items-center gap-3 md:gap-4">
+                        <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-zinc-100 flex items-center justify-center shrink-0">
+                            <CalendarIcon className="h-6 w-6 md:h-7 md:w-7 text-zinc-700" />
+                        </div>
+                        <div>
+                            <div className="flex items-center gap-2 md:gap-3">
+                                <h1 className="text-xl md:text-3xl font-black tracking-tight text-zinc-900">Mes Rendez-vous</h1>
+                                {rdvList.length > 0 && (
+                                    <Badge className="bg-zinc-900 text-white font-bold rounded-full">
+                                        {rdvList.length}
+                                    </Badge>
+                                )}
                             </div>
-                            <div>
-                                <div className="flex items-center gap-2 md:gap-3">
-                                    <h1 className="text-xl md:text-3xl font-black tracking-tight text-zinc-900">Mes Rendez-vous</h1>
-                                    {rdvList.length > 0 && (
-                                        <Badge className="bg-zinc-900 text-white font-bold rounded-full">
-                                            {rdvList.length}
-                                        </Badge>
-                                    )}
-                                </div>
-                                <p className="text-xs md:text-sm text-zinc-500 mt-1">
-                                    Gérez vos rendez-vous et restez informé
-                                </p>
-                            </div>
+                            <p className="text-xs md:text-sm text-zinc-500 mt-1">
+                                Gérez vos rendez-vous et restez informé
+                            </p>
                         </div>
                     </div>
                 </CardContent>
@@ -304,71 +381,72 @@ const MesRdv = () => {
                         </TabsList>
                     </div>
 
-                    <TabsContent value="tous" className="p-4 md:p-6 m-0">
-                        {getRdvByTab("tous").length === 0 ? (
-                            <EmptyState
-                                icon={CalendarIcon}
-                                title="Aucun rendez-vous"
-                                description="Vous n'avez pas encore de rendez-vous. Contactez un vendeur depuis une annonce pour planifier une visite."
-                            />
-                        ) : (
-                            <div className="space-y-3">
-                                {getRdvByTab("tous").map((rdv) => (
-                                    <RdvCard key={rdv.id} rdv={rdv} />
-                                ))}
-                            </div>
-                        )}
-                    </TabsContent>
-
-                    <TabsContent value="a_venir" className="p-4 md:p-6 m-0">
-                        {getRdvByTab("a_venir").length === 0 ? (
-                            <EmptyState
-                                icon={CalendarClock}
-                                title="Aucun rendez-vous à venir"
-                                description="Vos prochains rendez-vous confirmés ou en attente apparaîtront ici."
-                            />
-                        ) : (
-                            <div className="space-y-3">
-                                {getRdvByTab("a_venir").map((rdv) => (
-                                    <RdvCard key={rdv.id} rdv={rdv} />
-                                ))}
-                            </div>
-                        )}
-                    </TabsContent>
-
-                    <TabsContent value="termines" className="p-4 md:p-6 m-0">
-                        {getRdvByTab("termines").length === 0 ? (
-                            <EmptyState
-                                icon={CalendarCheck}
-                                title="Aucun rendez-vous terminé"
-                                description="L'historique de vos rendez-vous passés sera affiché ici."
-                            />
-                        ) : (
-                            <div className="space-y-3">
-                                {getRdvByTab("termines").map((rdv) => (
-                                    <RdvCard key={rdv.id} rdv={rdv} />
-                                ))}
-                            </div>
-                        )}
-                    </TabsContent>
-
-                    <TabsContent value="annules" className="p-4 md:p-6 m-0">
-                        {getRdvByTab("annules").length === 0 ? (
-                            <EmptyState
-                                icon={CalendarX}
-                                title="Aucun rendez-vous annulé"
-                                description="Les rendez-vous annulés seront affichés ici pour votre suivi."
-                            />
-                        ) : (
-                            <div className="space-y-3">
-                                {getRdvByTab("annules").map((rdv) => (
-                                    <RdvCard key={rdv.id} rdv={rdv} />
-                                ))}
-                            </div>
-                        )}
-                    </TabsContent>
+                    {["tous", "a_venir", "termines", "annules"].map(tab => (
+                        <TabsContent key={tab} value={tab} className="p-4 md:p-6 m-0">
+                            {getRdvByTab(tab).length === 0 ? (
+                                <EmptyState
+                                    icon={CalendarIcon}
+                                    title="Aucun rendez-vous"
+                                    description="Aucun rendez-vous dans cette catégorie."
+                                />
+                            ) : (
+                                <div className="space-y-3">
+                                    {getRdvByTab(tab).map((rdv) => (
+                                        <RdvCard key={rdv.id} rdv={rdv} />
+                                    ))}
+                                </div>
+                            )}
+                        </TabsContent>
+                    ))}
                 </Tabs>
             </Card>
+            {/* Dialog pour laisser un avis après un RDV terminé */}
+            <Dialog open={!!avisRdv} onOpenChange={open => { if (!open) setAvisRdv(null) }}>
+                <DialogContent className="sm:max-w-md rounded-2xl">
+                    <DialogHeader>
+                        <DialogTitle className="font-black text-zinc-900">Laisser un avis</DialogTitle>
+                        <p className="text-sm text-zinc-500">
+                            {avisRdv?.vendeur?.fullname ?? "ce vendeur"}
+                        </p>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                        {/* Étoiles cliquables — note de 1 à 5 */}
+                        <div className="flex justify-center gap-2">
+                            {[1, 2, 3, 4, 5].map(n => (
+                                <button
+                                    key={n}
+                                    onClick={() => setAvisForm(f => ({ ...f, note: n }))}
+                                    className="transition-transform hover:scale-110"
+                                >
+                                    <Star className={`h-9 w-9 ${n <= avisForm.note ? "text-amber-400 fill-amber-400" : "text-zinc-300"}`} />
+                                </button>
+                            ))}
+                        </div>
+                        <div className="space-y-1">
+                            <Label className="text-xs text-zinc-500">Commentaire (optionnel)</Label>
+                            <Textarea
+                                placeholder="Partagez votre expérience..."
+                                value={avisForm.commentaire}
+                                onChange={e => setAvisForm(f => ({ ...f, commentaire: e.target.value }))}
+                                className="rounded-lg text-sm resize-none"
+                                rows={3}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter className="gap-2">
+                        <Button variant="outline" onClick={() => setAvisRdv(null)} className="rounded-xl cursor-pointer">
+                            Annuler
+                        </Button>
+                        <Button
+                            disabled={avisLoading || avisForm.note === 0}
+                            onClick={handleAvisSubmit}
+                            className="bg-amber-500 hover:bg-amber-600 text-white rounded-xl cursor-pointer"
+                        >
+                            {avisLoading ? "Envoi..." : "Envoyer l'avis"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

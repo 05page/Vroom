@@ -9,9 +9,11 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import {
     Car, Tag, Key, Calendar, Fuel, Settings, Palette, DoorOpen, Users,
     Gauge, Check, Edit, Trash2, Eye,
-    Clock, Shield, MapPin, Sparkles,
+    Clock, Shield, MapPin, Sparkles, ChevronLeft, ChevronRight,
 } from "lucide-react"
 import { VehiculeDescription, vehicule } from "@/src/types"
+import Image from "next/image"
+import { useState } from "react"
 
 interface Props {
     isOpen: boolean;
@@ -20,15 +22,21 @@ interface Props {
     onEdit?: () => void;
     onDelete?: () => void;
 }
-const formatDate = (date: Date | undefined) => {
+const formatDate = (date: string | Date | undefined) => {
     if (!date) return "—"
-    return date.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })
+    return new Date(date).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })
 }
 
 
 const DetailsCard = ({ isOpen, onClose, vehicule, onEdit, onDelete }: Props) => {
     const isVente = vehicule.post_type === "vente"
     const isLocation = vehicule.post_type === "location"
+    const photos = vehicule.photos ?? []
+    const [photoIndex, setPhotoIndex] = useState(0)
+    const currentPhoto = photos[photoIndex]
+    const imageUrl = currentPhoto
+        ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/storage/${currentPhoto.path}`
+        : null
     const infos = [
         { label: "Kilométrage", value: `${vehicule.description?.kilometrage} km`, icon: Gauge },
         { label: "Carburant", value: vehicule.description?.carburant, icon: Fuel },
@@ -48,7 +56,28 @@ const DetailsCard = ({ isOpen, onClose, vehicule, onEdit, onDelete }: Props) => 
                 {/* Hero image + badges */}
                 <div className="relative h-52 md:h-64 bg-linear-to-br from-muted/60 to-muted/20 flex items-center justify-center overflow-hidden group">
                     <div className="absolute inset-0 bg-linear-to-t from-black/20 to-transparent" />
-                    <Car className="h-20 w-20 text-muted-foreground/15 transition-transform duration-500 group-hover:scale-110" />
+                    {imageUrl
+                        ? <Image src={imageUrl} alt={`${vehicule.description?.marque} ${vehicule.description?.modele}`} fill className="object-cover" unoptimized />
+                        : <Car className="h-20 w-20 text-muted-foreground/15 transition-transform duration-500 group-hover:scale-110" />
+                    }
+                    {photos.length > 1 && (
+                        <>
+                            <button onClick={() => setPhotoIndex(i => (i - 1 + photos.length) % photos.length)}
+                                className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1 transition-colors">
+                                <ChevronLeft className="h-5 w-5" />
+                            </button>
+                            <button onClick={() => setPhotoIndex(i => (i + 1) % photos.length)}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1 transition-colors">
+                                <ChevronRight className="h-5 w-5" />
+                            </button>
+                            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                                {photos.map((_, i) => (
+                                    <button key={i} onClick={() => setPhotoIndex(i)}
+                                        className={cn("w-1.5 h-1.5 rounded-full transition-colors", i === photoIndex ? "bg-white" : "bg-white/40")} />
+                                ))}
+                            </div>
+                        </>
+                    )}
 
                     <div className="absolute top-4 left-4 flex gap-2">
                         <Badge className={cn(

@@ -1,15 +1,25 @@
 "use client";
+
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { ChartBarIncreasing, ChevronLeft, ChevronRight, Send, Shield, TrendingUp, UsersRound } from "lucide-react";
+import {
+    ArrowRight,
+    ChartBarIncreasing,
+    ChevronLeft,
+    Clock,
+    Send,
+    Shield,
+    Star,
+    TrendingUp,
+    Users,
+    UsersRound,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-// import { useRouter } from "next/router";
 
 interface FormData {
     nomEntreprise: string
@@ -24,278 +34,273 @@ interface Partenaire {
     onClose: () => void;
 }
 
+/* ── Données ── */
+const benefits = [
+    { icon: TrendingUp,        title: "Boostez vos ventes",      desc: "Exposez votre offre à des milliers d'acheteurs actifs sur Vroom." },
+    { icon: ChartBarIncreasing, title: "Analyse & reporting",    desc: "Suivez vos performances avec des indicateurs clairs en temps réel." },
+    { icon: UsersRound,        title: "Clients qualifiés",        desc: "Touchez une audience engagée et locale, prête à acheter." },
+    { icon: Shield,            title: "Accompagnement dédié",     desc: "Un support réactif pour accélérer vos résultats dès le départ." },
+];
+
+const stats = [
+    { icon: Users,  value: "2 000+", label: "Clients actifs"  },
+    { icon: Clock,  value: "24/7",   label: "Support réactif" },
+    { icon: Star,   value: "4.9/5",  label: "Satisfaction"    },
+    { icon: Shield, value: "48h",    label: "Mise en ligne"   },
+];
+
 export function DevenirPartenaire({ open, onClose }: Partenaire) {
     const [formData, setFormData] = useState<FormData>({
         nomEntreprise: "",
         email: "",
         typeEntreprise: "",
         contact: "",
-        message: ""
+        message: "",
     });
-    // const router = useRouter();
     const [currentStep, setCurrentStep] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const benefits = [
-        {
-            icon: TrendingUp,
-            title: "Boostez vos ventes",
-            desc: "Exposez votre offre à des milliers d’acheteurs actifs.",
-            tone: "bg-orange-50 text-orange-600"
-        },
-        {
-            icon: ChartBarIncreasing,
-            title: "Analyse & reporting",
-            desc: "Suivez vos performances avec des indicateurs clairs.",
-            tone: "bg-gray-100 text-gray-600"
-        },
-        {
-            icon: UsersRound,
-            title: "Clients qualifiés",
-            desc: "Touchez une audience engagée et locale.",
-            tone: "bg-orange-50 text-orange-600"
-        },
-        {
-            icon: Shield,
-            title: "Accompagnement dédié",
-            desc: "Un support réactif pour accélérer vos résultats.",
-            tone: "bg-gray-100 text-gray-600"
-        },
-    ];
-
-    const updateFormData = (key: keyof FormData, value: string) => {
+    const updateFormData = (key: keyof FormData, value: string) =>
         setFormData((prev) => ({ ...prev, [key]: value }));
-    };
 
-    const validateStep = (step: number): boolean => {
-        switch (step) {
-            case 1:
-                return true;
-            case 2:
-                if (!formData.nomEntreprise || !formData.email || !formData.contact || !formData.typeEntreprise) {
-                    toast.error("Veuillez renseigner les champs obligatoires.");
-                    return false;
-                }
-                return true;
-            default:
-                return true;
+    const validateStep = (): boolean => {
+        if (currentStep === 2) {
+            if (!formData.nomEntreprise || !formData.email || !formData.contact || !formData.typeEntreprise) {
+                toast.error("Veuillez renseigner tous les champs obligatoires.");
+                return false;
+            }
         }
+        return true;
     };
 
-    const goToNext = () => {
-        if (validateStep(currentStep)) setCurrentStep((prev) => Math.min(prev + 1, 2));
-    };
-
-    const goToPrev = () => setCurrentStep((prev) => Math.max(prev - 1, 1));
+    const goToNext = () => { if (validateStep()) setCurrentStep(2); };
+    const goToPrev = () => setCurrentStep(1);
 
     const handleSubmit = () => {
-        if (!validateStep(2)) return;
+        if (!validateStep()) return;
         setIsSubmitting(true);
         setTimeout(() => {
-            toast.success("Demande envoyée avec succès");
+            toast.success("Demande envoyée avec succès !");
             setIsSubmitting(false);
-        }, 1000);
-        // router.push('/partenaire/dahsboard');
+            onClose();
+        }, 1200);
     };
 
     return (
-        <div>
-            <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
-                <DialogContent className="w-[115vw] max-w-300 max-h-[90vh] p-0 overflow-hidden border border-gray-200 rounded-[2rem] bg-white shadow-2xl flex flex-col">
-                    <div className="relative flex flex-col min-h-0">
-                        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(234,165,80,0.15),transparent_55%)]" />
-                        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(243,244,246,0.7),transparent_55%)]" />
+        <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
+            <DialogContent className="sm:max-w-3xl w-full max-h-[90vh] p-0 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl flex flex-col gap-0">
 
-                        <div className="relative border-b border-gray-200 p-6 md:p-8">
-                            <DialogHeader className="gap-4 text-left">
-                                <div className="flex flex-col gap-2">
-                                    <span className="inline-flex w-fit items-center rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-600">
-                                        Devenir partenaire
-                                    </span>
-                                    <DialogTitle className="text-2xl md:text-3xl font-black text-zinc-900 tracking-tight">
-                                        Développez votre activité avec Vroom CI
-                                    </DialogTitle>
-                                    <DialogDescription className="text-sm md:text-base text-zinc-500">
-                                        Rejoignez un écosystème automobile dynamique et gagnez en visibilité dès aujourd’hui.
-                                    </DialogDescription>
+                {/* ── En-tête ── */}
+                <div className="relative border-b border-zinc-100 px-6 py-5 shrink-0">
+                    {/* Fond ambre très doux */}
+                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_top_right,oklch(0.68_0.17_72/0.06),transparent)]" />
+
+                    <div className="relative flex flex-col gap-3">
+                        {/* Badge + titre */}
+                        <div className="flex items-center gap-3">
+                            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700 uppercase tracking-wide">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                Partenariat
+                            </span>
+                            {/* Étape */}
+                            <div className="flex items-center gap-2 ml-auto">
+                                <span className="text-xs text-zinc-400">Étape {currentStep} / 2</span>
+                                <div className="h-1.5 w-20 rounded-full bg-zinc-100 overflow-hidden">
+                                    <div
+                                        className="h-full rounded-full bg-amber-500 transition-all duration-500"
+                                        style={{ width: currentStep === 1 ? "50%" : "100%" }}
+                                    />
                                 </div>
-                                <div className="flex items-center gap-3">
-                                    <span className="text-xs font-semibold text-zinc-500">
-                                        Étape {currentStep}/2
-                                    </span>
-                                    <div className="h-1.5 w-28 rounded-full bg-gray-200 overflow-hidden">
-                                        <div className={`h-full rounded-full bg-orange-500 transition-all duration-300 ${currentStep === 1 ? "w-1/2" : "w-full"}`} />
-                                    </div>
-                                </div>
-                            </DialogHeader>
-                        </div>
-
-                        <div className="relative p-6 md:p-8 flex-1 min-h-0 overflow-y-auto">
-                            {currentStep === 1 && (
-                                <>
-                                    <div className="grid lg:grid-cols-[1.05fr_1fr] gap-8 items-start">
-                                        <div className="space-y-6">
-                                            <h3 className="text-xl md:text-2xl font-black text-zinc-900 leading-tight">
-                                                Rejoignez les marques qui nous font confiance pour accélérer leur croissance.
-                                            </h3>
-                                            <p className="text-sm md:text-base text-zinc-500 leading-relaxed">
-                                                Que vous soyez concessionnaire, assureur, banque ou prestataire, nous vous
-                                                donnons accès à des prospects qualifiés, des outils de pilotage et un
-                                                accompagnement humain.
-                                            </p>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                {[
-                                                    { value: "2,000+", label: "Clients actifs" },
-                                                    { value: "24/7", label: "Support réactif" },
-                                                    { value: "4.9/5", label: "Satisfaction" },
-                                                    { value: "48h", label: "Mise en ligne" },
-                                                ].map((stat) => (
-                                                    <div key={stat.label} className="rounded-2xl border border-gray-200 bg-white/70 px-4 py-3">
-                                                        <p className="text-lg font-black text-zinc-900">{stat.value}</p>
-                                                        <p className="text-xs text-zinc-500">{stat.label}</p>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        <div className="grid sm:grid-cols-2 gap-4">
-                                            {benefits.map((benefit) => (
-                                                <Card
-                                                    key={benefit.title}
-                                                    className="group rounded-3xl border border-gray-200 bg-white/80 hover:bg-white hover:shadow-xl transition-all duration-300"
-                                                >
-                                                    <CardContent className="p-6">
-                                                        <div className={`mb-5 flex h-12 w-12 items-center justify-center rounded-2xl ${benefit.tone}`}>
-                                                            <benefit.icon className="h-6 w-6" />
-                                                        </div>
-                                                        <p className="text-base font-black text-zinc-900 mb-2">{benefit.title}</p>
-                                                        <p className="text-xs text-zinc-500 leading-relaxed">{benefit.desc}</p>
-                                                    </CardContent>
-                                                </Card>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </>
-                            )}
-                            {currentStep === 2 && (
-                                <form
-                                    className="space-y-6"
-                                    onSubmit={(event) => {
-                                        event.preventDefault();
-                                        handleSubmit();
-                                    }}
-                                >
-                                    <div className="grid md:grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="nomEntreprise">Nom de l’agence</Label>
-                                            <Input
-                                                id="nomEntreprise"
-                                                placeholder="Ex: Garage Auto Plus"
-                                                value={formData.nomEntreprise}
-                                                onChange={(event) => updateFormData("nomEntreprise", event.target.value)}
-                                                className="h-12"
-                                            />
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label htmlFor="contact">Contact</Label>
-                                            <Input
-                                                id="contact"
-                                                placeholder="Ex: +225 07 00 00 00 00"
-                                                value={formData.contact}
-                                                onChange={(event) => updateFormData("contact", event.target.value)}
-                                                className="h-12"
-                                            />
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label htmlFor="email">Email</Label>
-                                            <Input
-                                                id="email"
-                                                type="email"
-                                                placeholder="contact@entreprise.com"
-                                                value={formData.email}
-                                                onChange={(event) => updateFormData("email", event.target.value)}
-                                                className="h-12"
-                                            />
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label htmlFor="typeEntreprise">Type d’entreprise</Label>
-                                            <Select value={formData.typeEntreprise} onValueChange={(value) => updateFormData("typeEntreprise", value)}>
-                                                <SelectTrigger id="typeEntreprise" className="h-12">
-                                                    <SelectValue placeholder="Sélectionner" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {["Concessionnaire", "Assureur", "Banque", "Prestataire automobile", "Autre"].map((item) => (
-                                                        <SelectItem key={item} value={item}>
-                                                            {item}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <Label htmlFor="message">Message (optionnel)</Label>
-                                        <Textarea
-                                            id="message"
-                                            placeholder="Décrivez votre activité ou vos besoins."
-                                            value={formData.message}
-                                            onChange={(event) => updateFormData("message", event.target.value)}
-                                            className="min-h-28"
-                                        />
-                                    </div>
-                                </form>
-                            )}
-                        </div>
-
-                        <div className="relative flex flex-col gap-4 border-t border-gray-200 bg-white/80 p-6 md:flex-row md:items-center md:justify-between md:p-8">
-                            <p className="text-xs text-zinc-500">
-                                Besoin d’aide ? Écrivez-nous à <span className="font-semibold text-zinc-700">contact@vroomci.com</span>
-                            </p>
-
-                            <div className="flex items-center justify-between gap-3 md:justify-end">
-                                {currentStep > 1 ? (
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={goToPrev}
-                                        className="gap-1.5 cursor-pointer rounded-2xl border-gray-200 text-zinc-700"
-                                    >
-                                        <ChevronLeft className="h-3.5 w-3.5" />
-                                        Précédent
-                                    </Button>
-                                ) : (
-                                    <div />
-                                )}
-
-                                {currentStep < 2 ? (
-                                    <Button
-                                        size="sm"
-                                        onClick={goToNext}
-                                        className="gap-1.5 bg-black hover:bg-black/80 text-white font-bold cursor-pointer rounded-2xl px-6"
-                                    >
-                                        Suivant
-                                        <ChevronRight className="h-3.5 w-3.5" />
-                                    </Button>
-                                ) : (
-                                    <Button
-                                        size="sm"
-                                        onClick={handleSubmit}
-                                        disabled={isSubmitting}
-                                        className="gap-1.5 bg-zinc-900 hover:bg-zinc-800 text-white font-bold cursor-pointer rounded-2xl px-6"
-                                    >
-                                        <Send className="h-3.5 w-3.5" />
-                                        {isSubmitting ? "Envoi en cours..." : "Envoyer la demande"}
-                                    </Button>
-                                )}
                             </div>
                         </div>
+
+                        <DialogTitle className="text-xl font-extrabold text-zinc-900 tracking-tight leading-tight" style={{ fontFamily: "var(--font-syne, sans-serif)" }}>
+                            {currentStep === 1
+                                ? "Développez votre activité avec Vroom"
+                                : "Renseignez vos informations"}
+                        </DialogTitle>
+                        <p className="text-sm text-zinc-500">
+                            {currentStep === 1
+                                ? "Rejoignez un écosystème automobile dynamique et gagnez en visibilité dès aujourd'hui."
+                                : "Nous vous contacterons sous 48h pour finaliser votre intégration."}
+                        </p>
                     </div>
-                </DialogContent>
-            </Dialog>
-        </div>
+                </div>
+
+                {/* ── Corps scrollable ── */}
+                <div className="flex-1 overflow-y-auto px-6 py-6 min-h-0">
+
+                    {/* ── ÉTAPE 1 : Présentation ── */}
+                    {currentStep === 1 && (
+                        <div className="grid md:grid-cols-2 gap-6 items-start">
+
+                            {/* Colonne gauche : texte + stats */}
+                            <div className="space-y-5">
+                                <p className="text-sm text-zinc-600 leading-relaxed">
+                                    Que vous soyez <strong className="text-zinc-900">concessionnaire</strong>, auto-école ou prestataire automobile — accédez à des prospects qualifiés, des outils de pilotage et un accompagnement humain.
+                                </p>
+
+                                {/* Stats */}
+                                <div className="grid grid-cols-2 md:grid-cols-2 gap-3">
+                                    {stats.map((s) => (
+                                        <div key={s.label}
+                                            className="flex items-center gap-3 rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-3">
+                                            <div className="w-7 h-7 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center shrink-0">
+                                                <s.icon className="h-3.5 w-3.5 text-amber-600" />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-zinc-900 leading-none">{s.value}</p>
+                                                <p className="text-[11px] text-zinc-400 mt-0.5">{s.label}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Colonne droite : bénéfices */}
+                            <div className="grid grid-cols-1 gap-3">
+                                {benefits.map((b) => (
+                                    <div key={b.title}
+                                        className="group flex items-start gap-3 rounded-xl border border-zinc-100 bg-white p-4 hover:border-amber-200 hover:shadow-sm transition-all duration-200">
+                                        <div className="w-8 h-8 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center shrink-0 mt-0.5 group-hover:scale-105 transition-transform">
+                                            <b.icon className="h-4 w-4 text-amber-600" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-semibold text-zinc-900">{b.title}</p>
+                                            <p className="text-xs text-zinc-500 leading-relaxed mt-0.5">{b.desc}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ── ÉTAPE 2 : Formulaire ── */}
+                    {currentStep === 2 && (
+                        <form
+                            className="space-y-5"
+                            onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}
+                        >
+                            <div className="grid md:grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                    <Label htmlFor="nomEntreprise" className="text-xs font-semibold text-zinc-700">
+                                        Nom de l&apos;entreprise <span className="text-amber-500">*</span>
+                                    </Label>
+                                    <Input
+                                        id="nomEntreprise"
+                                        placeholder="Ex : Garage Auto Plus"
+                                        value={formData.nomEntreprise}
+                                        onChange={(e) => updateFormData("nomEntreprise", e.target.value)}
+                                        className="h-11 text-sm"
+                                    />
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <Label htmlFor="contact" className="text-xs font-semibold text-zinc-700">
+                                        Téléphone <span className="text-amber-500">*</span>
+                                    </Label>
+                                    <Input
+                                        id="contact"
+                                        placeholder="+225 07 00 00 00 00"
+                                        value={formData.contact}
+                                        onChange={(e) => updateFormData("contact", e.target.value)}
+                                        className="h-11 text-sm"
+                                    />
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <Label htmlFor="email" className="text-xs font-semibold text-zinc-700">
+                                        Email professionnel <span className="text-amber-500">*</span>
+                                    </Label>
+                                    <Input
+                                        id="email"
+                                        type="email"
+                                        placeholder="contact@entreprise.com"
+                                        value={formData.email}
+                                        onChange={(e) => updateFormData("email", e.target.value)}
+                                        className="h-11 text-sm"
+                                    />
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <Label htmlFor="typeEntreprise" className="text-xs font-semibold text-zinc-700">
+                                        Type d&apos;entreprise <span className="text-amber-500">*</span>
+                                    </Label>
+                                    <Select
+                                        value={formData.typeEntreprise}
+                                        onValueChange={(v) => updateFormData("typeEntreprise", v)}
+                                    >
+                                        <SelectTrigger id="typeEntreprise" className="h-11 text-sm">
+                                            <SelectValue placeholder="Sélectionner" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {["Concessionnaire", "Auto-école", "Assureur", "Banque", "Prestataire automobile", "Autre"].map((item) => (
+                                                <SelectItem key={item} value={item}>{item}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <Label htmlFor="message" className="text-xs font-semibold text-zinc-700">
+                                    Message <span className="text-zinc-400">(optionnel)</span>
+                                </Label>
+                                <Textarea
+                                    id="message"
+                                    placeholder="Décrivez votre activité ou vos besoins spécifiques..."
+                                    value={formData.message}
+                                    onChange={(e) => updateFormData("message", e.target.value)}
+                                    className="min-h-24 text-sm resize-none"
+                                />
+                            </div>
+                        </form>
+                    )}
+                </div>
+
+                {/* ── Pied de page ── */}
+                <div className="shrink-0 border-t border-zinc-100 bg-zinc-50/60 px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <p className="text-xs text-zinc-400">
+                        Une question ? <span className="font-medium text-zinc-600">contact@vroomci.com</span>
+                    </p>
+
+                    <div className="flex items-center gap-2 ml-auto">
+                        {currentStep === 2 && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={goToPrev}
+                                className="gap-1.5 cursor-pointer border-zinc-200 text-zinc-600 hover:text-zinc-900"
+                            >
+                                <ChevronLeft className="h-3.5 w-3.5" />
+                                Retour
+                            </Button>
+                        )}
+
+                        {currentStep === 1 ? (
+                            <Button
+                                size="sm"
+                                onClick={goToNext}
+                                className="gap-2 bg-amber-500 hover:bg-amber-600 text-white font-semibold cursor-pointer px-5 shadow-sm hover:shadow-amber-200 hover:shadow-md transition-all duration-200"
+                            >
+                                Continuer
+                                <ArrowRight className="h-3.5 w-3.5" />
+                            </Button>
+                        ) : (
+                            <Button
+                                size="sm"
+                                onClick={handleSubmit}
+                                disabled={isSubmitting}
+                                className="gap-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white font-semibold cursor-pointer px-5 shadow-sm transition-all duration-200"
+                            >
+                                <Send className="h-3.5 w-3.5" />
+                                {isSubmitting ? "Envoi en cours…" : "Envoyer la demande"}
+                            </Button>
+                        )}
+                    </div>
+                </div>
+
+            </DialogContent>
+        </Dialog>
     );
 }

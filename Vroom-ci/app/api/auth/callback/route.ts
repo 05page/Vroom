@@ -1,3 +1,5 @@
+import { getDashBoard } from "@/src/core/auth/permission"
+import { UserRole } from "@/src/types"
 import { cookies } from "next/headers"
 import { NextRequest, NextResponse } from "next/server"
 
@@ -28,10 +30,7 @@ export async function GET(request: NextRequest) {
   })
 
   // Rediriger vers le dashboard selon le role
-  const redirectPath = role === "vendeur" ? "/vendeur/dashboard"
-    : role === "admin" ? "/admin/dashboard"
-    : role === "partenaire" ? "/partenaire/dashboard"
-    : "/client/dashboard"
+  const redirectPath = getDashBoard(role as UserRole)
 
   return NextResponse.redirect(new URL(redirectPath, request.url))
 }

@@ -17,13 +17,11 @@ import {
     CircleCheck,
     AlertCircle,
 } from "lucide-react"
-import { useEffect, useState } from "react"
-import { Notifications, MesNotifs } from "@/src/types"
-import { api } from "@/src/lib/api"
-import { toast } from "sonner"
+import { Notifications } from "@/src/types"
 import { fr } from "date-fns/locale"
 import { formatDistanceToNow } from "date-fns"
 import { useUser } from "@/src/context/UserContext"
+import { useNotification } from "@/src/context/NotificationContext"
 
 function NotificationsLoading() {
     return (
@@ -100,9 +98,9 @@ function EmptyState({ icon: Icon, title, description }: { icon: React.ComponentT
     )
 }
 
-function NotificationItem({ notification }: { notification: Notifications }) {
+function NotificationItem({ notification, onRead }: { notification: Notifications, onRead: (id: number) => void }) {
     return (
-        <Card className={`rounded-2xl shadow-sm border border-border/40 hover:shadow-md transition-all duration-300 cursor-pointer group ${!notification.is_read ? 'bg-primary/5 border-primary/20' : 'bg-card/50'}`}>
+        <Card onClick={() => !notification.is_read && onRead(notification.id)} className={`rounded-2xl shadow-sm border border-border/40 hover:shadow-md transition-all duration-300 cursor-pointer group ${!notification.is_read ? 'bg-primary/5 border-primary/20' : 'bg-card/50'}`}>
             <CardContent className="p-4">
                 <div className="flex items-start gap-4">
                     <div className={`w-12 h-12 rounded-xl ${getIconBgByType(notification.type)} flex items-center justify-center shrink-0`}>
@@ -134,33 +132,9 @@ function NotificationItem({ notification }: { notification: Notifications }) {
 }
 
 export function NotificationsContent() {
-    const [unreadCount] = useState(0)
-    const [notifs, setNotifs] = useState<Notifications[]>([]);
-    const [mesNotifs, setMesNotifs] = useState<MesNotifs | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
-    const {user} = useUser()
-    const [isSubmiting, setIsSubmititng] = useState(false)
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                setIsLoading(true)
-                const [notifRes] = await Promise.all([
-                    api.get<MesNotifs>("/notifications/mesNotifs")
-                ])
-                setNotifs(notifRes?.data?.notifications ?? [])
-            } catch (error) {
-                toast.error(error instanceof Error ? error?.message : "Erreur Serveur")
-            } finally {
-                setIsLoading(false)
-            }
-        }
-        fetchData()
-    }, [])
+    const { notifications: notifs, unreadCount, isLoading, markAsRead, markAllRead } = useNotification()
+    const { user } = useUser()
 
-    const MarkAsRead = () => {
-        setIsSubmititng(true)
-        toast.success("Notifications marqué comme lu")
-    }
     if (isLoading) {
         return <NotificationsLoading />
     }
@@ -190,7 +164,7 @@ export function NotificationsContent() {
                             </div>
                         </div>
                         <div className="flex gap-2">
-                            <Button variant="outline" size="sm" onClick={()=>MarkAsRead()} className="rounded-xl cursor-pointer border-zinc-200 text-zinc-700 hover:bg-zinc-50">
+                            <Button variant="outline" size="sm" onClick={markAllRead} className="rounded-xl cursor-pointer border-zinc-200 text-zinc-700 hover:bg-zinc-50">
                                 <CheckCheck className="h-4 w-4 mr-2" />
                                 Tout marquer comme lu
                             </Button>
@@ -303,7 +277,7 @@ export function NotificationsContent() {
                         ) : (
                             <div className="space-y-3">
                                 {notifs.map((notification) => (
-                                    <NotificationItem key={notification.id} notification={notification} />
+                                    <NotificationItem key={notification.id} notification={notification} onRead={markAsRead} />
                                 ))}
                             </div>
                         )}

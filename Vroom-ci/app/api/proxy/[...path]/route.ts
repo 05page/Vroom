@@ -26,11 +26,15 @@ async function proxyToLaravel(request: NextRequest) {
   if (hasBody) {
     headers["Content-Type"] = "application/json"
   }
+  const contentType = request.headers.get("content-type") || ""
+  if(contentType.includes("multipart/form-data")){
+    headers["Content-Type"] = contentType
+  }
 
   const res = await fetch(backendUrl, {
     method: request.method,
     headers,
-    body: hasBody ? await request.text() : undefined,
+    body: hasBody ? (contentType.includes("multipart/form-data") ? await request.arrayBuffer() : await request.text()) : undefined,
   })
 
   const data = await res.json()

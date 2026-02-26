@@ -14,7 +14,7 @@ import { EditProfil } from "@/app/components/EditProfil"
 import { toast } from "sonner"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { api } from "@/src/lib/api"
-import { ClientRdvItem } from "@/src/types"
+import { ClientRdvItem, Avis } from "@/src/types"
 import { useUser } from "@/src/context/UserContext"
 
 function ProfileLoading() {
@@ -91,15 +91,22 @@ export function ProfileContent() {
     const [rdvList, setRdvList] = useState<ClientRdvItem[]>([])
     const [open, setOpen] = useState(false)
     const [isLoading, setIsLoading] = useState(true)
+    // Avis reçus — chargé uniquement si l'utilisateur est un vendeur
+    const [avisData, setAvisData] = useState<{ avis: Avis[]; note_moyenne: number; total: number } | null>(null)
 
     useEffect(() => {
+        if (!user) return // attendre que le user soit disponible via le contexte
         const fetchData = async () => {
             try {
                 setIsLoading(true)
-                const [rdvRes] = await Promise.all([
-                    api.get<ClientRdvItem[]>("/transactions/mesRdv"),
-                ])
+                const rdvRes = await api.get<ClientRdvItem[]>("/rdv/mes-rdv")
                 setRdvList(rdvRes.data ?? [])
+
+                // Fetch des avis uniquement pour un vendeur
+                if (user.role === "vendeur") {
+                    const avisRes = await api.get<{ avis: Avis[]; note_moyenne: number; total: number }>(`/avis/vendeur/${user.id}`)
+                    setAvisData(avisRes.data ?? null)
+                }
             } catch (error) {
                 toast.error(error instanceof Error ? error.message : "Erreur serveur")
             } finally {
@@ -107,7 +114,7 @@ export function ProfileContent() {
             }
         }
         fetchData()
-    }, [])
+    }, [user?.id]) // re-run quand l'id du user est disponible
 
     const handleSubmit = () => {
         toast.success("Profil modifié avec succès")
@@ -258,7 +265,7 @@ export function ProfileContent() {
                                 <Star className="h-5 w-5 text-amber-600" />
                             </div>
                             <div>
-                                <p className="text-2xl font-black text-zinc-900">0</p>
+                                <p className="text-2xl font-black text-zinc-900">{avisData?.total ?? 0}</p>
                                 <p className="text-xs font-semibold text-muted-foreground">Notes</p>
                             </div>
                         </div>
@@ -330,10 +337,46 @@ export function ProfileContent() {
                     </TabsContent>
 
                     <TabsContent value="mieux_note" className="p-4 md:p-6">
-                        <div className="flex flex-col items-center justify-center py-8 md:py-12 text-center">
-                            <Star className="h-10 w-10 md:h-12 md:w-12 text-muted-foreground/20 mb-4" />
-                            <p className="text-sm md:text-base text-muted-foreground font-medium">Aucun avis reçu pour le moment</p>
-                        </div>
+                        {!avisData || avisData.avis.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-8 md:py-12 text-center">
+                                <Star className="h-10 w-10 md:h-12 md:w-12 text-muted-foreground/20 mb-4" />
+                                <p className="text-sm md:text-base text-muted-foreground font-medium">Aucun avis reçu pour le moment</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {/* Résumé note moyenne */}
+                                <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-50 border border-amber-100">
+                                    <div className="flex gap-0.5">
+                                        {[1, 2, 3, 4, 5].map(n => (
+                                            <Star key={n} className={`h-5 w-5 ${n <= Math.round(avisData.note_moyenne) ? "text-amber-400 fill-amber-400" : "text-zinc-300"}`} />
+                                        ))}
+                                    </div>
+                                    <span className="font-black text-2xl text-zinc-900">{avisData.note_moyenne}</span>
+                                    <span className="text-sm text-zinc-500">sur {avisData.total} avis</span>
+                                </div>
+                                {/* Liste des avis */}
+                                {avisData.avis.map(a => (
+                                    <div key={a.id} className="p-3 rounded-xl border border-zinc-200 bg-white">
+                                        <div className="flex items-center justify-between gap-3 mb-1">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-7 h-7 rounded-full bg-zinc-100 flex items-center justify-center text-xs font-bold text-zinc-600">
+                                                    {a.client?.fullname?.[0]?.toUpperCase() ?? "?"}
+                                                </div>
+                                                <span className="font-semibold text-sm text-zinc-800">{a.client?.fullname}</span>
+                                            </div>
+                                            <div className="flex gap-0.5">
+                                                {[1, 2, 3, 4, 5].map(n => (
+                                                    <Star key={n} className={`h-3.5 w-3.5 ${n <= a.note ? "text-amber-400 fill-amber-400" : "text-zinc-300"}`} />
+                                                ))}
+                                            </div>
+                                        </div>
+                                        {a.commentaire && (
+                                            <p className="text-sm text-zinc-600 italic">"{a.commentaire}"</p>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </TabsContent>
                 </Tabs>
             </Card>

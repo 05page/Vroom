@@ -12,7 +12,7 @@ export interface User {
 }
 
 export type UserRole =
-  | "client" | "admin" | "vendeur" | "partenaire"
+  | "client" | "admin" | "vendeur" | "concessionnaire" | "auto_ecole"
 
 export type PartenaireType =
   | "concessionnaire" | "auto_ecole"
@@ -69,7 +69,7 @@ export interface TopVehiculesVues {
 }
 
 export interface VendeurRdv {
-  transactions_recentes: Transaction[];
+  rdv_recents: Transaction[];
   total_rdv: number;
 }
 
@@ -108,8 +108,9 @@ export interface vehicule {
   date_disponibilite: Date;
   status_validation: string;
   views_count: string;
-  view_by: string;
+  creator?: { id: string; fullname: string; email?: string; role?: string }; // vendeur du véhicule
   description: VehiculeDescription;
+  photos?: VehiculePhotos[]; // photos du véhicule (relation Eloquent chargée avec 'photos')
 }
 
 export interface VehiculeStats{
@@ -151,41 +152,22 @@ export interface AllVehicules {
   statsVehicules: VehiculeStats
 }
 
-export interface Rdv {
-  list_rdv: RdvItem[]
-  stats: RdvStats
-}
-
-export interface RdvStats {
-  total_rdv: number
-  rdv_coming: number
-  rdv_annule: number
-  rdv_effectue: number
-}
-
-export interface RdvItem {
-  id: number
-  user_id: number
-  proprietaire_id: number
-  vehicule_id: number
-  date_rdv: string
-  heure_rdv: string
-  statut: string
-  type_finalisation: string
-  client: {
-    id: number
-    fullname: string
-    email: string
-    telephone: string
-    adresse: string
-  }
-  vehicule: {
-    id: number
-    description: {
-      marque: string
-      modele: string
-    }
-  }
+export interface RendezVous {
+  id: string
+  client_id: string
+  vendeur_id: string
+  vehicule_id: string
+  date_heure: string
+  type: 'visite' | 'essai_routier' | 'premiere_rencontre'
+  statut: 'en_attente' | 'confirmé' | 'refusé' | 'annulé' | 'terminé'
+  motif?: string | null
+  lieu?: string | null
+  notes?: string | null
+  client?: { id: string; fullname: string; avatar?: string | null; telephone?: string | null }
+  vendeur?: { id: string; fullname: string; avatar?: string | null; telephone?: string | null }
+  vehicule?: vehicule
+  created_at: string
+  updated_at: string
 }
 
 export interface MesNotifs {
@@ -204,34 +186,40 @@ export interface Notifications{
 }
 
 export interface Favori {
-  id: number
+  id: string
   user_id: number
-  post_id: number
-  type: string
-  created_at: string
-  post: vehicule
+  vehicule_id: string
+  date_ajout: string
+  vehicule?: vehicule
 }
 
-export interface ClientRdvItem {
-  id: number
-  user_id: number
-  proprietaire_id: number
-  vehicule_id: number
-  date_rdv: string
-  heure_rdv: string
-  statut: string
-  type_finalisation: string
-  post_type: string
-  vehicule: {
-    id: number
-    description?: VehiculeDescription
-    photos?: VehiculePhotos[]
-  }
-  proprietaire: {
-    id: number
-    fullname: string
-    email: string
-    telephone: string
-    adresse: string
-  }
+// Alias conservé pour compatibilité, utiliser RendezVous directement
+export type ClientRdvItem = RendezVous
+export type RdvItem = RendezVous
+
+export interface Alerte {
+  id: string
+  user_id: string
+  marque_cible?: string | null
+  modele_cible?: string | null
+  prix_max?: number | null
+  carburant?: string | null
+  active: boolean
+  created_at: string
+}
+
+export interface Avis {
+  id: string
+  client_id: string
+  vendeur_id: string
+  note: number // 1 à 5
+  commentaire?: string | null
+  date_avis: string
+  client?: { id: string; fullname: string; avatar?: string | null }
+}
+
+export interface AvisVendeur {
+  avis: Avis[]
+  note_moyenne: number
+  total: number
 }

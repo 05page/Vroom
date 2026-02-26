@@ -14,61 +14,140 @@ import {
     Tag,
     KeyRound,
     Eye,
+    Bell,
+    BellOff,
     Trash2,
 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
-import { Favori } from "@/src/types"
+import { Favori, Alerte } from "@/src/types"
 import { api } from "@/src/lib/api"
+import { Switch } from "@/components/ui/switch"
 
 const FavoritesPage = () => {
     const [favoris, setFavoris] = useState<Favori[]>([])
+    const [alertes, setAlertes] = useState<Alerte[]>([])
     const [isLoading, setIsLoading] = useState(true)
 
     useEffect(() => {
-        const fetchFavoris = async () => {
+        const fetchData = async () => {
             try {
                 setIsLoading(true)
-                const res = await api.get<Favori[]>("/interactions/favorites")
-                setFavoris(res.data ?? [])
+                // Charge favoris et alertes en parallèle
+                const [favorisRes, alertesRes] = await Promise.all([
+                    api.get<Favori[]>("/favoris/"),
+                    api.get<Alerte[]>("/alertes/"),
+                ])
+                setFavoris(favorisRes.data ?? [])
+                setAlertes(alertesRes.data ?? [])
             } catch (error) {
                 toast.error(error instanceof Error ? error.message : "Erreur serveur")
             } finally {
                 setIsLoading(false)
             }
         }
-        fetchFavoris()
+        fetchData()
     }, [])
 
-    const handleRemoveFavori = async (postId: string) => {
+    const handleRemoveFavori = async (vehiculeId: string) => {
         try {
-            await api.delete(`/interactions/deleteFavorite/${postId}`)
-            setFavoris(favoris.filter(f => String(f.post_id) !== postId))
+            await api.delete(`/favoris/${vehiculeId}`)
+            setFavoris(favoris.filter(f => f.vehicule_id !== vehiculeId))
             toast.success("Véhicule retiré des favoris")
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Erreur serveur")
         }
     }
 
+    // Supprime une alerte et met à jour la liste locale
+    const handleDeleteAlerte = async (id: string) => {
+        try {
+            await api.delete(`/alertes/${id}`)
+            setAlertes(prev => prev.filter(a => a.id !== id))
+            toast.success("Alerte supprimée")
+        } catch {
+            toast.error("Impossible de supprimer l'alerte")
+        }
+    }
+
+    // Active ou désactive une alerte via PUT /alertes/{id}
+    const handleToggleAlerte = async (alerte: Alerte) => {
+        try {
+            await api.put(`/alertes/${alerte.id}`, { active: !alerte.active })
+            setAlertes(prev =>
+                prev.map(a => a.id === alerte.id ? { ...a, active: !a.active } : a)
+            )
+        } catch {
+            toast.error("Impossible de modifier l'alerte")
+        }
+    }
+
     const getFavorisFiltres = (type: string): Favori[] => {
         if (type === "tous") return favoris
-        return favoris.filter(f => f.post?.post_type === type)
+        return favoris.filter(f => f.vehicule?.post_type === type)
     }
+
+    const AlereteCard = ({ a }: { a: Alerte }) => (
+        <Card className="rounded-2xl shadow-sm border border-zinc-200 bg-white hover:shadow-md transition-all duration-300">
+            <CardContent className="p-4">
+                <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${a.active ? "bg-amber-50" : "bg-zinc-100"}`}>
+                            {a.active
+                                ? <Bell className="h-5 w-5 text-amber-500" />
+                                : <BellOff className="h-5 w-5 text-zinc-400" />
+                            }
+                        </div>
+                        <div>
+                            <p className="font-bold text-sm text-zinc-900">
+                                {[a.marque_cible, a.modele_cible].filter(Boolean).join(" ") || "Tous véhicules"}
+                            </p>
+                            <p className="text-xs text-zinc-500">
+                                {a.prix_max ? `Max ${Number(a.prix_max).toLocaleString()} FCFA` : "Tout prix"}
+                                {a.carburant ? ` · ${a.carburant}` : ""}
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                        {/* Toggle actif/inactif */}
+                        <Switch
+                            checked={a.active}
+                            onCheckedChange={() => handleToggleAlerte(a)}
+                        />
+                        <button
+                            onClick={() => handleDeleteAlerte(a.id)}
+                            className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center hover:bg-red-100 transition-colors cursor-pointer"
+                        >
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                        </button>
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    )
 
     const FavoriCard = ({ f }: { f: Favori }) => (
         <Card className="rounded-2xl md:rounded-3xl shadow-sm border border-zinc-200 bg-white hover:shadow-lg transition-all duration-300 hover:-translate-y-1 overflow-hidden">
             <CardContent className="p-0">
-                <div className="h-40 bg-gradient-to-br from-zinc-100 to-zinc-50 flex items-center justify-center relative">
-                    <Car className="h-12 w-12 text-zinc-300" />
-                    <Badge className={`absolute top-3 left-3 rounded-full text-xs ${f.post?.post_type === "vente"
+                <div className="h-40 bg-linear-to-br from-zinc-100 to-zinc-50 flex items-center justify-center relative overflow-hidden">
+                    {(() => {
+                        const primaryPhoto = f.vehicule?.photos?.find(p => p.is_primary) ?? f.vehicule?.photos?.[0]
+                        const imageUrl = primaryPhoto
+                            ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/storage/${primaryPhoto.path}`
+                            : null
+                        return imageUrl
+                            ? <img src={imageUrl} alt="photo véhicule" className="absolute inset-0 w-full h-full object-cover" />
+                            : <Car className="h-12 w-12 text-zinc-300" />
+                    })()}
+                    <Badge className={`absolute top-3 left-3 rounded-full text-xs ${f.vehicule?.post_type === "vente"
                         ? "bg-green-500/10 text-green-600 border-green-500/20"
                         : "bg-blue-500/10 text-blue-600 border-blue-500/20"
                         }`}>
-                        {f.post?.post_type === "vente" ? <Tag className="h-3 w-3 mr-1" /> : <KeyRound className="h-3 w-3 mr-1" />}
-                        {f.post?.post_type === "vente" ? "Vente" : "Location"}
+                        {f.vehicule?.post_type === "vente" ? <Tag className="h-3 w-3 mr-1" /> : <KeyRound className="h-3 w-3 mr-1" />}
+                        {f.vehicule?.post_type === "vente" ? "Vente" : "Location"}
                     </Badge>
                     <button
-                        onClick={() => handleRemoveFavori(String(f.post_id))}
+                        onClick={() => handleRemoveFavori(f.vehicule_id)}
                         className="absolute top-3 right-3 w-8 h-8 rounded-full bg-red-500/10 flex items-center justify-center hover:bg-red-500/20 transition-colors cursor-pointer"
                     >
                         <Heart className="h-4 w-4 text-red-500 fill-red-500" />
@@ -76,13 +155,13 @@ const FavoritesPage = () => {
                 </div>
                 <div className="p-4 space-y-3">
                     <div>
-                        <h3 className="font-bold text-base text-zinc-900">{f.post?.description?.marque} {f.post?.description?.modele}</h3>
-                        <p className="text-xs text-zinc-500">{f.post?.description?.annee} &middot; {f.post?.description?.kilometrage} km &middot; {f.post?.description?.carburant}</p>
+                        <h3 className="font-bold text-base text-zinc-900">{f.vehicule?.description?.marque} {f.vehicule?.description?.modele}</h3>
+                        <p className="text-xs text-zinc-500">{f.vehicule?.description?.annee} &middot; {f.vehicule?.description?.kilometrage} km &middot; {f.vehicule?.description?.carburant}</p>
                     </div>
-                    <p className="text-lg font-black text-zinc-900">{f.post?.prix?.toLocaleString()} <span className="text-xs font-normal text-zinc-500">FCFA</span></p>
+                    <p className="text-lg font-black text-zinc-900">{Number(f.vehicule?.prix).toLocaleString()} <span className="text-xs font-normal text-zinc-500">FCFA</span></p>
                     <Separator />
                     <div className="flex items-center justify-between text-xs text-zinc-500">
-                        <span className="flex items-center gap-1"><Eye className="h-3 w-3" /> {f.post?.views_count} vues</span>
+                        <span className="flex items-center gap-1"><Eye className="h-3 w-3" /> {f.vehicule?.views_count} vues</span>
                         <Button variant="outline" size="sm" className="rounded-lg text-xs cursor-pointer border-zinc-200">
                             Voir détails
                         </Button>
@@ -198,7 +277,7 @@ const FavoritesPage = () => {
                                 <Tag className="h-5 w-5 text-green-500" />
                             </div>
                             <div>
-                                <p className="text-2xl font-black text-zinc-900">{favoris.filter(f => f.post?.post_type === "vente").length}</p>
+                                <p className="text-2xl font-black text-zinc-900">{favoris.filter(f => f.vehicule?.post_type === "vente").length}</p>
                                 <p className="text-xs font-semibold text-zinc-500">En vente</p>
                             </div>
                         </div>
@@ -211,7 +290,7 @@ const FavoritesPage = () => {
                                 <KeyRound className="h-5 w-5 text-blue-500" />
                             </div>
                             <div>
-                                <p className="text-2xl font-black text-zinc-900">{favoris.filter(f => f.post?.post_type === "location").length}</p>
+                                <p className="text-2xl font-black text-zinc-900">{favoris.filter(f => f.vehicule?.post_type === "location").length}</p>
                                 <p className="text-xs font-semibold text-zinc-500">En location</p>
                             </div>
                         </div>
@@ -219,11 +298,11 @@ const FavoritesPage = () => {
                 </Card>
             </div>
 
-            {/* Tabs + Favoris */}
+            {/* Tabs + Favoris + Alertes */}
             <Card className="rounded-2xl md:rounded-3xl shadow-sm border border-zinc-200 overflow-hidden animate-in fade-in slide-in-from-bottom duration-700 bg-white">
                 <Tabs defaultValue="tous" className="w-full">
                     <div className="p-4 border-b border-zinc-200">
-                        <TabsList className="w-full md:w-auto grid grid-cols-3 md:flex">
+                        <TabsList className="w-full md:w-auto grid grid-cols-4 md:flex">
                             <TabsTrigger value="tous" className="gap-2 data-[state=active]:bg-zinc-900 data-[state=active]:text-white">
                                 <Heart className="h-4 w-4" />
                                 <span className="hidden md:inline">Tous</span>
@@ -232,12 +311,17 @@ const FavoritesPage = () => {
                             <TabsTrigger value="vente" className="gap-2 data-[state=active]:bg-zinc-900 data-[state=active]:text-white">
                                 <Tag className="h-4 w-4" />
                                 <span className="hidden md:inline">En vente</span>
-                                <Badge variant="secondary" className="rounded-full">{favoris.filter(f => f.post?.post_type === "vente").length}</Badge>
+                                <Badge variant="secondary" className="rounded-full">{favoris.filter(f => f.vehicule?.post_type === "vente").length}</Badge>
                             </TabsTrigger>
                             <TabsTrigger value="location" className="gap-2 data-[state=active]:bg-zinc-900 data-[state=active]:text-white">
                                 <KeyRound className="h-4 w-4" />
                                 <span className="hidden md:inline">En location</span>
-                                <Badge variant="secondary" className="rounded-full">{favoris.filter(f => f.post?.post_type === "location").length}</Badge>
+                                <Badge variant="secondary" className="rounded-full">{favoris.filter(f => f.vehicule?.post_type === "location").length}</Badge>
+                            </TabsTrigger>
+                            <TabsTrigger value="alertes" className="gap-2 data-[state=active]:bg-amber-500 data-[state=active]:text-white">
+                                <Bell className="h-4 w-4" />
+                                <span className="hidden md:inline">Alertes</span>
+                                <Badge variant="secondary" className="rounded-full">{alertes.length}</Badge>
                             </TabsTrigger>
                         </TabsList>
                     </div>
@@ -267,6 +351,25 @@ const FavoritesPage = () => {
                             )}
                         </TabsContent>
                     ))}
+
+                    {/* Tab alertes prix */}
+                    <TabsContent value="alertes" className="p-4 md:p-6">
+                        {alertes.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-12 md:py-16 text-center">
+                                <div className="w-20 h-20 rounded-full bg-amber-50 flex items-center justify-center mb-6">
+                                    <Bell className="h-10 w-10 text-amber-300" />
+                                </div>
+                                <h3 className="text-lg font-bold mb-2">Aucune alerte prix</h3>
+                                <p className="text-sm text-muted-foreground max-w-sm">
+                                    Créez des alertes depuis la fiche d'un véhicule pour être notifié quand un bien correspond à vos critères.
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {alertes.map(a => <AlereteCard key={a.id} a={a} />)}
+                            </div>
+                        )}
+                    </TabsContent>
                 </Tabs>
             </Card>
 

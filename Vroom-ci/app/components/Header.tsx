@@ -1,243 +1,282 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Badge } from "@/components/ui/badge";
 import {
-    Menubar,
-    MenubarContent,
-    MenubarGroup,
-    MenubarItem,
-    MenubarMenu,
-    MenubarSeparator,
-    MenubarTrigger,
-} from "@/components/ui/menubar"
-import {
-    Sheet,
-    SheetContent,
-    SheetHeader,
-    SheetTitle,
-    SheetTrigger,
-} from "@/components/ui/sheet"
-import { Bell, Calendar, Car, Heart, Home, LayoutDashboard, LogOut, Menu, MessageCircle, User as UserIcon } from "lucide-react"
+    Bell,
+    Calendar,
+    Car,
+    ChevronDown,
+    Heart,
+    Home,
+    LayoutDashboard,
+    LogOut,
+    Menu,
+    MessageCircle,
+    User as UserIcon,
+} from "lucide-react";
 import Link from "next/link";
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+import { useState } from "react";
 import { api } from "@/src/lib/api";
-import { useRouter } from 'next/navigation'
+import { useRouter } from "next/navigation";
 import { useUser } from "@/src/context/UserContext";
+import { useNotification } from "@/src/context/NotificationContext";
 
 const Header = () => {
-    const pathname = usePathname()
-    const {user} = useUser()
-    const [mobileOpen, setMobileOpen] = useState(false)
-    const isVendeur = user?.role === "vendeur"
+    const pathname = usePathname();
+    const { user } = useUser();
+    const [mobileOpen, setMobileOpen] = useState(false);
+    const [profileOpen, setProfileOpen] = useState(false);
+    const { unreadCount } = useNotification()
+    const router = useRouter();
 
-    if (pathname.startsWith("/auth") || pathname.startsWith("/Auth") || pathname.startsWith("/partenaire")) return null
+    const isVendeur = user?.role === "vendeur";
 
-    const navItems = [
+    if (
+        pathname.startsWith("/auth") ||
+        pathname.startsWith("/Auth") ||
+        pathname.startsWith("/partenaire")
+    )
+        return null;
+
+    const navLinks = [
         { href: "/", label: "Accueil", icon: Home },
         { href: "/vehicles", label: "Véhicules", icon: Car },
-        ...(isVendeur ? [] : [{ href: "/client/favorites", label: "Favoris", icon: Heart }]),
-        { href: isVendeur ? "/vendeur/notifications" : "/client/notifications", label: "Notifications", icon: Bell },
-    ]
+        ...(!isVendeur
+            ? [{ href: "/client/favorites", label: "Favoris", icon: Heart }]
+            : []),
+        {
+            href: isVendeur ? "/vendeur/rdv" : "/client/rdv",
+            label: "Rendez-vous",
+            icon: Calendar,
+        },
+    ];
 
-    const menuItems = [
-        { href: isVendeur ? "/vendeur/dashboard" : "/client/profile", label: isVendeur ? "Mon dashboard" : "Mon compte", icon: LayoutDashboard },
-        { href: isVendeur ? "/vendeur/rdv" : "/client/rdv", label: "Mes Rendez-vous", icon: Calendar },
-        { href: isVendeur ? "/vendeur/messages" : "/messages", label: "Messages", icon: MessageCircle },
-    ]
-    const router = useRouter();
     const handleLogout = async () => {
-        await api.logout()
-        router.push("/auth")
-    }
+        await api.logout();
+        router.push("/auth");
+    };
+
+    const roleDot = isVendeur ? "bg-emerald-500" : "bg-amber-500";
+    const roleLabel = isVendeur ? "Vendeur" : "Client";
+
     return (
-        <header className="fixed top-0 left-0 right-0 z-50 border-b border-zinc-200 bg-white/80 backdrop-blur-md">
-            <div className="container mx-auto flex h-14 md:h-16 items-center justify-between px-4">
-                {/* Logo */}
-                <Link href="/" className="flex items-center gap-2 shrink-0">
-                    <div className="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center">
-                        <Car className="h-4 w-4 text-white" />
-                    </div>
-                </Link>
+        <>
+            {/* ── DESKTOP HEADER ── */}
+            <header className="fixed top-0 left-0 right-0 z-50 hidden md:flex items-center">
+                <div className="absolute inset-0 bg-white/90 backdrop-blur-md border-b border-zinc-200" />
 
-                {/* Desktop: Navigation center */}
-                <Menubar className="border-none bg-transparent shadow-none hidden md:flex">
-                    <MenubarMenu>
-                        <MenubarTrigger className="cursor-pointer text-zinc-600 hover:text-zinc-900 font-medium text-sm data-[state=active]:border-r-black">
-                            <Link href="/" className="flex items-center">
-                                <Home className="mr-2 h-4 w-4" />
-                                Accueil
-                            </Link>
-                        </MenubarTrigger>
-                    </MenubarMenu>
+                <div className="relative w-full max-w-7xl mx-auto flex h-14 items-center justify-between px-6">
 
-                    <MenubarMenu>
-                        <MenubarTrigger className="cursor-pointer text-zinc-600 hover:text-zinc-900 font-medium text-sm">
-                            <Link href="/vehicles" className="flex items-center">
-                                <Car className="mr-2 h-4 w-4" />
-                                Véhicules
-                            </Link>
-                        </MenubarTrigger>
-                    </MenubarMenu>
+                    {/* Logo */}
+                    <Link href="/" className="flex items-center gap-2 shrink-0 group">
+                        <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center shadow-sm group-hover:shadow-amber-200 group-hover:shadow-md transition-shadow duration-200">
+                            <Car className="h-4 w-4 text-white fill-white" />
+                        </div>
+                        <span
+                            className="text-base font-bold text-zinc-900 tracking-tight"
+                            style={{ fontFamily: "var(--font-syne, sans-serif)" }}
+                        >
+                            Vroom
+                        </span>
+                    </Link>
 
-                    {!isVendeur && (
-                        <MenubarMenu>
-                            <MenubarTrigger className="cursor-pointer text-zinc-600 hover:text-zinc-900 font-medium text-sm">
-                                <Link href="/client/favorites" className="flex items-center">
-                                    <Heart className="mr-2 h-4 w-4" />
-                                    Favoris
+                    {/* Nav center */}
+                    <nav className="flex items-center gap-0.5">
+                        {navLinks.map((item) => {
+                            const active = pathname === item.href;
+                            return (
+                                <Link
+                                    key={item.href}
+                                    href={item.href}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-150
+                    ${active
+                                            ? "bg-zinc-100 text-zinc-900"
+                                            : "text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50"
+                                        }`}
+                                >
+                                    <item.icon className="h-3.5 w-3.5" />
+                                    {item.label}
                                 </Link>
-                            </MenubarTrigger>
-                        </MenubarMenu>
-                    )}
+                            );
+                        })}
+                    </nav>
 
-                    <MenubarMenu>
-                        <MenubarTrigger className="cursor-pointer text-zinc-600 hover:text-zinc-900 font-medium text-sm">
-                            <Link href={isVendeur ? "/vendeur/rdv" : "/client/rdv"} className="flex items-center">
-                                <Calendar className="mr-2 h-4 w-4" />
-                                Rendez-vous
-                            </Link>
-                        </MenubarTrigger>
-                    </MenubarMenu>
-                </Menubar>
+                    {/* Right */}
+                    <div className="flex items-center gap-1">
+                        <Link
+                            href={isVendeur ? "/vendeur/messages" : "/client/messages"}
+                            className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-all"
+                        >
+                            <MessageCircle className="h-4 w-4" />
+                        </Link>
+                        <Link
+                            href={isVendeur ? "/vendeur/notifications" : "/client/notifications"}
+                            className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-all"
+                        >
+                            <div className="relative">
+                                <Bell className="h-4 w-4" />
+                                {unreadCount > 0 && (
+                                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                                        {unreadCount > 9 ? "9+" : unreadCount}
+                                    </span>
 
-                {/* Desktop: Profile right */}
-                <div className="hidden md:flex items-center">
-                    <Menubar className="border-none bg-transparent shadow-none">
-                        <MenubarMenu>
-                            <MenubarTrigger className="cursor-pointer text-zinc-600 hover:text-zinc-900 font-medium text-sm">
-                                <Link href={isVendeur ? "/vendeur/messages" : "/client/messages"} className="flex items-center">
-                                    <MessageCircle className="mr-2 h-4 w-4" />
-                                </Link>
-                            </MenubarTrigger>
-                        </MenubarMenu>
+                                )}
+                            </div>
+                        </Link>
 
-                        <MenubarMenu>
-                            <MenubarTrigger className="cursor-pointer text-zinc-600 hover:text-zinc-900 font-medium text-sm">
-                                <Link href={isVendeur ? "/vendeur/notifications" : "/client/notifications"} className="flex items-center">
-                                    <Bell className="mr-2 h-4 w-4" />
-                                </Link>
-                            </MenubarTrigger>
-                        </MenubarMenu>
+                        <div className="w-px h-5 bg-zinc-200 mx-1" />
 
-                        <MenubarMenu>
-                            <MenubarTrigger className="cursor-pointer">
-                                <div className="flex items-center gap-2">
-                                    <div
-                                        className={`flex h-8 w-8 items-center justify-center rounded-full border-2 ${user?.role === "client" ? "border-orange-400" : "border-green-400"
-                                            }`}
-                                    >
-                                        <UserIcon className={`h-4 w-4 ${user?.role === "client" ? "text-orange-500" : "text-green-500"}`} />
+                        {/* Profile dropdown */}
+                        <div className="relative">
+                            <button
+                                onClick={() => setProfileOpen(!profileOpen)}
+                                className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-lg border border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50 transition-all cursor-pointer"
+                            >
+                                <div className="w-6 h-6 rounded-md bg-zinc-100 flex items-center justify-center">
+                                    <UserIcon className="h-3.5 w-3.5 text-zinc-500" />
+                                </div>
+                                <div className="flex flex-col items-start">
+                                    <span className="text-xs font-semibold text-zinc-800 leading-none">
+                                        {user?.fullname?.split(" ")[0] ?? "Profil"}
+                                    </span>
+                                    <span className="text-[10px] text-zinc-400 leading-none mt-0.5 flex items-center gap-1">
+                                        <span className={`w-1.5 h-1.5 rounded-full ${roleDot}`} />
+                                        {roleLabel}
+                                    </span>
+                                </div>
+                                <ChevronDown
+                                    className={`h-3 w-3 text-zinc-400 transition-transform duration-150 ${profileOpen ? "rotate-180" : ""}`}
+                                />
+                            </button>
+
+                            {profileOpen && (
+                                <div
+                                    className="absolute right-0 top-full mt-2 w-48 rounded-xl border border-zinc-200 bg-white shadow-lg shadow-zinc-100 overflow-hidden"
+                                    onMouseLeave={() => setProfileOpen(false)}
+                                >
+                                    <div className="px-3 py-2.5 border-b border-zinc-100">
+                                        <p className="text-xs font-semibold text-zinc-800">{user?.fullname}</p>
+                                        <p className="text-xs text-zinc-400 mt-0.5">{user?.email}</p>
                                     </div>
-                                    <div className="flex flex-col items-start leading-tight">
-                                        <span className="text-sm font-semibold text-zinc-900">{user?.fullname}</span>
-                                        <Badge className={`text-white text-[10px] font-medium ${user?.role === "client" ? "bg-orange-500" : "bg-green-500"}`}>
-                                            {user?.role}
-                                        </Badge>
+                                    <div className="p-1.5">
+                                        <Link
+                                            href={isVendeur ? "/vendeur/dashboard" : "/client/profile"}
+                                            onClick={() => setProfileOpen(false)}
+                                            className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 transition-all"
+                                        >
+                                            <LayoutDashboard className="h-3.5 w-3.5" />
+                                            {isVendeur ? "Dashboard" : "Mon compte"}
+                                        </Link>
+                                    </div>
+                                    <div className="p-1.5 border-t border-zinc-100">
+                                        <button
+                                            onClick={handleLogout}
+                                            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-red-500 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer"
+                                        >
+                                            <LogOut className="h-3.5 w-3.5" />
+                                            Déconnexion
+                                        </button>
                                     </div>
                                 </div>
-                            </MenubarTrigger>
-                            <MenubarContent align="end">
-                                <MenubarGroup>
-                                    <MenubarItem className="cursor-pointer">
-                                        <Link href={isVendeur ? "/vendeur/dashboard" : "/client/profile"} className="flex items-center">
-                                            <LayoutDashboard className="mr-2 h-4 w-4" />
-                                            {isVendeur ? "Mon dashboard" : "Mon compte"}
-                                        </Link>
-                                    </MenubarItem>
-                                </MenubarGroup>
-                                <MenubarSeparator />
-                                <MenubarGroup>
-                                    <MenubarItem className="cursor-pointer text-red-500">
-                                        <Button variant="link" className="cursor-pointer" onClick={() => handleLogout()}>
-                                            <LogOut className="mr-2 h-4 w-4" />
-                                            Deconnexion
-                                        </Button>
-                                    </MenubarItem>
-                                </MenubarGroup>
-                            </MenubarContent>
-                        </MenubarMenu>
-                    </Menubar>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            {/* ── MOBILE HEADER ── */}
+            <header className="fixed top-0 left-0 right-0 z-50 md:hidden">
+                <div className="absolute inset-0 bg-white/90 backdrop-blur-md border-b border-zinc-200" />
+
+                <div className="relative flex h-14 items-center justify-between px-4">
+                    <Link href="/" className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-amber-500 flex items-center justify-center">
+                            <Car className="h-3.5 w-3.5 text-white fill-white" />
+                        </div>
+                        <span className="text-sm font-bold text-zinc-900" style={{ fontFamily: "var(--font-syne, sans-serif)" }}>
+                            Vroom
+                        </span>
+                    </Link>
+
+                    <button
+                        onClick={() => setMobileOpen(!mobileOpen)}
+                        className="w-9 h-9 flex items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50 transition-all cursor-pointer"
+                    >
+                        <Menu className="h-4 w-4" />
+                    </button>
                 </div>
 
-                {/* Mobile: Hamburger + Sheet */}
-                <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-                    <SheetTrigger asChild className="md:hidden">
-                        <Button variant="ghost" size="icon" className="rounded-xl">
-                            <Menu className="h-5 w-5 text-zinc-700" />
-                        </Button>
-                    </SheetTrigger>
-                    <SheetContent side="right" className="w-70 p-0">
-                        <SheetHeader className="p-5 pb-4">
-                            <div className="flex items-center gap-3">
-                                <div className={`flex h-10 w-10 items-center justify-center rounded-full border-2 ${user?.role === "client" ? "border-orange-400" : "border-green-400"
-                                    }`}>
-                                    <UserIcon className={`h-5 w-5 ${user?.role === "client" ? "text-orange-500" : "text-green-500"}`} />
+                {mobileOpen && (
+                    <div className="fixed inset-0 z-40" onClick={() => setMobileOpen(false)}>
+                        <div
+                            className="absolute top-14 left-0 right-0 bg-white border-b border-zinc-200 shadow-xl p-4 space-y-1"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {/* User info */}
+                            <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-zinc-50 mb-3">
+                                <div className="w-9 h-9 rounded-lg bg-zinc-100 flex items-center justify-center">
+                                    <UserIcon className="h-4 w-4 text-zinc-500" />
                                 </div>
                                 <div>
-                                    <SheetTitle className="text-sm font-bold text-zinc-900">{user?.fullname}</SheetTitle>
-                                    <Badge className={`text-white font-medium text-[10px] ${user?.role === "client" ? "bg-orange-500" : "bg-green-500"}`}>
-                                        {user?.role}
-                                    </Badge>
+                                    <p className="text-sm font-semibold text-zinc-800">{user?.fullname}</p>
+                                    <p className="text-xs text-zinc-400 flex items-center gap-1 mt-0.5">
+                                        <span className={`w-1.5 h-1.5 rounded-full ${roleDot}`} />
+                                        {roleLabel}
+                                    </p>
                                 </div>
                             </div>
-                        </SheetHeader>
 
-                        <Separator />
+                            {navLinks.map((item) => {
+                                const active = pathname === item.href;
+                                return (
+                                    <Link
+                                        key={item.href}
+                                        href={item.href}
+                                        onClick={() => setMobileOpen(false)}
+                                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all
+                      ${active ? "bg-zinc-100 text-zinc-900" : "text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50"}`}
+                                    >
+                                        <item.icon className="h-4 w-4" />
+                                        {item.label}
+                                    </Link>
+                                );
+                            })}
 
-                        <nav className="flex flex-col p-3 gap-1">
-                            {navItems.map((item) => (
-                                <Link
-                                    key={item.href}
-                                    href={item.href}
-                                    onClick={() => setMobileOpen(false)}
-                                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${pathname === item.href
-                                        ? "bg-zinc-100 text-zinc-900"
-                                        : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900"
-                                        }`}
-                                >
-                                    <item.icon className="h-4 w-4" />
-                                    {item.label}
-                                </Link>
-                            ))}
-                        </nav>
+                            <div className="h-px bg-zinc-100 my-2" />
 
-                        <Separator className="mx-3" />
+                            <Link
+                                href={isVendeur ? "/vendeur/dashboard" : "/client/profile"}
+                                onClick={() => setMobileOpen(false)}
+                                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50 transition-all"
+                            >
+                                <LayoutDashboard className="h-4 w-4" />
+                                {isVendeur ? "Dashboard" : "Mon compte"}
+                            </Link>
 
-                        <nav className="flex flex-col p-3 gap-1">
-                            <p className="px-4 py-2 text-xs font-bold text-zinc-400 uppercase tracking-wider">
-                                Mon espace
-                            </p>
-                            {menuItems.map((item) => (
-                                <Link
-                                    key={item.href}
-                                    href={item.href}
-                                    onClick={() => setMobileOpen(false)}
-                                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${pathname === item.href
-                                        ? "bg-zinc-100 text-zinc-900"
-                                        : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900"
-                                        }`}
-                                >
-                                    <item.icon className="h-4 w-4" />
-                                    {item.label}
-                                </Link>
-                            ))}
-                        </nav>
+                            <Link
+                                href={isVendeur ? "/vendeur/messages" : "/client/messages"}
+                                onClick={() => setMobileOpen(false)}
+                                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50 transition-all"
+                            >
+                                <MessageCircle className="h-4 w-4" />
+                                Messages
+                            </Link>
 
-                        <div className="mt-auto p-3">
-                            <Separator className="mb-3" />
-                            <button className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 transition-colors w-full cursor-pointer">
+                            <div className="h-px bg-zinc-100 my-2" />
+
+                            <button
+                                onClick={handleLogout}
+                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-red-500 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer"
+                            >
                                 <LogOut className="h-4 w-4" />
                                 Déconnexion
                             </button>
                         </div>
-                    </SheetContent>
-                </Sheet>
-            </div>
-        </header>
-    )
-}
+                    </div>
+                )}
+            </header>
+        </>
+    );
+};
 
 export default Header;

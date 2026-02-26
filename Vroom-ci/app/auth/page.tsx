@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -19,15 +20,109 @@ import {
     Store,
     User,
     UserCircle,
+    Users,
 } from "lucide-react"
 import Link from "next/link"
+import { toast } from "sonner"
+import { getDashBoard } from "@/src/core/auth/permission"
+import { UserRole } from "@/src/types"
+
+interface FormRegister {
+    fullname: string,
+    role: "vendeur" | "client",
+    email: string,
+    telephone: string,
+    adresse: string
+    password: string,
+    passwordConfirmation: string,
+}
+
+interface FormLogin {
+    email: string,
+    password: string,
+}
 
 const AuthPage = () => {
-    const [accountType, setAccountType] = useState<"client" | "vendeur">("client")
+    const router = useRouter()
     const [showPassword, setShowPassword] = useState(false)
     const [showConfirmPassword, setShowConfirmPassword] = useState(false)
     const [registerStep, setRegisterStep] = useState(1)
+    const [formDataLogin, setFormDataLogin] = useState<FormLogin>({
+        email: "",
+        password: ""
+    })
+    const [formDataRegister, setFormDataRegister] = useState<FormRegister>({
+        fullname: "",
+        role: "client",
+        email: "",
+        telephone: "",
+        adresse: "",
+        password: "",
+        passwordConfirmation: ""
+    })
 
+    const handleChange = (key: keyof FormRegister, value: FormRegister[keyof FormRegister]) => {
+        setFormDataRegister(prev => ({
+            ...prev,
+            [key]: value
+        }))
+    }
+    const handleChangeLogin = (key: keyof FormLogin, value: string) => {
+        setFormDataLogin(prev => ({
+            ...prev,
+            [key]: value
+        }))
+    }
+
+    const handleLoginSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        try {
+            const res = await fetch('/api/auth/login', {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(formDataLogin),
+            })
+            const data = await res.json()
+            if (!res.ok) {
+                toast.error(data.message || "Erreur lors de la connexion")
+                return
+            }
+            toast.success("Connexion réussie !")
+            router.push(getDashBoard(data.role as UserRole))
+        } catch (error) {
+            toast.error("Erreur de connexion au serveur")
+        }
+    }
+
+    const handleRegisterSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+
+        try {
+            const res = await fetch('/api/auth/register', {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    fullname: formDataRegister.fullname,
+                    role: formDataRegister.role,
+                    email: formDataRegister.email,
+                    telephone: formDataRegister.telephone,
+                    adresse: formDataRegister.adresse,
+                    password: formDataRegister.password,
+                    password_confirmation: formDataRegister.passwordConfirmation
+                }),
+            })
+
+            const data = await res.json()
+            if (!res.ok) {
+                toast.error(data.message || "Erreur lors de l'inscription")
+                return
+            }
+            toast.success(data.message ||"Compte créé avec succès !")
+            router.push(getDashBoard(data.role as UserRole))
+        } catch (error) {
+            toast.error("Erreur de connexion au serveur")
+        }
+    }
     const handleAuthGoogle = () => {
         window.location.href = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/google/redirect`;
     }
@@ -91,7 +186,7 @@ const AuthPage = () => {
                                     <p className="text-zinc-400">Connectez-vous pour acceder a votre compte</p>
                                 </div>
 
-                                <form className="space-y-6">
+                                <form className="space-y-6" onSubmit={handleLoginSubmit}>
                                     <div className="space-y-2">
                                         <Label htmlFor="login-email" className="text-sm font-semibold text-zinc-700">
                                             Email
@@ -101,6 +196,8 @@ const AuthPage = () => {
                                             <Input
                                                 id="login-email"
                                                 type="email"
+                                                value={formDataLogin.email}
+                                                onChange={(e) => handleChangeLogin("email", e.target.value)}
                                                 placeholder="exemple@email.com"
                                                 className="pl-11 h-12 rounded-xl bg-gray-50/50 border-gray-200 focus:border-orange-500 focus:ring-orange-500/20"
                                             />
@@ -121,6 +218,8 @@ const AuthPage = () => {
                                             <Input
                                                 id="login-password"
                                                 type={showPassword ? "text" : "password"}
+                                                value={formDataLogin.password}
+                                                onChange={(e) => handleChangeLogin("password", e.target.value)}
                                                 placeholder="Votre mot de passe"
                                                 className="pl-11 pr-11 h-12 rounded-xl bg-gray-50/50 border-gray-200 focus:border-orange-500 focus:ring-orange-500/20"
                                             />
@@ -152,7 +251,7 @@ const AuthPage = () => {
 
                                     <Button
                                         type="button"
-                                        onClick={()=> handleAuthGoogle()}
+                                        onClick={() => handleAuthGoogle()}
                                         variant="outline"
                                         className="w-full h-12 rounded-xl border-gray-200 bg-white hover:bg-gray-50 text-zinc-700 font-bold text-sm cursor-pointer"
                                     >
@@ -177,13 +276,12 @@ const AuthPage = () => {
                                 <div className="flex items-center gap-2 mb-6">
                                     {[1, 2, 3].map((step) => (
                                         <div key={step} className="flex items-center gap-2 flex-1">
-                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200 ${
-                                                registerStep === step
-                                                    ? "bg-orange-500 text-white shadow-md shadow-orange-500/20"
-                                                    : registerStep > step
-                                                        ? "bg-orange-100 text-orange-600"
-                                                        : "bg-gray-100 text-zinc-400"
-                                            }`}>
+                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200 ${registerStep === step
+                                                ? "bg-orange-500 text-white shadow-md shadow-orange-500/20"
+                                                : registerStep > step
+                                                    ? "bg-orange-100 text-orange-600"
+                                                    : "bg-gray-100 text-zinc-400"
+                                                }`}>
                                                 {registerStep > step ? (
                                                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                                                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -191,15 +289,14 @@ const AuthPage = () => {
                                                 ) : step}
                                             </div>
                                             {step < 3 && (
-                                                <div className={`flex-1 h-1 rounded-full transition-all duration-200 ${
-                                                    registerStep > step ? "bg-orange-300" : "bg-gray-200"
-                                                }`} />
+                                                <div className={`flex-1 h-1 rounded-full transition-all duration-200 ${registerStep > step ? "bg-orange-300" : "bg-gray-200"
+                                                    }`} />
                                             )}
                                         </div>
                                     ))}
                                 </div>
 
-                                <form className="space-y-5">
+                                <form className="space-y-5" onSubmit={handleRegisterSubmit}>
                                     {/* ===== ETAPE 1 : Type de compte ===== */}
                                     {registerStep === 1 && (
                                         <div className="space-y-5">
@@ -210,63 +307,55 @@ const AuthPage = () => {
                                                 <p className="text-xs text-zinc-400">Choisissez le type de compte qui vous correspond</p>
                                                 <div className="grid grid-cols-2 gap-3">
                                                     <button
+                                                        onClick={() => handleChange("role", "client")}
                                                         type="button"
-                                                        onClick={() => setAccountType("client")}
-                                                        className={`relative flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer ${
-                                                            accountType === "client"
-                                                                ? "border-orange-500 bg-orange-50 shadow-md shadow-orange-500/10"
-                                                                : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
-                                                        }`}
+                                                        className={`relative flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer ${formDataRegister.role === "client"
+                                                            ? "border-orange-500 bg-orange-50 shadow-md shadow-orange-500/10"
+                                                            : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
+                                                            }`}
                                                     >
-                                                        {accountType === "client" && (
+                                                        {formDataRegister.role === "client" && (
                                                             <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center">
                                                                 <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                                                                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                                                 </svg>
                                                             </div>
                                                         )}
-                                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                                                            accountType === "client" ? "bg-orange-100" : "bg-gray-50"
-                                                        }`}>
-                                                            <UserCircle className={`h-6 w-6 ${
-                                                                accountType === "client" ? "text-orange-600" : "text-gray-400"
-                                                            }`} />
+                                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${formDataRegister.role === "client" ? "bg-orange-100" : "bg-gray-50"
+                                                            }`}>
+                                                            <UserCircle className={`h-6 w-6 ${formDataRegister.role === "client" ? "text-orange-600" : "text-gray-400"
+                                                                }`} />
                                                         </div>
                                                         <div className="text-center">
-                                                            <p className={`text-sm font-bold ${
-                                                                accountType === "client" ? "text-orange-700" : "text-zinc-700"
-                                                            }`}>Client</p>
+                                                            <p className={`text-sm font-bold ${formDataRegister.role === "client" ? "text-orange-700" : "text-zinc-700"
+                                                                }`}>Client</p>
                                                             <p className="text-xs text-zinc-400">Acheter ou louer</p>
                                                         </div>
                                                     </button>
 
                                                     <button
                                                         type="button"
-                                                        onClick={() => setAccountType("vendeur")}
-                                                        className={`relative flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer ${
-                                                            accountType === "vendeur"
-                                                                ? "border-orange-500 bg-orange-50 shadow-md shadow-orange-500/10"
-                                                                : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
-                                                        }`}
+                                                        onClick={() => handleChange("role", "vendeur")}
+                                                        className={`relative flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer ${formDataRegister.role === "vendeur"
+                                                            ? "border-orange-500 bg-orange-50 shadow-md shadow-orange-500/10"
+                                                            : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
+                                                            }`}
                                                     >
-                                                        {accountType === "vendeur" && (
+                                                        {formDataRegister.role === "vendeur" && (
                                                             <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center">
                                                                 <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                                                                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                                                 </svg>
                                                             </div>
                                                         )}
-                                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                                                            accountType === "vendeur" ? "bg-orange-100" : "bg-gray-50"
-                                                        }`}>
-                                                            <Store className={`h-6 w-6 ${
-                                                                accountType === "vendeur" ? "text-orange-600" : "text-gray-400"
-                                                            }`} />
+                                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${formDataRegister.role === "vendeur" ? "bg-orange-100" : "bg-gray-50"
+                                                            }`}>
+                                                            <Store className={`h-6 w-6 ${formDataRegister.role === "vendeur" ? "text-orange-600" : "text-gray-400"
+                                                                }`} />
                                                         </div>
                                                         <div className="text-center">
-                                                            <p className={`text-sm font-bold ${
-                                                                accountType === "vendeur" ? "text-orange-700" : "text-zinc-700"
-                                                            }`}>Vendeur</p>
+                                                            <p className={`text-sm font-bold ${formDataRegister.role === "vendeur" ? "text-orange-700" : "text-zinc-700"
+                                                                }`}>Vendeur</p>
                                                             <p className="text-xs text-zinc-400">Vendre des vehicules</p>
                                                         </div>
                                                     </button>
@@ -293,28 +382,16 @@ const AuthPage = () => {
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div className="space-y-2">
                                                     <Label htmlFor="lastname" className="text-sm font-semibold text-zinc-700">
-                                                        Nom
+                                                        Nom Complet
                                                     </Label>
                                                     <div className="relative">
-                                                        <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                                                        <Users className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
                                                         <Input
                                                             id="lastname"
                                                             type="text"
+                                                            value={formDataRegister.fullname}
+                                                            onChange={(e) => handleChange("fullname", e.target.value)}
                                                             placeholder="Votre nom"
-                                                            className="pl-11 h-12 rounded-xl bg-gray-50/50 border-gray-200 focus:border-orange-500 focus:ring-orange-500/20"
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="firstname" className="text-sm font-semibold text-zinc-700">
-                                                        Prenom
-                                                    </Label>
-                                                    <div className="relative">
-                                                        <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                                                        <Input
-                                                            id="firstname"
-                                                            type="text"
-                                                            placeholder="Votre prenom"
                                                             className="pl-11 h-12 rounded-xl bg-gray-50/50 border-gray-200 focus:border-orange-500 focus:ring-orange-500/20"
                                                         />
                                                     </div>
@@ -332,6 +409,8 @@ const AuthPage = () => {
                                                         <Input
                                                             id="reg-email"
                                                             type="email"
+                                                            value={formDataRegister.email}
+                                                            onChange={(e) => handleChange("email", e.target.value)}
                                                             placeholder="Email"
                                                             className="pl-11 h-12 rounded-xl bg-gray-50/50 border-gray-200 focus:border-orange-500 focus:ring-orange-500/20"
                                                         />
@@ -346,6 +425,8 @@ const AuthPage = () => {
                                                         <Input
                                                             id="phone"
                                                             type="tel"
+                                                            value={formDataRegister.telephone}
+                                                            onChange={(e) => handleChange("telephone", e.target.value)}
                                                             placeholder="+225 XX XX XX XX"
                                                             className="pl-11 h-12 rounded-xl bg-gray-50/50 border-gray-200 focus:border-orange-500 focus:ring-orange-500/20"
                                                         />
@@ -363,6 +444,8 @@ const AuthPage = () => {
                                                     <Input
                                                         id="address"
                                                         type="text"
+                                                        value={formDataRegister.adresse}
+                                                        onChange={(e) => handleChange("adresse", e.target.value)}
                                                         placeholder="Abidjan, Cocody..."
                                                         className="pl-11 h-12 rounded-xl bg-gray-50/50 border-gray-200 focus:border-orange-500 focus:ring-orange-500/20"
                                                     />
@@ -407,6 +490,8 @@ const AuthPage = () => {
                                                     <Input
                                                         id="reg-password"
                                                         type={showPassword ? "text" : "password"}
+                                                        onChange={(e) => handleChange("password", e.target.value)}
+                                                        value={formDataRegister.password}
                                                         placeholder="Votre mot de passe"
                                                         className="pl-11 pr-11 h-12 rounded-xl bg-gray-50/50 border-gray-200 focus:border-orange-500 focus:ring-orange-500/20"
                                                     />
@@ -430,7 +515,9 @@ const AuthPage = () => {
                                                     <Input
                                                         id="confirm-password"
                                                         type={showConfirmPassword ? "text" : "password"}
+                                                        onChange={(e) => handleChange("passwordConfirmation", e.target.value)}
                                                         placeholder="Confirmer votre mot de passe"
+                                                        value={formDataRegister.passwordConfirmation}
                                                         className="pl-11 pr-11 h-12 rounded-xl bg-gray-50/50 border-gray-200 focus:border-orange-500 focus:ring-orange-500/20"
                                                     />
                                                     <button
@@ -480,6 +567,7 @@ const AuthPage = () => {
 
                                             <Button
                                                 type="button"
+                                                onClick={()=> handleAuthGoogle()}
                                                 variant="outline"
                                                 className="w-full h-12 rounded-xl border-gray-200 bg-white hover:bg-gray-50 text-zinc-700 font-bold text-sm cursor-pointer"
                                             >

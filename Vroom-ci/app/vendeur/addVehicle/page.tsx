@@ -41,9 +41,11 @@ import {
     Camera,
     Link,
 } from "lucide-react"
+import { api } from "@/src/lib/api"
 
 interface FormData {
     typePublication: "vente" | "location" | ""
+    type: "neuf" | "occasion" | ""
     marque: string
     modele: string
     annee: string
@@ -61,6 +63,12 @@ interface FormData {
     prix: string
     prixParJour: string
     negociable: boolean
+    visite_technique: "à_jour" | "expirée" | "non_concerné" | ""
+    date_visite_technique: string
+    carte_grise: "à_jour" | "expirée" | "non_concerné" | ""
+    date_carte_grise: string
+    assurance: "à_jour" | "expirée" | "non_concerné" | ""
+    historique_accidents: "aucun" | "quelques_accidents" | "nombreux_accidents" | ""
 }
 
 interface StepInfo {
@@ -133,6 +141,7 @@ export default function AddVehiclePage() {
 
     const [formData, setFormData] = useState<FormData>({
         typePublication: "",
+        type: "",
         marque: "",
         modele: "",
         annee: "",
@@ -150,6 +159,12 @@ export default function AddVehiclePage() {
         prix: "",
         prixParJour: "",
         negociable: false,
+        visite_technique: "",
+        date_visite_technique: "",
+        carte_grise: "",
+        date_carte_grise: "",
+        assurance: "",
+        historique_accidents: "",
     })
 
     const [photos, setPhotos] = useState<File[]>([])
@@ -201,6 +216,10 @@ export default function AddVehiclePage() {
                     toast.error("Veuillez sélectionner le type de publication")
                     return false
                 }
+                if (!formData.type) {
+                    toast.error("Veuillez sélectionner l'état du véhicule (neuf / occasion)")
+                    return false
+                }
                 return true
             case 2:
                 if (!formData.marque || !formData.modele || !formData.annee) {
@@ -241,18 +260,58 @@ export default function AddVehiclePage() {
 
     const goToPrev = () => setCurrentStep(prev => Math.max(prev - 1, 1))
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!validateStep(5)) return
         setIsSubmitting(true)
-        const toastId = toast.loading("Publication de l'annonce en cours...")
-        setTimeout(() => {
-            toast.dismiss(toastId)
-            toast.success("Annonce publiée avec succès !", {
-                description: `Votre ${formData.marque} ${formData.modele} est maintenant visible.`,
+        const toastId = toast.loading("Analyse Gemini en cours...")
+        try {
+            const fd = new window.FormData()  // window.FormData pour éviter le conflit avec ton interface
+
+            // champs requis — avec les vrais noms backend
+            fd.append("post_type", formData.typePublication)
+            fd.append("type", formData.type)
+            fd.append("marque", formData.marque)
+            fd.append("modele", formData.modele)
+            fd.append("prix", formData.prix)
+
+            // champs optionnels — seulement si remplis
+            if (formData.annee) fd.append("annee", formData.annee)
+            if (formData.kilometrage) fd.append("kilometrage", formData.kilometrage)
+            if (formData.carburant) fd.append("carburant", formData.carburant)
+            if (formData.transmission) fd.append("transmission", formData.transmission)
+            if (formData.couleur) fd.append("couleur", formData.couleur)
+            if (formData.nombrePortes) fd.append("nombre_portes", formData.nombrePortes)
+            if (formData.nombrePlaces) fd.append("nombre_places", formData.nombrePlaces)
+            if (formData.dateDisponibilite) fd.append("date_disponibilite", formData.dateDisponibilite.toISOString().split("T")[0])
+            if (formData.visite_technique) fd.append("visite_technique", formData.visite_technique)
+            if (formData.carte_grise) fd.append("carte_grise", formData.carte_grise)
+            if (formData.assurance) fd.append("assurance", formData.assurance)
+            if (formData.historique_accidents) fd.append("historique_accidents", formData.historique_accidents)
+
+            // tableaux
+            formData.equipements.forEach(eq => fd.append("equipements[]", eq))
+            photos.forEach(photo => fd.append("photos[]", photo))
+
+            const res = await fetch("/api/proxy/vehicules/post-vehicule", {
+                method: "POST",
+                body: fd,  // PAS de Content-Type — le browser le gère
             })
+            const data = await res.json()
+            if (!res.ok) {
+                toast.error(data.message + data.errors || "Erreur lors de la publication", { id: toastId })
+                return
+            }
+            toast.success("Véhicule publié !", {
+                id: toastId,
+                description: `Prix suggéré : ${data.data?.prix_suggere?.toLocaleString("fr-FR")} FCFA — ${data.data?.explication_prix}`
+            })
+        } catch (error) {
+            toast.error("Erreur de connexion au serveur", { id: toastId })
+        } finally {
             setIsSubmitting(false)
-        }, 2500)
+        }
     }
+
 
     // ─── Step Indicator ──────────────────────────────────
 
@@ -383,6 +442,50 @@ export default function AddVehiclePage() {
                         <p className="text-sm text-muted-foreground">
                             Proposez votre véhicule en location et générez des revenus réguliers
                         </p>
+                    </button>
+                </div>
+
+                <Separator className="my-4" />
+
+                {/* Neuf / Occasion */}
+                <p className="text-sm font-semibold text-zinc-700 mb-3">État du véhicule <span className="text-red-500">*</span></p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button
+                        type="button"
+                        onClick={() => updateFormData("type", "neuf")}
+                        className={cn(
+                            "relative p-5 rounded-2xl border-2 text-left transition-all duration-300 hover:-translate-y-1",
+                            formData.type === "neuf"
+                                ? "border-green-600 bg-green-50/50 shadow-lg shadow-green-600/10"
+                                : "border-border/40 bg-card/30 hover:border-green-600/30",
+                        )}
+                    >
+                        {formData.type === "neuf" && (
+                            <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-green-600 flex items-center justify-center">
+                                <Check className="h-4 w-4 text-white" />
+                            </div>
+                        )}
+                        <h3 className="text-base font-bold mb-1">Neuf</h3>
+                        <p className="text-sm text-muted-foreground">Véhicule jamais utilisé, sortie de concession</p>
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() => updateFormData("type", "occasion")}
+                        className={cn(
+                            "relative p-5 rounded-2xl border-2 text-left transition-all duration-300 hover:-translate-y-1",
+                            formData.type === "occasion"
+                                ? "border-amber-500 bg-amber-50/50 shadow-lg shadow-amber-500/10"
+                                : "border-border/40 bg-card/30 hover:border-amber-500/30",
+                        )}
+                    >
+                        {formData.type === "occasion" && (
+                            <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center">
+                                <Check className="h-4 w-4 text-white" />
+                            </div>
+                        )}
+                        <h3 className="text-base font-bold mb-1">Occasion</h3>
+                        <p className="text-sm text-muted-foreground">Véhicule déjà utilisé, avec ou sans historique</p>
                     </button>
                 </div>
             </CardContent>
@@ -531,6 +634,78 @@ export default function AddVehiclePage() {
                     </div>
 
                     {/*  */}
+                </CardContent>
+            </Card>
+
+            {/* État & Documents */}
+            <Card className={CARD}>
+                <CardHeader className="p-4 md:p-6 pb-2 md:pb-2">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                            <Settings className="h-5 w-5 text-amber-600" />
+                        </div>
+                        <div>
+                            <CardTitle className="text-lg">État & Documents</CardTitle>
+                            <p className="text-sm text-muted-foreground">Renseignez les documents et l&apos;historique</p>
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent className="p-4 md:p-6 pt-4 space-y-5">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                            <Label>Visite technique</Label>
+                            <Select value={formData.visite_technique} onValueChange={v => updateFormData("visite_technique", v as FormData["visite_technique"])}>
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Statut" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="à_jour">À jour</SelectItem>
+                                    <SelectItem value="expirée">Expirée</SelectItem>
+                                    <SelectItem value="non_concerné">Non concerné</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Carte grise</Label>
+                            <Select value={formData.carte_grise} onValueChange={v => updateFormData("carte_grise", v as FormData["carte_grise"])}>
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Statut" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="à_jour">À jour</SelectItem>
+                                    <SelectItem value="expirée">Expirée</SelectItem>
+                                    <SelectItem value="non_concerné">Non concerné</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Assurance</Label>
+                            <Select value={formData.assurance} onValueChange={v => updateFormData("assurance", v as FormData["assurance"])}>
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Statut" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="à_jour">À jour</SelectItem>
+                                    <SelectItem value="expirée">Expirée</SelectItem>
+                                    <SelectItem value="non_concerné">Non concerné</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label>Historique d&apos;accidents</Label>
+                        <Select value={formData.historique_accidents} onValueChange={v => updateFormData("historique_accidents", v as FormData["historique_accidents"])}>
+                            <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Historique" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="aucun">Aucun accident</SelectItem>
+                                <SelectItem value="quelques_accidents">Quelques accidents</SelectItem>
+                                <SelectItem value="nombreux_accidents">Nombreux accidents</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </CardContent>
             </Card>
 
@@ -911,7 +1086,7 @@ export default function AddVehiclePage() {
             <div className="max-w-4xl mx-auto space-y-6">
                 {/* Header */}
                 <div className="animate-in fade-in slide-in-from-left duration-500">
-                    
+
                     <div className="flex items-center gap-3">
                         <div className="w-12 h-12 rounded-2xl bg-zinc-900/10 flex items-center justify-center">
                             <Car className="h-6 w-6 text-zinc-700" />

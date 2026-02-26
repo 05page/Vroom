@@ -16,6 +16,7 @@ import {
     Trash2Icon,
 } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image"
 import DetailsCard from "./DetailsVehicles"
 import { EditVehicle } from "./EditVehicle"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogMedia, AlertDialogTitle } from "@/components/ui/alert-dialog"
@@ -35,6 +36,7 @@ export default function VehiclesPage() {
     const [vehicleToDelete, setVehicleToDelete] = useState<vehicule | null>(null)
     const [deleteOpen, setDeleteOpen] = useState(false);
 
+
     const handleDelete = () => {
         if (!vehicleToDelete) return
         toast.success("Véhicule supprimé", {
@@ -48,12 +50,12 @@ export default function VehiclesPage() {
             try {
                 setIsLoading(true);
                 const [statsRes, mesVehiculesRes] = await Promise.all([
-                    api.get<VendeurStats>("/stats/mesStats"),
-                    api.get<MesVehicules>("/vehicules/mesVehicules")
+                    api.get<VendeurStats>("/stats/mes-stats"),
+                    api.get<MesVehicules>("/vehicules/mes-vehicules")
                 ]);
                 setStats(statsRes.data ?? null)
                 setMesVehicules(mesVehiculesRes.data?.vehicules ?? [])
-
+                console.log(mesVehiculesRes.data?.vehicules)
             } catch (error) {
                 toast.error(error instanceof Error ? error?.message : "Erreur serveur");
             } finally {
@@ -125,9 +127,19 @@ export default function VehiclesPage() {
     const VehicleCard = ({ v }: { v: vehicule }) => (
         <Card className={cn(CARD, "hover:shadow-2xl transition-all duration-300 hover:-translate-y-1")}>
             <CardContent className="p-0">
-                {/* Image placeholder */}
-                <div className="h-40 bg-linear-to-br from-muted/50 to-muted/30 flex items-center justify-center relative">
-                    <Car className="h-12 w-12 text-muted-foreground/30" />
+                {/* Photo principale du véhicule — fallback sur l'icône Car si aucune photo */}
+                <div className="h-40 bg-linear-to-br from-muted/50 to-muted/30 flex items-center justify-center relative overflow-hidden">
+                    {(() => {
+                        // Récupérer la photo principale (is_primary=true) ou la première du tableau
+                        const primaryPhoto = v.photos?.find(p => p.is_primary) ?? v.photos?.[0]
+                        // URL de l'image : stockage Laravel public via storage:link
+                        const imageUrl = primaryPhoto
+                            ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/storage/${primaryPhoto.path}`
+                            : null 
+                        return imageUrl
+                            ? <Image src={imageUrl} alt={`${v.description?.marque} ${v.description?.modele}`} fill className="object-cover" unoptimized/>
+                            : <Car className="h-12 w-12 text-muted-foreground/30" />
+                    })()}
                     <Badge className={cn("absolute top-3 left-3 rounded-full text-xs", getStatutColor(v?.statut))}>
                         {getStatutLabel(v?.statut)}
                     </Badge>
@@ -280,6 +292,7 @@ export default function VehiclesPage() {
              {editingVehicle && (
                 <EditVehicle
                     isOpen={!!editingVehicle}
+                    vehicule={editingVehicle}
                     onClose={() => setEditingVehicle(null)}
                     onSubmit={() => setEditingVehicle(null)}
                 />

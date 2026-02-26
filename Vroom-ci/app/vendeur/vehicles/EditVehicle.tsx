@@ -1,9 +1,11 @@
 "use client"
 
-import { Fragment, useRef, useState } from "react"
+import { Fragment, useEffect, useRef, useState } from "react"
 import Image from "next/image"
 import { toast } from "sonner"
 import { cn } from "@/src/lib/utils"
+import { api } from "@/src/lib/api"
+import { vehicule } from "@/src/types"
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -32,10 +34,12 @@ interface EditVehiculeProps {
     isOpen: boolean
     onClose: () => void
     onSubmit?: () => void
+    vehicule: vehicule
 }
 
 interface FormData {
     typePublication: "vente" | "location" | ""
+    typeVehicule: "neuf" | "occasion" | ""
     marque: string
     modele: string
     annee: string
@@ -113,13 +117,14 @@ const EQUIPEMENTS = [
     { id: "carplay_android", label: "Apple CarPlay / Android Auto" },
 ]
 
-export function EditVehicle({ isOpen, onClose, onSubmit }: EditVehiculeProps) {
+export function EditVehicle({ isOpen, onClose, onSubmit, vehicule }: EditVehiculeProps) {
     const [currentStep, setCurrentStep] = useState(1)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     const [formData, setFormData] = useState<FormData>({
         typePublication: "",
+        typeVehicule: "",
         marque: "",
         modele: "",
         annee: "",
@@ -141,6 +146,32 @@ export function EditVehicle({ isOpen, onClose, onSubmit }: EditVehiculeProps) {
 
     const [photos, setPhotos] = useState<File[]>([])
     const [photoUrls, setPhotoUrls] = useState<string[]>([])
+
+    useEffect(() => {
+        if (!isOpen) return
+        setCurrentStep(1)
+        setFormData({
+            typePublication: vehicule.post_type ?? "",
+            typeVehicule: (vehicule.type as "neuf" | "occasion" | "") ?? "",
+            marque: vehicule.description?.marque ?? "",
+            modele: vehicule.description?.modele ?? "",
+            annee: String(vehicule.description?.annee ?? ""),
+            kilometrage: String(vehicule.description?.kilometrage ?? ""),
+            carburant: vehicule.description?.carburant ?? "",
+            transmission: vehicule.description?.transmission ?? "",
+            couleur: vehicule.description?.couleur ?? "",
+            nombrePortes: String(vehicule.description?.nombre_portes ?? ""),
+            nombrePlaces: String(vehicule.description?.nombre_places ?? ""),
+            description: "",
+            equipements: vehicule.description?.equipements ?? [],
+            dateDisponibilite: vehicule.date_disponibilite ? new Date(vehicule.date_disponibilite) : undefined,
+            dateDebutLocation: "",
+            dateFinLocation: "",
+            prix: String(vehicule.prix ?? ""),
+            prixParJour: "",
+            negociable: vehicule.negociable ?? false,
+        })
+    }, [isOpen])
 
     const updateFormData = <K extends keyof FormData>(field: K, value: FormData[K]) => {
         setFormData(prev => ({ ...prev, [field]: value }))
@@ -228,19 +259,43 @@ export function EditVehicle({ isOpen, onClose, onSubmit }: EditVehiculeProps) {
 
     const goToPrev = () => setCurrentStep(prev => Math.max(prev - 1, 1))
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!validateStep(5)) return
         setIsSubmitting(true)
         const toastId = toast.loading("Modification de l'annonce en cours...")
-        setTimeout(() => {
+        try {
+            await api.put(`/vehicules/${vehicule.id}`, {
+                post_type: formData.typePublication,
+                type: formData.typeVehicule,
+                prix: Number(formData.prix),
+                negociable: formData.negociable,
+                date_disponibilite: formData.typePublication === "vente" && formData.dateDisponibilite
+                    ? formData.dateDisponibilite.toISOString().split("T")[0]
+                    : undefined,
+                marque: formData.marque,
+                modele: formData.modele,
+                annee: formData.annee ? Number(formData.annee) : undefined,
+                carburant: formData.carburant || undefined,
+                transmission: formData.transmission || undefined,
+                kilometrage: formData.kilometrage ? Number(formData.kilometrage) : undefined,
+                couleur: formData.couleur || undefined,
+                nombre_portes: formData.nombrePortes ? Number(formData.nombrePortes) : undefined,
+                nombre_places: formData.nombrePlaces ? Number(formData.nombrePlaces) : undefined,
+                equipements: formData.equipements,
+            })
             toast.dismiss(toastId)
             toast.success("Annonce modifiée avec succès !", {
-                description: `Votre ${formData.marque} ${formData.modele} a été mise à jour.`,
+                description: `${formData.marque} ${formData.modele} a été mis à jour.`,
             })
-            setIsSubmitting(false)
             onSubmit?.()
             onClose()
-        }, 2500)
+        } catch (err: unknown) {
+            toast.dismiss(toastId)
+            const message = err instanceof Error ? err.message : "Erreur lors de la modification"
+            toast.error(message)
+        } finally {
+            setIsSubmitting(false)
+        }
     }
 
     return (
@@ -304,54 +359,84 @@ export function EditVehicle({ isOpen, onClose, onSubmit }: EditVehiculeProps) {
 
                         {/* ── Step 1: Type de publication ── */}
                         {currentStep === 1 && (
-                            <div className="space-y-3">
-                                <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
-                                    Type de publication
-                                </h3>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <button
-                                        type="button"
-                                        onClick={() => updateFormData("typePublication", "vente")}
-                                        className={cn(
-                                            "relative p-5 rounded-xl border-2 text-left transition-all",
-                                            formData.typePublication === "vente"
-                                                ? "border-zinc-900 bg-zinc-900/5"
-                                                : "border-border/40 hover:border-zinc-900/30",
-                                        )}
-                                    >
-                                        {formData.typePublication === "vente" && (
-                                            <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-zinc-900 flex items-center justify-center">
-                                                <Check className="h-3 w-3 text-white" />
+                            <div className="space-y-5">
+                                <div className="space-y-3">
+                                    <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
+                                        Type de publication
+                                    </h3>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => updateFormData("typePublication", "vente")}
+                                            className={cn(
+                                                "relative p-5 rounded-xl border-2 text-left transition-all",
+                                                formData.typePublication === "vente"
+                                                    ? "border-zinc-900 bg-zinc-900/5"
+                                                    : "border-border/40 hover:border-zinc-900/30",
+                                            )}
+                                        >
+                                            {formData.typePublication === "vente" && (
+                                                <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-zinc-900 flex items-center justify-center">
+                                                    <Check className="h-3 w-3 text-white" />
+                                                </div>
+                                            )}
+                                            <div className="w-10 h-10 rounded-xl bg-zinc-900/10 flex items-center justify-center mb-3">
+                                                <ShoppingBag className="h-5 w-5 text-zinc-700" />
                                             </div>
-                                        )}
-                                        <div className="w-10 h-10 rounded-xl bg-zinc-900/10 flex items-center justify-center mb-3">
-                                            <ShoppingBag className="h-5 w-5 text-zinc-700" />
-                                        </div>
-                                        <h4 className="font-bold text-sm mb-1">Vente</h4>
-                                        <p className="text-xs text-muted-foreground">Mettre en vente</p>
-                                    </button>
+                                            <h4 className="font-bold text-sm mb-1">Vente</h4>
+                                            <p className="text-xs text-muted-foreground">Mettre en vente</p>
+                                        </button>
 
-                                    <button
-                                        type="button"
-                                        onClick={() => updateFormData("typePublication", "location")}
-                                        className={cn(
-                                            "relative p-5 rounded-xl border-2 text-left transition-all",
-                                            formData.typePublication === "location"
-                                                ? "border-zinc-900 bg-zinc-900/5"
-                                                : "border-border/40 hover:border-zinc-900/30",
-                                        )}
-                                    >
-                                        {formData.typePublication === "location" && (
-                                            <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-zinc-900 flex items-center justify-center">
-                                                <Check className="h-3 w-3 text-white" />
+                                        <button
+                                            type="button"
+                                            onClick={() => updateFormData("typePublication", "location")}
+                                            className={cn(
+                                                "relative p-5 rounded-xl border-2 text-left transition-all",
+                                                formData.typePublication === "location"
+                                                    ? "border-zinc-900 bg-zinc-900/5"
+                                                    : "border-border/40 hover:border-zinc-900/30",
+                                            )}
+                                        >
+                                            {formData.typePublication === "location" && (
+                                                <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-zinc-900 flex items-center justify-center">
+                                                    <Check className="h-3 w-3 text-white" />
+                                                </div>
+                                            )}
+                                            <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center mb-3">
+                                                <Key className="h-5 w-5 text-blue-600" />
                                             </div>
-                                        )}
-                                        <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center mb-3">
-                                            <Key className="h-5 w-5 text-blue-600" />
-                                        </div>
-                                        <h4 className="font-bold text-sm mb-1">Location</h4>
-                                        <p className="text-xs text-muted-foreground">Proposer en location</p>
-                                    </button>
+                                            <h4 className="font-bold text-sm mb-1">Location</h4>
+                                            <p className="text-xs text-muted-foreground">Proposer en location</p>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3">
+                                    <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
+                                        État du véhicule
+                                    </h3>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {(["neuf", "occasion"] as const).map((t) => (
+                                            <button
+                                                key={t}
+                                                type="button"
+                                                onClick={() => updateFormData("typeVehicule", t)}
+                                                className={cn(
+                                                    "relative p-4 rounded-xl border-2 text-left transition-all",
+                                                    formData.typeVehicule === t
+                                                        ? "border-zinc-900 bg-zinc-900/5"
+                                                        : "border-border/40 hover:border-zinc-900/30",
+                                                )}
+                                            >
+                                                {formData.typeVehicule === t && (
+                                                    <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-zinc-900 flex items-center justify-center">
+                                                        <Check className="h-3 w-3 text-white" />
+                                                    </div>
+                                                )}
+                                                <h4 className="font-bold text-sm capitalize">{t}</h4>
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                         )}

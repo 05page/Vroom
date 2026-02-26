@@ -26,11 +26,14 @@ import {
     Eye,
 } from "lucide-react"
 import { Separator } from "@/components/ui/separator"
+import Image from "next/image"
 import { useEffect, useState, useMemo } from "react"
 import { toast } from "sonner";
-import { vehicule, User, AllVehicules, VehiculeStats } from "@/src/types"
+import { vehicule, User, AllVehicules, VehiculeStats, Favori } from "@/src/types"
 import { api } from "@/src/lib/api"
 import { useUser } from "@/src/context/UserContext"
+import VehicleDetails from "./VehicleDetails"
+import { cn } from "@/src/lib/utils"
 
 interface Filters {
     search: string
@@ -48,20 +51,24 @@ const STATUTS = ["Tous", "Disponible", "Réservé", "Vendu", "Loué"]
 const VehiclesPage = () => {
     const [isLoading, setIsLoading] = useState(true)
     const [showFilters, setShowFilters] = useState(false)
-    const {user} = useUser();
+    const { user } = useUser();
     const [vehiculesList, setVehiculesList] = useState<vehicule[]>([])
     const [stats, setStats] = useState<VehiculeStats | null>(null)
-
-
+    const [selectedVehicule, setSelectedVehicule] = useState<vehicule | null>(null)
+    const [isFavori, setIsFavori] = useState<Set<string>>(new Set())
+    const [favLoading, setFavLoading] = useState<string  |  null>(null)
     useEffect(() => {
         const fetchData = async () => {
             try {
                 setIsLoading(true)
-                const [vehiculeRes] = await Promise.all([
-                    api.get<AllVehicules>('/vehicules/allVehicules')
+                const [vehiculeRes, favorisRes] = await Promise.all([
+                    api.get<AllVehicules>('/vehicules/'),
+                    api.get<Favori[]>('/favoris/')
                 ]);
                 setVehiculesList(vehiculeRes?.data?.vehicules ?? [])
                 setStats(vehiculeRes?.data?.statsVehicules ?? null)
+                setIsFavori(new Set((favorisRes?.data ?? []).map(f => f.vehicule_id)))
+
             } catch (error) {
                 toast.error(error instanceof Error ? error?.message : "Erreur serveur")
             } finally {
@@ -69,8 +76,62 @@ const VehiclesPage = () => {
             }
         }
         fetchData()
-    },[])
-    
+    }, [])
+
+    // Écoute le canal public "vehicules" pour afficher les nouveaux véhicules validés en temps réel
+    // Canal public = pas besoin d'auth, même les visiteurs non connectés reçoivent l'event
+    useEffect(() => {
+        let channelRef: ReturnType<typeof import("laravel-echo").default.prototype.channel> | null = null
+
+        async function connectEcho() {
+            try {
+                const { getEcho } = await import("@/src/lib/echo")
+                const echo = await getEcho()
+                // .channel() (sans "private") pour un canal public
+                channelRef = echo
+                    .channel("vehicules")
+                    .listen(".vehicule.validated", (e: { vehicule: vehicule }) => {
+                        // On ajoute le nouveau véhicule en tête de liste
+                        setVehiculesList(prev => [e.vehicule, ...prev])
+                        toast.success(`Nouveau véhicule disponible : ${e.vehicule.description?.marque ?? ""}`)
+                    })
+            } catch (err) {
+                console.error("WebSocket vehicules :", err)
+            }
+        }
+
+        connectEcho()
+
+        // Cleanup : quitter le canal au démontage du composant
+        return () => {
+            import("@/src/lib/echo").then(({ getEcho }) =>
+                getEcho().then(echo => echo.leave("vehicules")).catch(() => {})
+            ).catch(() => {})
+        }
+    }, [])
+
+    const toggleFavori = async (v: vehicule) => {
+        setFavLoading(v.id)
+        try {
+            if (isFavori.has(v.id)) {
+                await api.delete(`/favoris/${v.id}`)
+                setIsFavori(prev => {
+                    const next = new Set(prev)
+                    next.delete(v.id)
+                    return next
+                })
+                toast.success("Retiré des favoris")
+            } else {
+                await api.post(`/favoris/${v.id}`, {})
+                setIsFavori(prev => new Set([...prev, v.id]))
+                toast.success("Ajouté aux favoris")
+            }
+        } catch {
+            toast.error("Erreur lors de la mise à jour des favoris")
+        } finally {
+            setFavLoading(null)
+        }
+    }
     const isVendeur = user?.role === "vendeur"
 
     const [filters, setFilters] = useState<Filters>({
@@ -134,36 +195,57 @@ const VehiclesPage = () => {
         toast.success("Filtres réinitialisés")
     }
 
-    const VehicleCard = ({ v }: { v: vehicule }) => (
-        <Card className="rounded-2xl md:rounded-3xl shadow-sm border border-zinc-200 bg-white hover:shadow-lg transition-all duration-300 hover:-translate-y-1 overflow-hidden">
-            <CardContent className="p-0">
-                <div className="h-40 bg-gradient-to-br from-zinc-100 to-zinc-50 flex items-center justify-center relative">
-                    <Car className="h-12 w-12 text-zinc-300" />
-                    <Badge className={`absolute top-3 left-3 rounded-full text-xs ${v.post_type === "vente"
-                        ? "bg-green-500/10 text-green-600 border-green-500/20"
-                        : "bg-blue-500/10 text-blue-600 border-blue-500/20"
-                        }`}>
-                        {v.post_type === "vente" ? <Tag className="h-3 w-3 mr-1" /> : <KeyRound className="h-3 w-3 mr-1" />}
-                        {v.post_type === "vente" ? "Vente" : "Location"}
-                    </Badge>
-                </div>
-                <div className="p-4 space-y-3">
-                    <div>
-                        <h3 className="font-bold text-base text-zinc-900">{v.description?.marque} {v.description?.modele}</h3>
-                        <p className="text-xs text-zinc-500">{v.description?.annee} &middot; {v.description?.kilometrage} km &middot; {v.description?.carburant}</p>
+    const VehicleCard = ({ v }: { v: vehicule }) => {
+        const primaryPhoto = v.photos?.find(p => p.is_primary) ?? v.photos?.[0]
+        const imageUrl = primaryPhoto
+            ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/storage/${primaryPhoto.path}`
+            : null
+        return (
+            <Card className="rounded-2xl md:rounded-3xl shadow-sm border border-zinc-200 bg-white hover:shadow-lg transition-all duration-300 hover:-translate-y-1 overflow-hidden">
+                <CardContent className="p-0">
+                    <div className="h-40 bg-linear-to-br from-zinc-100 to-zinc-50 flex items-center justify-center relative overflow-hidden">
+                        {imageUrl
+                            ? <Image src={imageUrl} alt={`${v.description?.marque} ${v.description?.modele}`} fill className="object-cover" unoptimized />
+                            : <Car className="h-12 w-12 text-zinc-300" />
+                        }
+                        <Badge className={`absolute top-3 left-3 rounded-full text-xs ${v.post_type === "vente"
+                            ? "bg-green-500/10 text-green-600 border-green-500/20"
+                            : "bg-blue-500/10 text-blue-600 border-blue-500/20"
+                            }`}>
+                            {v.post_type === "vente" ? <Tag className="h-3 w-3 mr-1" /> : <KeyRound className="h-3 w-3 mr-1" />}
+                            {v.post_type === "vente" ? "Vente" : "Location"}
+                        </Badge>
+                        <button
+                            onClick={() => toggleFavori(v)}
+                            disabled={favLoading === v.id}
+                            className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-md hover:bg-white transition-colors cursor-pointer"
+                        >
+                            <Heart className={cn("h-4 w-4 transition-colors", isFavori.has(v.id) ? "fill-red-500 text-red-500" : "text-zinc-500")} />
+                        </button>
                     </div>
-                    <p className="text-lg font-black text-zinc-900">{v.prix?.toLocaleString()} <span className="text-xs font-normal text-zinc-500">FCFA</span></p>
-                    <Separator />
-                    <div className="flex items-center justify-between text-xs text-zinc-500">
-                        <span className="flex items-center gap-1"><Eye className="h-3 w-3" /> {v.views_count} vues</span>
-                        <Button variant="outline" size="sm" className="rounded-lg text-xs cursor-pointer border-zinc-200">
-                            Voir détails
-                        </Button>
+                    <div className="p-4 space-y-3">
+                        <div>
+                            <h3 className="font-bold text-base text-zinc-900">{v.description?.marque} {v.description?.modele}</h3>
+                            <p className="text-xs text-zinc-500">{v.description?.annee} &middot; {v.description?.kilometrage} km &middot; {v.description?.carburant}</p>
+                        </div>
+                        <p className="text-lg font-black text-zinc-900">{v.prix?.toLocaleString()} <span className="text-xs font-normal text-zinc-500">FCFA</span></p>
+                        <Separator />
+                        <div className="flex items-center justify-between text-xs text-zinc-500">
+                            <span className="flex items-center gap-1"><Eye className="h-3 w-3" /> {v.views_count} vues</span>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="rounded-lg text-xs cursor-pointer border-zinc-200"
+                                onClick={() => setSelectedVehicule(v)}
+                            >
+                                Voir détails
+                            </Button>
+                        </div>
                     </div>
-                </div>
-            </CardContent>
-        </Card>
-    )
+                </CardContent>
+            </Card>
+        )
+    }
 
     if (isLoading) {
         return (
@@ -716,6 +798,14 @@ const VehiclesPage = () => {
                     </CardContent>
                 </Card>
             ) : null}
+
+            {selectedVehicule && (
+                <VehicleDetails
+                    isOpen={!!selectedVehicule}
+                    vehicule={selectedVehicule}
+                    onClose={() => setSelectedVehicule(null)}
+                />
+            )}
         </div>
     )
 }
