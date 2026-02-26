@@ -45,19 +45,17 @@ class AuthController extends Controller
             $user = User::updateOrCreate(
                 ['google_id' => $socialUser->id],
                 [
-                    'fullname' => $socialUser->name,
-                    'email' => $socialUser->email,
-                    'password' => Hash::make(Str::random(24)),
-                    'google_access_token' => $tokenData,
+                    'fullname'                => $socialUser->name,
+                    'email'                   => $socialUser->email,
+                    'avatar'                  => $socialUser->avatar,
+                    'auth_provider'           => 'google',
+                    'password'                => Hash::make(Str::random(24)),
+                    'google_access_token'     => $tokenData,
+                    'google_refresh_token'    => $socialUser->refreshToken,
                     'google_token_expires_at' => now()->addSeconds($tokenData['expires_in']),
-
+                    'email_verified_at'       => now(),
                 ]
             );
-
-            if (!$user->email_verified_at) {
-                $user->email_verified_at = now();
-                $user->save();
-            }
 
             $token = $user->createToken('auth_token')->plainTextToken;
 
@@ -77,6 +75,72 @@ class AuthController extends Controller
         }
     }
 
+    public function login(Request $request): JsonResponse
+    {
+        $request->validate([
+            'email'    => 'required|email',
+            'password' => 'required|string',
+        ]);
+
+        if (!Auth::attempt($request->only('email', 'password'))) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Email ou mot de passe incorrect',
+            ], 401);
+        }
+
+        /** @var \App\Models\User $user */
+        $user  = Auth::user();
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return response()->json([
+            'success' => true,
+            'token'   => $token,
+            'role'    => $user->role,
+            'user'    => $user,
+        ]);
+    }
+
+    public function register(Request $request): JsonResponse
+    {
+        $request->validate([
+            'fullname'      => 'required|string|max:255',
+            'email'         => 'required|email|unique:users,email',
+            'password'      => 'required|string|min:8|confirmed',
+            'role'          => 'required|in:client,vendeur,concessionnaire,auto_ecole',
+            'telephone'     => 'sometimes|string|max:20',
+            'adresse'       => 'sometimes|string|max:500',
+            // champs concessionnaire / auto_ecole
+            'raison_sociale'  => 'required_if:role,concessionnaire,auto_ecole|string|max:255',
+            'rccm'            => 'required_if:role,concessionnaire|string|max:14',
+            'numero_agrement' => 'required_if:role,auto_ecole|string|max:50',
+        ]);
+
+        $isProfessionnel = in_array($request->role, ['concessionnaire', 'auto_ecole']);
+
+        $user = User::create([
+            'fullname'        => $request->fullname,
+            'email'           => $request->email,
+            'password'        => Hash::make($request->password),
+            'role'            => $request->role,
+            'statut'          => $isProfessionnel ? User::EN_ATTENTE : User::ACTIF,
+            'telephone'       => $request->telephone,
+            'adresse'         => $request->adresse,
+            'raison_sociale'  => $request->raison_sociale,
+            'rccm'            => $request->rccm,
+            'numero_agrement' => $request->numero_agrement,
+        ]);
+
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return response()->json([
+            'success' => true,
+            'token'   => $token,
+            'role'    => $user->role,
+            'user'    => $user,
+        ], 201);
+    }
+
     public function updatePhoneAndAddress(Request $request)
     {
         try {
@@ -86,17 +150,11 @@ class AuthController extends Controller
             }
 
             $validatedData = $request->validate([
-                'role' => 'sometimes|string|max:10',
-                'telephone' => 'sometimes|string|max:10',
-                'adresse' => 'sometimes|string|max:500',
+                'telephone' => 'sometimes|string|max:20',
+                'adresse'   => 'sometimes|string|max:500',
             ]);
 
             DB::beginTransaction();
-
-            if (!$user->active) {
-                $user->active = true;
-                $user->save();
-            }
 
             $user->update($validatedData);
             DB::commit();

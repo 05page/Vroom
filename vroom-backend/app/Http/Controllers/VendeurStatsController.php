@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\RendezVous;
 use App\Models\Transactions;
 use App\Models\Vehicules;
 use App\Models\VehiculeView;
+use App\Models\VehiculeVue;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,19 +18,6 @@ class VendeurStatsController extends Controller
     {
         try {
             $user = Auth::user();
-            if (!$user) {
-                return response()->json([
-                    'success' => false,
-                    'message' => "Utilisateur non authentifié"
-                ], 401);
-            }
-            // Correction : si le rôle est "vendeur", on AUTORISE (c'était inversé)
-            if ($user->role !== "vendeur" && $user->role !== "partenaire" && $user->role !== "admin") {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Autorisation non accordée. Seuls les vendeurs peuvent accéder à ces statistiques.',
-                ], 403);
-            }
 
             $stats = [
                 // Correction 1 : count au lieu de count (manquait les parenthèses)
@@ -51,7 +40,7 @@ class VendeurStatsController extends Controller
                         ->whereMonth('created_at', $mois)
                         ->whereYear('created_at', Carbon::now()->year)
                         ->count(),
-                    'vues' => VehiculeView::whereHas('vehicule', function ($q) use ($user) {
+                    'vues' => VehiculeVue::whereHas('vehicule', function ($q) use ($user) {
                         $q->where('created_by', $user->id);
                     })
                         ->whereMonth('created_at', $mois)
@@ -82,15 +71,15 @@ class VendeurStatsController extends Controller
             ];
 
             $mesRdv = [
-                'transactions_recentes' => Transactions::with([
+                'rdv_recents' => RendezVous::with([
                     'vehicule.description',
                     'vehicule.photos',
                     'client:id,fullname,email,telephone,adresse',
                     'proprietaire:id,fullname,email,telephone,adresse'
                 ])->confirme()
                     ->where(function ($query) use ($user) {
-                        $query->where('user_id', $user->id)
-                            ->orWhere('proprietaire_id', $user->id);
+                        $query->where('client_id', $user->id)
+                            ->orWhere('vendeur_id', $user->id);
                     })
                     ->whereHas('vehicule', function ($query) {
                         $query->whereIn('statut', [Vehicules::STATUS_VENDU, Vehicules::STATUS_LOUE]);
@@ -102,7 +91,7 @@ class VendeurStatsController extends Controller
                         $transaction->post_type = $transaction->type_finalisation;
                         return $transaction;
                     }),
-                'total_rdv' => Transactions::where('proprietaire_id', $user->id)->confirme()->count()
+                'total_rdv' => RendezVous::where('vendeur_id', $user->id)->confirme()->count()
             ];
             return response()->json([
                 'success' => true,
@@ -114,7 +103,12 @@ class VendeurStatsController extends Controller
                 ]
             ], 200);
         } catch (\Exception $e) {
-        }
+            }
+            return response()->json([
+                'success'=> false,
+                'message'=> "Erreur survenue",
+                'errors'=> $e->getMessage()
+            ]);
     }
 }
 

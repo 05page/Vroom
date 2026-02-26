@@ -6,17 +6,14 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('messages', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('sender_id')->constrained('users')->onDelete('cascade');
-            $table->foreignId('receiver_id')->constrained('users')->onDelete('cascade');
-            $table->foreignId('vehicule_id')->nullable()->constrained('vehicules')->onDelete('cascade');
-            $table->foreignId('transaction_id')->nullable()->constrained('transactions')->onDelete('cascade');
+            $table->uuid('id')->primary();
+            $table->foreignUuid('sender_id')->constrained('users')->onDelete('cascade');
+            $table->foreignUuid('receiver_id')->constrained('users')->onDelete('cascade');
+            $table->foreignUuid('vehicule_id')->nullable()->constrained('vehicules')->onDelete('cascade');
+            $table->foreignUuid('rdv_id')->nullable()->constrained('rendez_vous')->onDelete('cascade');
             $table->enum('type', ['audio', 'text'])->default('text');
             $table->text('content');
             $table->string('audio_path')->nullable();
@@ -26,16 +23,12 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['sender_id', 'receiver_id']);
-            $table->index(['vehicule_id']);
-            $table->index(['transaction_id']);
-            $table->index(['is_read']);
-            $table->index(['type']);
+            $table->index('vehicule_id');
+            $table->index('rdv_id');
+            $table->index('is_read');
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('messages');

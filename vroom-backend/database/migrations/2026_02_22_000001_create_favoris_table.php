@@ -8,19 +8,20 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('vehicules_photos', function (Blueprint $table) {
+        Schema::create('favoris', function (Blueprint $table) {
             $table->uuid('id')->primary();
+            $table->foreignUuid('user_id')->constrained('users')->onDelete('cascade');
             $table->foreignUuid('vehicule_id')->constrained('vehicules')->onDelete('cascade');
-            $table->string('path');
-            $table->boolean('is_primary')->default(false);
-            $table->integer('position')->default(0);
-            $table->softDeletes();
+            $table->timestamp('date_ajout')->useCurrent();
             $table->timestamps();
+            $table->softDeletes();
+
+            $table->unique(['user_id', 'vehicule_id']);
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('vehicules_photos');
+        Schema::dropIfExists('favoris');
     }
 };

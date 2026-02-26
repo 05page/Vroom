@@ -6,31 +6,43 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('users', function (Blueprint $table) {
-            $table->id();
-            $table->string('fullname');
-            $table->enum('role', ['client', 'vendeur', 'partenaire', 'admin'])->default('client');
-            $table->enum('partenaire_type', ['auto_ecole', 'concessionnaire', 'entretien'])->nullable();
-            $table->string('email')->unique();
-                        // Colonne demandée par l'erreur : google_id
+            $table->uuid('id')->primary();
+            $table->string('fullname', 500);
+            $table->string('email', 255)->unique();
+            $table->string('telephone', 20)->nullable();
+            $table->string('adresse', 255)->nullable();
+            $table->string('password', 255)->nullable(); // NULL si OAuth
+            $table->enum('auth_provider', ['local', 'google'])->default('local');
             $table->string('google_id')->nullable()->unique();
+            $table->text('google_access_token')->nullable();
+            $table->text('google_refresh_token')->nullable();
+            $table->timestamp('google_token_expires_at')->nullable();
+            $table->string('avatar')->nullable();
+            $table->enum('role', ['client', 'vendeur', 'concessionnaire', 'auto_ecole', 'admin'])->default('client');
+            $table->enum('statut', ['actif', 'suspendu', 'banni', 'en_attente'])->default('actif');
 
-            // Ajoutez aussi les autres fournisseurs pour le futur
-            $table->string('facebook_id')->nullable()->unique();
-            $table->string('avatar')->nullable(); // Pour l'image de profil
-            $table->string('telephone')->nullable();
-            $table->string('adresse')->nullable();
+            // Champs vendeur
+            $table->string('rccm', 14)->nullable()->unique();
+            $table->float('note_moyenne')->default(0);
+            $table->integer('nb_avis')->default(0);
+
+            // Champs concessionnaire / auto_ecole
+            $table->string('raison_sociale', 255)->nullable();
+            $table->boolean('badge_officiel')->default(false);
+            $table->string('adresse_showroom', 255)->nullable();
+            $table->float('taux_reussite')->default(0);
+            $table->string('numero_agrement', 50)->nullable()->unique();
+
+            // Champs admin
+            $table->enum('niveau_acces', ['standard', 'super_admin'])->nullable();
+
             $table->timestamp('email_verified_at')->nullable();
-            $table->string('password');
-            $table->enum('account_status',['actif', 'suspendu', 'banni'])->default('actif');
-            $table->boolean('active')->default(false);
             $table->rememberToken();
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
@@ -41,7 +53,7 @@ return new class extends Migration
 
         Schema::create('sessions', function (Blueprint $table) {
             $table->string('id')->primary();
-            $table->foreignId('user_id')->nullable()->index();
+            $table->uuid('user_id')->nullable()->index();
             $table->string('ip_address', 45)->nullable();
             $table->text('user_agent')->nullable();
             $table->longText('payload');
@@ -49,13 +61,10 @@ return new class extends Migration
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        Schema::dropIfExists('users');
-        Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('sessions');
+        Schema::dropIfExists('password_reset_tokens');
+        Schema::dropIfExists('users');
     }
 };

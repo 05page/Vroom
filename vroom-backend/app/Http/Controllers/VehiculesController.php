@@ -3,12 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Models\Moderations;
 use App\Models\Notifications;
 use App\Models\Vehicules;
 use App\Models\VehiculesDescription;
 use App\Models\VehiculesPhotos;
-use App\Models\VehiculeView;
 use App\Services\GeminiService;
 use Carbon\Carbon;
 use Gemini\Laravel\Facades\Gemini;
@@ -18,22 +16,17 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
-use function Symfony\Component\Clock\now;
-
 class VehiculesController extends Controller
 {
     //Fonctions pour gérer les véhicules
     public function index(): JsonResponse
     {
         try {
-            $user = Auth::user();
-
             $query = Vehicules::with([
                 'creator:id,fullname,email,role',
-                'description:*',
+                'description',
+                'photos',
             ])->whereIn('status_validation', ['validee', 'restauree'])
-                ->nonSignalesParUser($user->id)
-                ->nonCreesParUsersBloque($user->id)
                 ->where('statut', 'disponible')
                 ->get();
 
@@ -74,13 +67,14 @@ class VehiculesController extends Controller
 
             $vehicule = Vehicules::with([
                 'creator:id,fullname,email',
-                'description:*',
+                'description',
+                'photos',
             ])->whereIn('status_validation', ['validee', 'restauree'])
                 ->where('statut', 'disponible')
                 ->findOrFail($id);
 
+            $vehicule->registerView($user, request()->ip());
 
-            $vehicule->registerView($user);
             return response()->json([
                 'success' => true,
                 'data'    => $vehicule,
@@ -107,6 +101,7 @@ class VehiculesController extends Controller
             $vehicules = Vehicules::with([
                 'creator:id,fullname,email',
                 'description',
+                'photos',
             ])
                 ->where('created_by', $user->id)
                 ->whereIn('status_validation', ['validee', 'restauree'])
@@ -188,9 +183,8 @@ class VehiculesController extends Controller
                 ])],
                 'equipements' => 'nullable|array',
 
-                // Photos
-                //'photos' => 'nullable|array',
-                //'photos.*' => 'image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+                'photos' => 'nullable|array',
+                'photos.*' => 'image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             ]);
 
             if (!$validatedData) {
@@ -271,37 +265,25 @@ class VehiculesController extends Controller
             ]);
 
             //Uploader les photos si présentes
-            // if ($request->hasFile('photos')) {
-            //     foreach ($request->file('photos') as $index => $photo) {
-            //         $path = $photo->store('vehicules_photos', 'public');
+            if ($request->hasFile('photos')) {
+                foreach ($request->file('photos') as $index => $photo) {
+                    $path = $photo->store('vehicules_photos', 'public');
 
-            //         VehiculesPhotos::create([
-            //             'vehicule_id' => $vehicule->id,
-            //             'path' => $path,
-            //             'is_primary' => $index === 0,
-            //             'position' => $index + 1,
-            //         ]);
-            //     }
-            // }
+                    VehiculesPhotos::create([
+                        'vehicule_id' => $vehicule->id,
+                        'path' => $path,
+                        'is_primary' => $index === 0,
+                        'position' => $index + 1,
+                    ]);
+                }
+            }
 
             Notifications::create([
-                'recever_id' => $user->id,
-                'title' => 'Véhicule créé avec succès',
-                'type' => Notifications::TYPE_SUCCESS,
+                'user_id' => $user->id,
+                'type'    => Notifications::TYPE_MODERATION,
+                'title'   => 'Véhicule créé avec succès',
                 'message' => 'Votre véhicule ' . $vehiculeDescription->marque . ' ' . $vehiculeDescription->modele . ' a été créé avec succès.',
-                'data' => json_encode([
-                    'vehicule_id' => $vehicule->id,
-                ]),
-            ]);
-
-            Moderations::create([
-                'moderatable_type' => 'App\Models\Vehicules',
-                'moderable_id' => $vehicule->id,
-                'admin_id' => null,
-                'action' => Moderations::ACTION_VALIDATION,
-                'description' => "Validation du véhicule",
-                'status' => "decision_finale",
-                'decision_at' => now()
+                'data'    => ['vehicule_id' => $vehicule->id],
             ]);
 
             DB::commit();
@@ -434,44 +416,34 @@ class VehiculesController extends Controller
                 'date_disponibilite' => now(),
             ]);
 
-            $vehiculeDescription->updateOrCreate([
-                'vehicule_id' => $vehicule->id,
-                'marque' => $validatedData['marque'],
-                'modele' => $validatedData['modele'],
-                'annee' => $validatedData['annee'] ?? null,
-                'carburant' => $validatedData['carburant'] ?? null,
-                'transmission' => $validatedData['transmission'] ?? null,
-                'kilometrage' => $validatedData['kilometrage'] ?? null,
-                'couleur' => $validatedData['couleur'] ?? null,
-                'nombre_portes' => $validatedData['nombre_portes'] ?? null,
-                'nombre_places' => $validatedData['nombre_places'] ?? null,
-                'visite_technique' => $validatedData['visite_technique'] ?? null,
-                'date_visite_technique' => $validatedData['date_visite_technique'] ?? null,
-                'carte_grise' => $validatedData['carte_grise'] ?? null,
-                'date_carte_grise' => $validatedData['date_carte_grise'] ?? null,
-                'assurance' => $validatedData['assurance'] ?? null,
-                'historique_accidents' => $validatedData['historique_accidents'] ?? null,
-                'equipements' => $validatedData['equipements'] ?? null,
-            ]);
+            VehiculesDescription::updateOrCreate(
+                ['vehicule_id' => $vehicule->id],
+                [
+                    'marque'                => $validatedData['marque'] ?? $vehiculeDescription->marque,
+                    'modele'                => $validatedData['modele'] ?? $vehiculeDescription->modele,
+                    'annee'                 => $validatedData['annee'] ?? null,
+                    'carburant'             => $validatedData['carburant'] ?? null,
+                    'transmission'          => $validatedData['transmission'] ?? null,
+                    'kilometrage'           => $validatedData['kilometrage'] ?? null,
+                    'couleur'               => $validatedData['couleur'] ?? null,
+                    'nombre_portes'         => $validatedData['nombre_portes'] ?? null,
+                    'nombre_places'         => $validatedData['nombre_places'] ?? null,
+                    'visite_technique'      => $validatedData['visite_technique'] ?? null,
+                    'date_visite_technique' => $validatedData['date_visite_technique'] ?? null,
+                    'carte_grise'           => $validatedData['carte_grise'] ?? null,
+                    'date_carte_grise'      => $validatedData['date_carte_grise'] ?? null,
+                    'assurance'             => $validatedData['assurance'] ?? null,
+                    'historique_accidents'  => $validatedData['historique_accidents'] ?? null,
+                    'equipements'           => $validatedData['equipements'] ?? null,
+                ]
+            );
 
             Notifications::create([
-                'recever_id' => $user->id,
-                'title' => 'Véhicule modifié avec succès',
-                'type' => Notifications::TYPE_SUCCESS,
+                'user_id' => $user->id,
+                'type'    => Notifications::TYPE_MODERATION,
+                'title'   => 'Véhicule modifié avec succès',
                 'message' => 'Votre véhicule ' . $vehiculeDescription->marque . ' ' . $vehiculeDescription->modele . ' a été modifié avec succès.',
-                'data' => json_encode([
-                    'vehicule_id' => $vehicule->id,
-                ]),
-            ]);
-
-            Moderations::create([
-                'moderatable_type' => 'App\Models\Vehicules',
-                'moderable_id' => $vehicule->id,
-                'admin_id' => null,
-                'action' => Moderations::ACTION_VALIDATION,
-                'description' => "Validation du véhicule",
-                'status' => "decision_finale",
-                'decision_at' => now()
+                'data'    => ['vehicule_id' => $vehicule->id],
             ]);
 
             DB::commit();

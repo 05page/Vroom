@@ -6,14 +6,11 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('vehicules_description', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('vehicule_id')->constrained('vehicules')->onDelete('cascade');
+            $table->uuid('id')->primary();
+            $table->foreignUuid('vehicule_id')->constrained('vehicules')->onDelete('cascade');
             $table->string('marque', 500);
             $table->string('modele', 500);
             $table->year('annee')->nullable();
@@ -24,7 +21,6 @@ return new class extends Migration
             $table->string('couleur', 100)->nullable();
             $table->integer('nombre_portes')->nullable();
             $table->integer('nombre_places')->nullable();
-
             $table->enum('visite_technique', ['à_jour', 'expirée', 'non_concerné'])->nullable();
             $table->date('date_visite_technique')->nullable();
             $table->enum('carte_grise', ['à_jour', 'expirée', 'non_concerné'])->nullable();
@@ -37,9 +33,6 @@ return new class extends Migration
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('vehicules_description');

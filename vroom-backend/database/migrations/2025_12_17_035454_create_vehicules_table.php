@@ -6,14 +6,12 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('vehicules', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('created_by')->constrained('users')->onDelete('cascade')->after('id');
+            $table->uuid('id')->primary();
+            $table->foreignUuid('created_by')->constrained('users')->onDelete('cascade');
+            $table->foreignUuid('catalogue_id')->nullable()->constrained('catalogues')->onDelete('set null');
             $table->enum('post_type', ['vente', 'location']);
             $table->enum('type', ['neuf', 'occasion']);
             $table->enum('statut', ['disponible', 'vendu', 'loué']);
@@ -23,19 +21,14 @@ return new class extends Migration
             $table->date('date_disponibilite')->nullable();
             $table->enum('status_validation', ['en_attente', 'validee', 'rejetee', 'suspendu', 'restauree', 'retrait'])->default('en_attente');
             $table->text('description_validation')->nullable();
-
-            $table->foreignId('withdraw_by')->nullable()->constrained('users')->onDelete('cascade');
-            $table->unsignedBigInteger('views_count')->default(0);
-            $table->foreignId('view_by')->nullable()->constrained('users')->onDelete('cascade');
+            $table->foreignUuid('withdraw_by')->nullable()->constrained('users')->onDelete('cascade');
+            $table->unsignedBigInteger('views_count')->default(0); // cache — incrémenté via VehiculeVue
             $table->softDeletes();
-            $table->foreignId('deleted_by')->nullable()->constrained('users')->onDelete('cascade');
+            $table->foreignUuid('deleted_by')->nullable()->constrained('users')->onDelete('cascade');
             $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('vehicules');

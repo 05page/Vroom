@@ -6,31 +6,26 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('notifications', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('recever_id')->constrained('users')->onDelete('cascade');
-            $table->string('type'); //type de notification(exemple: achat, message, alerte)
-            $table->string('title'); //titre de la notification
-            $table->text('message'); //contenu de la notification
-            $table->json('data')->nullable(); //données supplémentaires liées à la notification
-            $table->boolean('is_read')->default(false); //statut de lecture
-            $table->timestamp('read_at')->nullable(); //date de lecture
+            $table->uuid('id')->primary();
+            $table->foreignUuid('user_id')->constrained('users')->onDelete('cascade');
+            $table->enum('type', ['rdv', 'formation', 'alerte_vehicule', 'abonnement', 'moderation']);
+            $table->string('title');
+            $table->text('message');
+            $table->json('data')->nullable();
+            $table->boolean('lu')->default(false);
+            $table->timestamp('lu_at')->nullable();
+            $table->timestamp('date_envoi')->useCurrent();
             $table->timestamps();
+            $table->softDeletes();
 
-            
-            $table->index(['recever_id', 'is_read']);
+            $table->index(['user_id', 'lu']);
             $table->index('type');
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('notifications');

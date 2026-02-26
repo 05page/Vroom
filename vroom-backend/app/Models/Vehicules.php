@@ -2,255 +2,199 @@
 
 namespace App\Models;
 
-use App\Services\GeminiService;
+use App\Events\VehiculeValidated;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Vehicules extends Model
 {
-    //
+    use HasUuids, SoftDeletes;
+
     protected $table = 'vehicules';
+
     protected $fillable = [
         'created_by',
+        'catalogue_id',
         'post_type',
         'type',
         'statut',
         'prix',
         'prix_suggere',
         'negociable',
-        'date_publication',
+        'date_disponibilite',
         'status_validation',
+        'description_validation',
+        'withdraw_by',
         'views_count',
-        'view_by'
+        'deleted_by',
     ];
 
     protected $casts = [
-        'negociable' => 'boolean',
-        'prix' => 'decimal:2',
-        'prix_suggere' => 'decimal:2',
-        'date_publication' => 'date',
+        'negociable'         => 'boolean',
+        'prix'               => 'decimal:2',
+        'prix_suggere'       => 'decimal:2',
+        'date_disponibilite' => 'date',
     ];
 
-    //Constantes pour les types de post
-    const POST_TYPE_VENTE = 'vente';
+    const POST_TYPE_VENTE    = 'vente';
     const POST_TYPE_LOCATION = 'location';
-
-    //Constantes pour les types de véhicules
-    const VEHICLE_TYPE_NEUF = 'neuf';
+    const VEHICLE_TYPE_NEUF     = 'neuf';
     const VEHICLE_TYPE_OCCASION = 'occasion';
-
-    //Constantes pour les statuts
     const STATUS_DISPONIBLE = 'disponible';
-    const STATUS_VENDU = 'vendu';
-    const STATUS_LOUE = 'loué';
-    const STATUS_SUSPENDU = 'suspendu';
-    const STATUS_RESTAURER = 'restauree';
-    const STATUS_BANNI = "banni";
+    const STATUS_VENDU      = 'vendu';
+    const STATUS_LOUE       = 'loué';
+    const STATUS_SUSPENDU   = 'suspendu';
+    const STATUS_BANNI      = 'banni';
+    const STATUS_VALIDATED  = 'validee';
+    const STATUS_REJETEE    = 'rejetee';
+    const STATUS_PENDING    = 'en_attente';
+    const STATUS_RESTAURER  = 'restauree';
 
-    const STATUS_VALIDATED = 'validee';
-    const STATUS_REJETEE = 'rejetee';
-    const STATUS_PENDING = 'en_attente';
-
-    //Relations
-    public function user()
+    /**
+     * Boot du modèle : accroche les événements du cycle de vie Eloquent.
+     */
+    protected static function boot(): void
     {
-        return $this->belongsTo(User::class);
+        parent::boot();
+
+        // Se déclenche après chaque mise à jour d'un véhicule en base
+        static::updated(function (Vehicules $vehicule) {
+            // wasChanged() vérifie si la colonne a changé lors de ce save()
+            // On broadcast seulement quand la validation passe à 'validee' ou 'restauree'
+            if ($vehicule->wasChanged('status_validation') &&
+                in_array($vehicule->status_validation, ['validee', 'restauree'])) {
+                VehiculeValidated::dispatch($vehicule);
+            }
+        });
     }
 
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
     }
-
+    public function catalogue()
+    {
+        return $this->belongsTo(Catalogue::class, 'catalogue_id');
+    }
     public function description()
     {
         return $this->hasOne(VehiculesDescription::class, 'vehicule_id');
     }
-
     public function photos()
     {
         return $this->hasMany(VehiculesPhotos::class, 'vehicule_id');
     }
-
-    public function moderations()
+    public function favoris()
     {
-        return $this->hasMany(Moderations::class, 'moderable_id');
+        return $this->hasMany(Favori::class, 'vehicule_id');
+    }
+    public function rendezVous()
+    {
+        return $this->hasMany(RendezVous::class, 'vehicule_id');
+    }
+    public function signalements()
+    {
+        return $this->hasMany(Signalement::class, 'cible_vehicule_id');
+    }
+    public function vues()
+    {
+        return $this->hasMany(VehiculeVue::class, 'vehicule_id');
     }
 
-    public function views()
-    {
-        return $this->hasMany(VehiculeView::class, 'vehicule_id', 'id');
-    }
-
-    public function viewers()
-    {
-        return $this->belongsToMany(
-            User::class,
-            'vehicule_views',
-            'vehicule_id', // clé étrangère vers vehicules
-            'user_id'      // clé étrangère vers users
-        );
-    }
-    //Scopes(les scopes permettent de réutiliser des requêtes courantes)
     public function scopeDisponible($query)
-    { //$query est l'instance de la requête en cours
+    {
         return $query->where('statut', 'disponible');
     }
-
     public function scopeNeuf($query)
     {
         return $query->where('type', 'neuf');
     }
-
     public function scopeOccasion($query)
     {
         return $query->where('type', 'occasion');
+    }
+    public function scopeVente($query)
+    {
+        return $query->where('post_type', 'vente');
+    }
+    public function scopeLocation($query)
+    {
+        return $query->where('post_type', 'location');
+    }
+    public function scopeValidee($query)
+    {
+        return $query->where('status_validation', 'validee');
+    }
+    public function scopeEnAttente($query)
+    {
+        return $query->where('status_validation', 'en_attente');
+    }
+    public function scopeRejetee($query)
+    {
+        return $query->where('status_validation', 'rejetee');
+    }
+
+    public function suspendre(): void
+    {
+        $this->status_validation = self::STATUS_SUSPENDU;
+        $this->save();
+    }
+    public function restaurer(): void
+    {
+        $this->status_validation = self::STATUS_RESTAURER;
+        $this->save();
+    }
+    public function rejeter(): void
+    {
+        $this->status_validation = self::STATUS_REJETEE;
+        $this->save();
+    }
+    public function isSuspendu(): bool
+    {
+        return $this->status_validation === self::STATUS_SUSPENDU;
+    }
+
+    public function registerView(?User $user, string $ip = null): void
+    {
+        // Évite de compter plusieurs vues du même user dans la même heure
+        $dejaVu = $this->vues()
+            ->where('user_id', $user?->id)
+            ->where('created_at', '>=', now()->subHour())
+            ->exists();
+
+        if (!$dejaVu) {
+            $this->vues()->create([
+                'user_id'    => $user?->id,
+                'ip_address' => $ip,
+            ]);
+            $this->increment('views_count');
+        }
     }
 
     public function scopeVendu($query)
     {
         return $query->where('statut', 'vendu');
     }
-
     public function scopeLoue($query)
     {
         return $query->where('statut', 'loué');
     }
 
-    public function scopeVente($query)
+    public function setPrixAttribute($value)
     {
-        return $query->where('post_type', 'vente');
+        $this->attributes['prix']        = round($value, 2);
     }
-
-    public function scopeLocation($query)
-    {
-        return $query->where('post_type', 'location');
-    }
-
-    public function scopeValidee($query)
-    {
-        return $query->where('status_validation', 'validee');
-    }
-
-    public function scopeEnAttente($query)
-    {
-        return $query->where('status_validation', 'en_attente');
-    }
-
-    public function scopeRejetee($query)
-    {
-        return $query->where('status_validation', 'rejetee');
-    }
-
-    public function isSuspendu(): bool
-    {
-        return $this->status_validation === self::STATUS_SUSPENDU;
-    }
-
-    public function scopeNonSignalesParUser($query, $userId)
-    {
-        return $query->whereNotIn('id', function ($subQuery) use ($userId) {
-            $subQuery->select('post_id')
-                ->from('interactions')
-                ->where('user_id', $userId)
-                ->where('type', 'alerte');
-        });
-    }
-
-    public function scopeNonCreesParUsersBloque($query, $userId)
-    {
-        return $query->whereNotIn('created_by', function ($subQuery) use ($userId) {
-            $subQuery->select('user_signale_id')
-                ->from('interactions')
-                ->where('user_id', $userId)
-                ->where('type', Interactions::TYPE_BLOCAGE_USER);
-        });
-    }
-
-    //Accessors et Mutators si nécessaire(un accessor permet de modifier la valeur d'un attribut lors de sa récupération, un mutator permet de modifier la valeur d'un attribut avant de l'enregistrer dans la base de données)
-
-    //Mutators
-    public function setPrixAttribute($value) //cette méthode est appelée automatiquement lorsque l'on assigne une valeur à l'attribut 'prix'
-    {
-        $this->attributes['prix'] = round($value, 2);
-    }
-
     public function setPrixSuggereAttribute($value)
     {
-        $this->attributes['prix_suggere'] = round($value, 2); //round arrondit la valeur à 2 décimales
+        $this->attributes['prix_suggere'] = round($value, 2);
     }
-
-    //Accessors
-    public function getPrixAttribute($value) //cette méthode est appelée automatiquement lorsque l'on récupère la valeur de l'attribut 'prix'
+    public function getPrixAttribute($value)
     {
-        return number_format($value, 2, '.', ''); //number_format formate le nombre avec 2 décimales
+        return number_format($value, 2, '.', '');
     }
     public function getPrixSuggereAttribute($value)
     {
         return number_format($value, 2, '.', '');
-    }
-
-    //Fonctions personnalisées si nécessaire
-    //fontion pour vérifier si le véhicule est négociable
-    public function isNegociable()
-    {
-        return $this->negociable;
-    }
-
-    public function registerView(User $user): void
-    {
-        if ($this->created_by === $user->id) {
-            return;
-        }
-
-        $alreadyViewed = $this->views()
-            ->where('user_id', $user->id)
-            ->exists();
-
-        if (!$alreadyViewed) {
-            $this->views()->create([
-                'user_id' => $user->id,
-            ]);
-
-            $this->increment('views_count');
-        }
-    }
-
-    public function suspendre()
-    {
-        $this->status_validation = self::STATUS_SUSPENDU;
-        $this->save();
-    }
-
-    public function restaurer()
-    {
-        $this->status_validation = self::STATUS_RESTAURER;
-        $this->save();
-    }
-
-    public function rejete()
-    {
-        $this->status_validation = self::STATUS_REJETEE;
-        $this->save();
-    }
-
-    public function retirerSuspension()
-    {
-        $this->status_validation = self::STATUS_DISPONIBLE;
-        $this->save();
-    }
-
-    public function getResume(): array
-    {
-        return [
-            'id' => $this->id,
-            'post_type' => $this->post_type,
-            'type' => $this->type,
-            'statut' => $this->statut,
-            'prix' => $this->prix,
-            'prix_suggere' => $this->prix_suggere,
-            'negociable' => $this->negociable,
-            'date_publication' => $this->date_publication ? $this->date_publication->toDateString() : null,
-            'status_validation' => $this->status_validation,
-        ];
     }
 }
