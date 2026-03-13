@@ -82,18 +82,6 @@ export default function LandingPage() {
                 <div className="absolute -bottom-32 -left-32 w-100 h-100 bg-[radial-gradient(circle,oklch(0.55_0.16_225/0.05),transparent_70%)] pointer-events-none" />
 
                 <div className="relative z-10 w-full max-w-6xl mx-auto px-6 py-28 text-center">
-
-                    {/* Badge pill */}
-                    <div
-                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-amber-200 bg-amber-50 mb-8 animate-float animate-in fade-in duration-700 fill-mode-[both]"
-                        style={{ animationDelay: '0ms' }}
-                    >
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse-amber" />
-                        <span className="text-xs font-semibold text-amber-700 tracking-wide uppercase">
-                            Marketplace automobile · Côte d&apos;Ivoire
-                        </span>
-                    </div>
-
                     {/* Headline */}
                     <h1
                         className="text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight leading-none mb-6 text-zinc-900 max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-6 duration-700 fill-mode-[both]"
@@ -244,9 +232,6 @@ export default function LandingPage() {
                 </div>
             </section>
 
-            {/* ══════════════════════════════
-                HOW IT WORKS
-            ══════════════════════════════ */}
             <section className="py-24 px-6 bg-zinc-50 relative overflow-hidden">
                 <div className="absolute inset-0 bg-line-grid opacity-60" />
                 <div className="relative max-w-6xl mx-auto">
@@ -287,9 +272,6 @@ export default function LandingPage() {
                 </div>
             </section>
 
-            {/* ══════════════════════════════
-                POPULAR VEHICLES
-            ══════════════════════════════ */}
             <section className="py-24 px-6 bg-white">
                 <div className="max-w-6xl mx-auto">
                     <div className="flex flex-col md:flex-row md:items-end justify-between mb-12">
@@ -344,9 +326,6 @@ export default function LandingPage() {
                 </div>
             </section>
 
-            {/* ══════════════════════════════
-                FEATURES / TRUST
-            ══════════════════════════════ */}
             <section className="py-24 px-6 bg-zinc-50">
                 <div className="max-w-6xl mx-auto">
                     <div className="flex items-center gap-3 mb-4">
@@ -393,9 +372,6 @@ export default function LandingPage() {
                 </div>
             </section>
 
-            {/* ══════════════════════════════
-                TÉMOIGNAGES
-            ══════════════════════════════ */}
             <section className="py-24 px-6 bg-white">
                 <div className="max-w-6xl mx-auto">
                     <div className="flex items-center gap-3 mb-4">
@@ -435,9 +411,6 @@ export default function LandingPage() {
                 </div>
             </section>
 
-            {/* ══════════════════════════════
-                PARTENAIRES
-            ══════════════════════════════ */}
             <section className="py-24 px-6 bg-zinc-900 relative overflow-hidden">
                 {/* Orbe ambre subtil en arrière-plan */}
                 <div className="absolute top-0 right-0 w-150 h-150 bg-[radial-gradient(circle,oklch(0.68_0.17_72/0.06),transparent_65%)] pointer-events-none" />
@@ -515,9 +488,6 @@ export default function LandingPage() {
                 </div>
             </section>
 
-            {/* ══════════════════════════════
-                CTA VENDEUR
-            ══════════════════════════════ */}
             <section className="py-24 px-6 bg-zinc-50">
                 <div className="max-w-4xl mx-auto">
                     <div className="relative rounded-3xl border border-amber-200 bg-white overflow-hidden p-12 text-center shadow-xl shadow-amber-50">
@@ -526,10 +496,6 @@ export default function LandingPage() {
                         <div className="absolute top-0 left-0 right-0 h-px bg-linear-to-r from-transparent via-amber-200 to-transparent" />
 
                         <div className="relative">
-                            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-amber-200 bg-amber-50 mb-6">
-                                <TrendingUp className="h-3.5 w-3.5 text-amber-600" />
-                                <span className="text-xs font-bold text-amber-700 uppercase tracking-wide">Devenez vendeur</span>
-                            </div>
                             <h2 className="text-2xl md:text-4xl font-extrabold text-zinc-900 tracking-tight mb-4 max-w-sm mx-auto"
                                 style={{ fontFamily: "var(--font-syne, sans-serif)" }}>
                                 Vendez vos véhicules
@@ -559,9 +525,6 @@ export default function LandingPage() {
                 </div>
             </section>
 
-            {/* ══════════════════════════════
-                FOOTER
-            ══════════════════════════════ */}
             <footer className="bg-zinc-950 pt-16 pb-8 px-6 relative overflow-hidden">
                 {/* Ligne ambre en haut */}
                 <div className="absolute top-0 left-0 right-0 h-px bg-linear-to-r from-transparent via-amber-500/50 to-transparent" />

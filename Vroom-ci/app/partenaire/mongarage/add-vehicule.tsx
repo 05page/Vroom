@@ -4,6 +4,7 @@ import { Fragment, useRef, useState } from "react"
 import Image from "next/image"
 import { toast } from "sonner"
 import { cn } from "@/src/lib/utils"
+import { api, ApiError } from "@/src/lib/api"
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -216,19 +217,54 @@ export function AddVehicule({ isOpen, onClose, onSubmit }: EditVehiculeProps) {
 
     const goToPrev = () => setCurrentStep(prev => Math.max(prev - 1, 1))
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!validateStep(5)) return
         setIsSubmitting(true)
-        const toastId = toast.loading("Modification de l'annonce en cours...")
-        setTimeout(() => {
+
+        // Construire le FormData pour l'envoi multipart (champs + photos)
+        const fd = new FormData()
+        fd.append("post_type", formData.typePublication)
+        fd.append("type", "occasion") // TODO: ajouter ce champ dans le formulaire
+        fd.append("prix", formData.prix)
+        fd.append("marque", formData.marque)
+        fd.append("modele", formData.modele)
+        fd.append("annee", formData.annee)
+        if (formData.kilometrage)   fd.append("kilometrage", formData.kilometrage)
+        if (formData.carburant)     fd.append("carburant", formData.carburant)
+        if (formData.transmission)  fd.append("transmission", formData.transmission)
+        if (formData.couleur)       fd.append("couleur", formData.couleur)
+        if (formData.nombrePortes)  fd.append("nombre_portes", formData.nombrePortes)
+        if (formData.nombrePlaces)  fd.append("nombre_places", formData.nombrePlaces)
+
+        // Date de disponibilité selon le type de publication
+        if (formData.typePublication === "vente" && formData.dateDisponibilite) {
+            fd.append("date_disponibilite", formData.dateDisponibilite.toISOString().split("T")[0])
+        } else if (formData.typePublication === "location" && formData.dateDebutLocation) {
+            fd.append("date_disponibilite", formData.dateDebutLocation)
+        }
+
+        // Équipements : chaque valeur dans son propre slot d'array
+        formData.equipements.forEach(eq => fd.append("equipements[]", eq))
+
+        // Photos
+        photos.forEach(photo => fd.append("photos[]", photo))
+
+        const toastId = toast.loading("Publication de l'annonce en cours...")
+        try {
+            await api.upload("/vehicules/post-vehicule", fd)
             toast.dismiss(toastId)
-            toast.success("Annonce modifiée avec succès !", {
-                description: `Votre ${formData.marque} ${formData.modele} a été mise à jour.`,
+            toast.success("Annonce soumise avec succès !", {
+                description: `Votre ${formData.marque} ${formData.modele} est en attente de validation.`,
             })
-            setIsSubmitting(false)
             onSubmit?.()
             onClose()
-        }, 2500)
+        } catch (err) {
+            toast.dismiss(toastId)
+            // Le backend peut rejeter via Gemini (données incohérentes) ou validation classique
+            toast.error(err instanceof ApiError ? err.message : "Échec de la publication")
+        } finally {
+            setIsSubmitting(false)
+        }
     }
 
     return (

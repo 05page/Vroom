@@ -1,6 +1,6 @@
 "use client"
 
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
 import {
     BarChart3,
@@ -16,6 +16,7 @@ import {
     User,
     Warehouse,
     Calendar,
+    Router,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -35,6 +36,7 @@ import {
     SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
+import { api } from "@/src/lib/api"
 
 const navItems = [
     { href: "/partenaire/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -53,6 +55,11 @@ export default function PartenaireLayout({
 }) {
     const pathname = usePathname()
 
+    const router = useRouter()
+    const handleLogout = async () => {
+        await api.logout()
+        router.push("/auth")
+    }
     return (
         <SidebarProvider>
             <Sidebar collapsible="icon">
@@ -128,7 +135,8 @@ export default function PartenaireLayout({
                             </SidebarMenuButton>
                         </SidebarMenuItem>
                         <SidebarMenuItem>
-                            <SidebarMenuButton className="text-red-500 hover:text-red-600 hover:bg-red-50">
+                            <SidebarMenuButton className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                            onClick={handleLogout}>
                                 <LogOut />
                                 <span>Déconnexion</span>
                             </SidebarMenuButton>
