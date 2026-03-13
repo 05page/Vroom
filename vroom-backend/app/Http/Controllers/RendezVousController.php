@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Notifications;
 use App\Models\RendezVous;
+use App\Models\Transaction;
 use App\Models\Vehicules;
 use App\Services\GoogleCalendarService;
 use Illuminate\Http\JsonResponse;
@@ -143,6 +144,14 @@ class RendezVousController extends Controller
                     // L'échec Calendar ne bloque pas la confirmation
                 }
             }
+
+            // Création automatique de la transaction liée à ce RDV
+            // Le montant est figé au prix actuel du véhicule
+            $rdv->load('vehicule');
+            Transaction::create([
+                'rdv_id'  => $rdv->id,
+                'montant' => $rdv->vehicule->prix,
+            ]);
 
             Notifications::create([
                 'user_id' => $rdv->client_id,

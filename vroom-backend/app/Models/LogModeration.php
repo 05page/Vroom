@@ -12,14 +12,22 @@ class LogModeration extends Model
     protected $table = 'logs_moderation';
 
     protected $fillable = [
-        'admin_id', 'action', 'cible_type', 'id_cible', 'details', 'date_action',
+        'admin_id',
+        'action',
+        'cible_type',
+        'id_cible',
+        'details',
+        'date_action',
     ];
 
     protected $casts = ['date_action' => 'datetime'];
 
     // Pas de soft delete — journal d'audit immuable
 
-    public function admin() { return $this->belongsTo(User::class, 'admin_id'); }
+    public function admin()
+    {
+        return $this->belongsTo(User::class, 'admin_id');
+    }
 
     public static function enregistrer(User $admin, string $action, string $cibleType, string $idCible, ?string $details = null): self
     {

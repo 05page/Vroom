@@ -97,7 +97,13 @@ class Notifications extends Model
         parent::boot();
 
         static::created(function (Notifications $notification) {
-            NotificationBroadcast::dispatch($notification);
+            // Reverb peut ne pas être lancé en dev — on absorbe l'erreur pour
+            // ne pas faire échouer l'opération métier qui a créé la notification
+            try {
+                NotificationBroadcast::dispatch($notification);
+            } catch (\Exception $e) {
+                \Log::warning('Broadcast notification échoué : ' . $e->getMessage());
+            }
         });
     }
 }

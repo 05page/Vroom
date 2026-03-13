@@ -7,6 +7,7 @@ use App\Models\Notifications;
 use App\Models\Vehicules;
 use App\Models\VehiculesDescription;
 use App\Models\VehiculesPhotos;
+use App\Jobs\ValidateVehiculeWithGemini;
 use App\Services\GeminiService;
 use Carbon\Carbon;
 use Gemini\Laravel\Facades\Gemini;
@@ -27,7 +28,7 @@ class VehiculesController extends Controller
                 'description',
                 'photos',
             ])->whereIn('status_validation', ['validee', 'restauree'])
-                ->where('statut', 'disponible')
+                ->whereIn('statut', ['disponible', 'vendu', 'loué'])
                 ->get();
 
             if ($query->count() == 0) {
@@ -70,7 +71,7 @@ class VehiculesController extends Controller
                 'description',
                 'photos',
             ])->whereIn('status_validation', ['validee', 'restauree'])
-                ->where('statut', 'disponible')
+                ->whereIn('statut', ['disponible', 'vendu', 'loué'])
                 ->findOrFail($id);
 
             $vehicule->registerView($user, request()->ip());
@@ -105,7 +106,7 @@ class VehiculesController extends Controller
             ])
                 ->where('created_by', $user->id)
                 ->whereIn('status_validation', ['validee', 'restauree'])
-                ->where('statut', 'disponible')
+                ->whereIn('statut', ['disponible', 'vendu', 'loué'])
                 ->get();
 
             $stats = [
@@ -194,54 +195,18 @@ class VehiculesController extends Controller
                 ], 400);
             }
 
-            // Validation avec Gemini pour vérifier la cohérence des données
-            $prompt = "Analysez ce véhicule " . ($validatedData['type'] == 'occasion' ? 'd\'occasion' : 'neuf') . " : " .
-                "marque {$validatedData['marque']}, modèle {$validatedData['modele']}, année {$validatedData['annee']}, " .
-                "carburant {$validatedData['carburant']}, kilométrage {$validatedData['kilometrage']} km, " .
-                "historique d'accidents: {$validatedData['historique_accidents']}, " .
-                "équipements: " . implode(', ', $validatedData['equipements'] ?? []) . ". " .
-                "Répondez au format JSON strict : {\"valide\": true/false, \"prix_suggere\": nombre, \"explication\": \"texte\"}. " .
-                "Le prix doit être en FCFA (XOF) basé sur le marché ivoirien. " .
-                "Si invalide, mettez valide à false et expliquez pourquoi.";
-
-            try {
-                $geminiResponse = retry(3, function () use ($prompt) {
-                    return Gemini::generativeModel(model: 'gemini-2.5-flash')
-                        ->generateContent($prompt);
-                }, 2000);
-
-                $responseText = trim($geminiResponse->text());
-                $responseText = preg_replace('/```json\n?|\n?```/', '', $responseText);
-                $aiResult = json_decode($responseText, true);
-                if (!$aiResult || !isset($aiResult['valide'])) {
-                    throw new \Exception('Format de réponse invalide de l\'IA');
-                }
-
-                if (!$aiResult['valide']) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Le véhicule n\'a pas été validé',
-                        'details' => $aiResult['explication'] ?? 'Données incohérentes',
-                    ], 400);
-                }
-            } catch (\Exception $e) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Erreur lors de la validation avec Gemini: ' . $e->getMessage(),
-                ], 500);
-            }
-
+            // Le véhicule est sauvegardé immédiatement — la validation Gemini
+            // se fait en arrière-plan via le job ValidateVehiculeWithGemini
             DB::beginTransaction();
             $vehicule = Vehicules::create([
-                'created_by' => $user->id,
-                'post_type' => $validatedData['post_type'],
-                'type' => $validatedData['type'],
-                'statut' => Vehicules::STATUS_DISPONIBLE,
-                'status_validation' => Vehicules::STATUS_VALIDATED,
-                'prix' => $validatedData['prix'],
-                'prix_suggere' => $aiResult['prix_suggere'],
-                'negociable' => false,
-                'date_disponibilite' => now(),
+                'created_by'         => $user->id,
+                'post_type'          => $validatedData['post_type'],
+                'type'               => $validatedData['type'],
+                'statut'             => Vehicules::STATUS_DISPONIBLE,
+                'status_validation'  => Vehicules::STATUS_PENDING, // en_attente jusqu'à validation Gemini
+                'prix'               => $validatedData['prix'],
+                'negociable'         => false,
+                'date_disponibilite' => $validatedData['date_disponibilite'] ?? now(),
             ]);
 
             $vehiculeDescription = VehiculesDescription::create([
@@ -279,23 +244,28 @@ class VehiculesController extends Controller
             }
 
             Notifications::create([
-                'user_id' => $user->id,
-                'type'    => Notifications::TYPE_MODERATION,
-                'title'   => 'Véhicule créé avec succès',
-                'message' => 'Votre véhicule ' . $vehiculeDescription->marque . ' ' . $vehiculeDescription->modele . ' a été créé avec succès.',
-                'data'    => ['vehicule_id' => $vehicule->id],
+                'user_id'    => $user->id,
+                'type'       => Notifications::TYPE_MODERATION,
+                'title'      => 'Annonce soumise avec succès',
+                'message'    => 'Votre annonce ' . $vehiculeDescription->marque . ' ' . $vehiculeDescription->modele . ' est en cours de validation. Vous serez notifié du résultat.',
+                'data'       => ['vehicule_id' => $vehicule->id],
+                'lu'         => false,
+                'date_envoi' => now(),
             ]);
 
             DB::commit();
+
+            // Dispatcher le job de validation Gemini en arrière-plan
+            // Le véhicule sera rejeté automatiquement si Gemini détecte des incohérences
+            ValidateVehiculeWithGemini::dispatch($vehicule);
+
             return response()->json([
                 'success' => true,
-                'message' => 'Véhicule créé avec succès',
-                'data' => [
-                    'vehicule' => $vehicule,
+                'message' => 'Annonce soumise avec succès',
+                'data'    => [
+                    'vehicule'    => $vehicule,
                     'description' => $vehicule->description,
-                    'photos' => $vehicule->photos,
-                    'prix_suggere' => $aiResult['prix_suggere'],
-                    'explication_prix' => $aiResult['explication'],
+                    'photos'      => $vehicule->photos,
                 ],
             ], 201);
         } catch (\Exception $e) {

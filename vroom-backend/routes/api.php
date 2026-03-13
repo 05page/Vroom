@@ -7,6 +7,7 @@ use App\Http\Controllers\AvisController;
 use App\Http\Controllers\FavoriController;
 use App\Http\Controllers\NotificationsController;
 use App\Http\Controllers\RendezVousController;
+use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\SignalementController;
 use App\Http\Controllers\VehiculesController;
 use App\Http\Controllers\VendeurStatsController;
@@ -42,7 +43,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Écriture — vendeurs et partenaires
         Route::middleware('role:vendeur,concessionnaire,auto_ecole')->group(function () {
             Route::get('/mes-vehicules', [VehiculesController::class, 'mesVehicules']);
-            Route::post('/post-vehicule',             [VehiculesController::class, 'postVehicules']);
+            Route::post('/post-vehicule', [VehiculesController::class, 'postVehicules']);
             Route::put('/{id}',          [VehiculesController::class, 'updateVehicule']);
             Route::delete('/{id}',       [VehiculesController::class, 'deleteVehicule']);
         });
@@ -96,6 +97,12 @@ Route::middleware('auth:sanctum')->group(function () {
         });
     });
 
+    // Transactions (confirmation double)
+    // Route::prefix('transactions')->group(function () {
+    //     Route::get('/rdv/{rdvId}',       [TransactionController::class, 'parRdv']);
+    //     Route::post('/{id}/confirmer',   [TransactionController::class, 'confirmer']);
+    // });
+
     // Avis (écriture — authentifié)
     Route::post('/avis', [AvisController::class, 'store']);
 
@@ -129,6 +136,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/users/{id}/bannir',         [AdminController::class, 'bannir']);
         Route::post('/users/{id}/restaurer',      [AdminController::class, 'restaurer']);
         Route::post('/users/{id}/valider',        [AdminController::class, 'validerCompte']);
+        Route::get('/vehicules',                  [AdminController::class, 'vehicules']);
         Route::get('/vehicules/en-attente',       [AdminController::class, 'vehiculesEnAttente']);
         Route::post('/vehicules/{id}/valider',    [AdminController::class, 'validerVehicule']);
         Route::post('/vehicules/{id}/rejeter',    [AdminController::class, 'rejeterVehicule']);

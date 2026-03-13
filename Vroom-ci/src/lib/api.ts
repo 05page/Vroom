@@ -35,6 +35,20 @@ api.put = <T = unknown>(endpoint: string, body: unknown) =>
 api.delete = <T = unknown>(endpoint: string) =>
   api<T>(endpoint, { method: "DELETE" })
 
+/**
+ * Envoie une requête POST multipart/form-data (upload de fichiers).
+ * Ne pas définir Content-Type manuellement — le navigateur le fait avec le bon boundary.
+ */
+api.upload = async <T = unknown>(endpoint: string, formData: FormData): Promise<ApiResponse<T>> => {
+  const res = await fetch(`${PROXY_BASE}${endpoint}`, {
+    method: "POST",
+    body: formData,
+  })
+  const data = await res.json()
+  if (!res.ok) throw new ApiError(data.message || "Erreur serveur", res.status, data.errors)
+  return data as ApiResponse<T>
+}
+
 api.logout = async () => {
   const res = await fetch('/api/auth/logout', {method: "POST"})
   return res.json();
