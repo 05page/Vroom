@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\LogModeration;
+use App\Models\Notifications;
 use App\Models\Signalement;
 use App\Models\User;
 use App\Models\Vehicules;
@@ -13,8 +14,6 @@ use Illuminate\Support\Facades\Hash;
 
 class AdminController extends Controller
 {
-    // ── Administrateurs ───────────────────────────────────
-
     /**
      * Liste tous les comptes administrateurs.
      */
@@ -116,6 +115,19 @@ class AdminController extends Controller
         return response()->json(['success' => true, 'data' => $vehicules], 200);
     }
 
+    /**
+     * Liste tous les véhicules, tous statuts confondus.
+     * Utilisé par le panel admin pour la vue de modération complète.
+     */
+    public function vehicules(): JsonResponse
+    {
+        $vehicules = Vehicules::with(['creator:id,fullname,role', 'description', 'photos'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json(['success' => true, 'data' => $vehicules], 200);
+    }
+
     public function validerVehicule(Request $request, $id): JsonResponse
     {
         $vehicule = Vehicules::findOrFail($id);
@@ -145,10 +157,10 @@ class AdminController extends Controller
 
     public function signalements(Request $request): JsonResponse
     {
-        $query = Signalement::with(['client:id,fullname', 'cibleUser:id,fullname', 'cibleVehicule.description']);
+        $query = Signalement::with(['client:id,fullname', 'cibleUser:id,fullname', 'cibleVehicule.description', 'cibleVehicule.creator:id,fullname', 'cibleVehicule.photos']);
 
         if ($request->filled('statut')) $query->where('statut', $request->statut);
-        else $query->enAttente();
+        // y
 
         $signalements = $query->orderBy('date_signalement', 'asc')->paginate(20);
 
@@ -157,35 +169,135 @@ class AdminController extends Controller
 
     public function traiterSignalement(Request $request, $id): JsonResponse
     {
+        // --- Étape 1 : Validation des paramètres ---
         $request->validate([
-            'action'  => 'required|in:traiter,rejeter',
-            'details' => 'nullable|string|max:500',
+            'action'       => 'required|in:traiter,rejeter',
+            'action_cible' => 'nullable|string|in:avertissement,suspendre,bannir,aucune',
+            'note_admin'   => 'nullable|string|max:500',
         ]);
 
-        $signalement = Signalement::findOrFail($id);
+        // --- Étape 2 : Chargement du signalement avec ses relations ---
+        $signalement = Signalement::with(['cibleUser', 'cibleVehicule.description'])->findOrFail($id);
 
-        if ($request->action === 'traiter') $signalement->traiter();
-        else                                $signalement->rejeter();
+        $action      = $request->input('action');
+        $actionCible = $request->input('action_cible');
+        $noteAdmin   = $request->input('note_admin');
 
-        $signalement->update(['admin_id' => Auth::id()]);
+        if ($action === 'traiter') {
+            // --- Étape 3a : Marquer le signalement comme traité ---
+            $signalement->traiter();
 
-        $this->logAction('HANDLE_SIGNALEMENT', 'signalement', $id, $request->details);
+            // --- Étape 3b : Appliquer l'action sur la cible (user ou véhicule) ---
+            if ($actionCible && $actionCible !== 'aucune') {
 
-        return response()->json(['success' => true, 'message' => 'Signalement ' . $request->action], 200);
+                if ($signalement->cibleUser) {
+                    // "avertissement" : notif seulement, pas de changement de statut
+                    match ($actionCible) {
+                        'avertissement' => null,
+                        'suspendre'     => $signalement->cibleUser->suspendre(),
+                        'bannir'        => $signalement->cibleUser->bannir(),
+                        default         => null,
+                    };
+                }
+
+                if ($signalement->cibleVehicule) {
+                    match ($actionCible) {
+                        'suspendre' => $signalement->cibleVehicule->update(['statut' => 'suspendu']),
+                        'bannir'    => $signalement->cibleVehicule->update(['statut' => 'banni']),
+                        default     => null,
+                    };
+                }
+            }
+
+            // --- Étape 3c : Notification pour la cible ---
+            // Destinataire : le user cible ou le créateur du véhicule signalé
+            $cibleUserId = $signalement->cible_user_id
+                ?? $signalement->cibleVehicule?->created_by;
+
+            if ($cibleUserId) {
+                $isCibleVehicule = (bool) $signalement->cible_vehicule_id;
+                $titre = $isCibleVehicule
+                    ? 'Action de modération sur votre annonce'
+                    : 'Action de modération sur votre compte';
+
+                $lignes = [$titre . '.'];
+                if ($actionCible && $actionCible !== 'aucune') {
+                    $lignes[] = "Mesure appliquée : {$actionCible}.";
+                }
+                if ($noteAdmin) {
+                    $lignes[] = "Note de l'administrateur : {$noteAdmin}";
+                }
+
+                Notifications::create([
+                    'user_id'    => $cibleUserId,
+                    'type'       => Notifications::TYPE_MODERATION,
+                    'title'      => $titre,
+                    'message'    => implode(' ', $lignes),
+                    'data'       => ['signalement_id' => $signalement->id, 'action_cible' => $actionCible],
+                    'lu'         => false,
+                    'date_envoi' => now(),
+                ]);
+            }
+
+            // --- Étape 3d : Notification pour le reporter ---
+            Notifications::create([
+                'user_id'    => $signalement->client_id,
+                'type'       => Notifications::TYPE_MODERATION,
+                'title'      => 'Votre signalement a été traité',
+                'message'    => 'Nous avons examiné votre signalement et pris les mesures appropriées.',
+                'data'       => ['signalement_id' => $signalement->id],
+                'lu'         => false,
+                'date_envoi' => now(),
+            ]);
+        } else {
+            // --- Étape 4 : Rejet du signalement — notification reporter uniquement ---
+            $signalement->rejeter();
+
+            $messageRejet = "Après examen, votre signalement n'a pas donné lieu à une action de notre part.";
+            if ($noteAdmin) {
+                $messageRejet .= " Précision de l'administrateur : {$noteAdmin}";
+            }
+
+            Notifications::create([
+                'user_id'    => $signalement->client_id,
+                'type'       => Notifications::TYPE_MODERATION,
+                'title'      => 'Votre signalement a été examiné',
+                'message'    => $messageRejet,
+                'data'       => ['signalement_id' => $signalement->id],
+                'lu'         => false,
+                'date_envoi' => now(),
+            ]);
+        }
+
+        // --- Étape 5 : Associer l'admin au signalement ---
+        $signalement->update([
+            'admin_id' => Auth::id(),
+            'action_cible' => $actionCible,
+            'note_admin'   => $noteAdmin ?: null,
+        ]);
+
+        // --- Étape 6 : Log avec détails complets ---
+        $logDetails = "Action: {$action}";
+        if ($actionCible) $logDetails .= ", Action cible: {$actionCible}";
+        if ($noteAdmin)   $logDetails .= ", Note: {$noteAdmin}";
+
+        $this->logAction('HANDLE_SIGNALEMENT', 'signalement', $id, $logDetails);
+
+        return response()->json([
+            'success' => true,
+            'message' => $action === 'traiter' ? 'Signalement traité avec succès' : 'Signalement rejeté',
+        ], 200);
     }
-
-    // ── Logs ───────────────────────────────────────────────
 
     public function logs(Request $request): JsonResponse
     {
-        $logs = LogModeration::with('admin:id,fullname')
-            ->orderBy('date_action', 'desc')
-            ->paginate(50);
+        $query = LogModeration::with(['admin:id,fullname']);
+            
+        if ($request->filled('cible_type')) $query->where('cible_type', $request->cible_type);  
+        $logs = $query->orderBy('date_action', 'desc')->paginate(50);
 
         return response()->json(['success' => true, 'data' => $logs], 200);
     }
-
-    // ── Helpers ────────────────────────────────────────────
 
     private function changerStatut($id, string $statut, string $action, string $cibleType, ?string $details): JsonResponse
     {

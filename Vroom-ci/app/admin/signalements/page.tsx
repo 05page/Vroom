@@ -5,6 +5,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import {
     Select,
     SelectContent,
@@ -13,15 +15,19 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
+import {
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+} from "@/components/ui/sheet"
 import {
     Table,
     TableBody,
@@ -38,32 +44,43 @@ import {
     User,
     ChevronLeft,
     ChevronRight,
+    FileText,
+    AlertTriangle,
 } from "lucide-react"
 import { toast } from "sonner"
 import { api } from "@/src/lib/api"
 import { PaginatedResponse } from "@/src/types"
 
+
 interface SignalementAdmin {
     id: string
-    type: string
-    statut: "en_attente" | "traite" | "rejete"
-    motif?: string
+    /** Motif du signalement : "comportement abusif", "arnaque", etc. */
+    motif: string
+    /** Description libre saisie par le reporteur */
+    description?: string
+    statut: "en_attente" | "traité" | "rejeté"
+    action_cible?: string | null
+    note_admin?: string | null
     date_signalement: string
     client?: { id: string; fullname: string }
-    cibleUser?: { id: string; fullname: string } | null
-    cibleVehicule?: {
+    cible_user?: { id: string; fullname: string } | null
+    cible_vehicule?: {
         id: string
         description?: { marque: string; modele: string; annee: number }
+        creator?: { id: string; fullname: string }
+        photos?: { path: string; is_primary: boolean }[]
     } | null
 }
 
+
+/** Badge coloré selon le statut du signalement */
 function StatutBadge({ statut }: { statut: SignalementAdmin["statut"] }) {
     const map = {
         en_attente: "bg-yellow-100 text-yellow-700 border-yellow-200",
-        traite:     "bg-green-100 text-green-700 border-green-200",
-        rejete:     "bg-red-100 text-red-700 border-red-200",
+        traité:     "bg-green-100 text-green-700 border-green-200",
+        rejeté:     "bg-red-100 text-red-700 border-red-200",
     }
-    const labels = { en_attente: "En attente", traite: "Traité", rejete: "Rejeté" }
+    const labels = { en_attente: "En attente", traité: "Traité", rejeté: "Rejeté" }
     return (
         <Badge className={`text-xs ${map[statut] ?? "bg-secondary text-secondary-foreground"}`}>
             {labels[statut] ?? statut}
@@ -71,20 +88,31 @@ function StatutBadge({ statut }: { statut: SignalementAdmin["statut"] }) {
     )
 }
 
-interface PendingAction {
-    id: string
-    action: "traiter" | "rejeter"
-}
 
 export default function AdminSignalementsPage() {
+    // ── State liste ──────────────────────────────────────────────────────────
     const [signalements, setSignalements] = useState<SignalementAdmin[]>([])
     const [loading, setLoading]           = useState(true)
     const [page, setPage]                 = useState(1)
     const [totalPages, setTotalPages]     = useState(1)
     const [total, setTotal]               = useState(0)
-    const [filterStatut, setFilterStatut] = useState("en_attente")
-    const [pending, setPending]           = useState<PendingAction | null>(null)
-    const [acting, setActing]             = useState(false)
+    const [filterStatut, setFilterStatut] = useState("all")
+
+    // ── State drawer de détail (lecture seule) ──────────────────────────────
+    const [detail, setDetail]           = useState<SignalementAdmin | null>(null)
+
+    // ── State modale de traitement ───────────────────────────────────────────
+    /** Signalement actuellement ouvert dans la modale */
+    const [selected, setSelected]       = useState<SignalementAdmin | null>(null)
+    /** Action choisie dans la modale */
+    const [modalAction, setModalAction] = useState<"traiter" | "rejeter">("traiter")
+
+    const [actionCible, setActionCible] = useState<string>("aucune")
+    /** Note optionnelle de l'admin, visible par la personne concernée */
+    const [noteAdmin, setNoteAdmin]     = useState("")
+    const [acting, setActing]           = useState(false)
+
+    // ── Fetch ────────────────────────────────────────────────────────────────
 
     const fetchSignalements = useCallback(async () => {
         setLoading(true)
@@ -109,13 +137,33 @@ export default function AdminSignalementsPage() {
 
     useEffect(() => { fetchSignalements() }, [fetchSignalements])
 
+    /**
+     * Ouvre la modale pour un signalement donné et remet le state modal
+     * à ses valeurs par défaut (traiter / aucune action / note vide).
+     */
+    const openModal = (s: SignalementAdmin) => {
+        setSelected(s)
+        setModalAction("traiter")
+        setActionCible("aucune")
+        setNoteAdmin("")
+    }
+
+    /**
+     * Envoie la décision de traitement au backend.
+     * Corps : { action, action_cible?, note_admin? }
+     * action_cible n'est envoyé que si l'action est "traiter".
+     */
     const executeAction = async () => {
-        if (!pending) return
+        if (!selected) return
         setActing(true)
         try {
-            await api.post(`/admin/signalements/${pending.id}/traiter`, { action: pending.action })
-            toast.success(`Signalement ${pending.action === "traiter" ? "traité" : "rejeté"}`)
-            setPending(null)
+            await api.post(`/admin/signalements/${selected.id}/traiter`, {
+                action: modalAction,
+                action_cible: modalAction === "traiter" ? actionCible : undefined,
+                note_admin: noteAdmin.trim() || undefined, // envoyé dans les deux cas
+            })
+            toast.success(`Signalement ${modalAction === "traiter" ? "traité" : "rejeté"}`)
+            setSelected(null)
             fetchSignalements()
         } catch {
             toast.error("Échec de l'action")
@@ -124,26 +172,57 @@ export default function AdminSignalementsPage() {
         }
     }
 
-    // Affiche la cible du signalement : utilisateur ou véhicule
+    /**
+     * Affiche la cible du signalement : utilisateur ou véhicule.
+     * Retourne une icône + label ou un tiret si aucune cible.
+     */
     const renderCible = (s: SignalementAdmin) => {
-        if (s.cibleUser) {
+        if (s.cible_user) {
             return (
                 <span className="flex items-center gap-1 text-xs text-muted-foreground">
                     <User className="h-3 w-3" />
-                    {s.cibleUser.fullname}
+                    {s.cible_user.fullname}
                 </span>
             )
         }
-        if (s.cibleVehicule?.description) {
-            const d = s.cibleVehicule.description
+        if (s.cible_vehicule?.description) {
+            const d = s.cible_vehicule.description
             return (
                 <span className="flex items-center gap-1 text-xs text-muted-foreground">
                     <Car className="h-3 w-3" />
                     {d.marque} {d.modele} ({d.annee})
+                    {s.cible_vehicule.creator && (
+                        <span className="opacity-60">— {s.cible_vehicule.creator.fullname}</span>
+                    )}
                 </span>
             )
         }
         return <span className="text-xs text-muted-foreground">—</span>
+    }
+
+    // ── Options du Select "Action sur la cible" selon le type de cible ───────
+
+    /**
+     * Retourne les options disponibles pour l'action sur la cible.
+     * Les options diffèrent selon que la cible est un utilisateur ou un véhicule.
+     */
+    const getActionCibleOptions = () => {
+        if (selected?.cible_user) {
+            return [
+                { value: "aucune",        label: "Aucune action" },
+                { value: "avertissement", label: "Avertissement" },
+                { value: "suspendre",     label: "Suspendre le compte" },
+                { value: "bannir",        label: "Bannir le compte" },
+            ]
+        }
+        if (selected?.cible_vehicule) {
+            return [
+                { value: "aucune",    label: "Aucune action" },
+                { value: "suspendre", label: "Suspendre l'annonce" },
+                { value: "bannir",    label: "Bannir l'annonce" },
+            ]
+        }
+        return [{ value: "aucune", label: "Aucune action" }]
     }
 
     return (
@@ -167,14 +246,14 @@ export default function AdminSignalementsPage() {
             {/* Filtre statut */}
             <div>
                 <Select value={filterStatut} onValueChange={v => { setFilterStatut(v); setPage(1) }}>
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="w-45">
                         <SelectValue placeholder="Filtrer par statut" />
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">Tous les statuts</SelectItem>
                         <SelectItem value="en_attente">En attente</SelectItem>
-                        <SelectItem value="traite">Traités</SelectItem>
-                        <SelectItem value="rejete">Rejetés</SelectItem>
+                        <SelectItem value="traité">Traités</SelectItem>
+                        <SelectItem value="rejeté">Rejetés</SelectItem>
                     </SelectContent>
                 </Select>
             </div>
@@ -187,7 +266,7 @@ export default function AdminSignalementsPage() {
                             <TableRow className="hover:bg-transparent">
                                 <TableHead>Signalé par</TableHead>
                                 <TableHead>Cible</TableHead>
-                                <TableHead>Type</TableHead>
+                                <TableHead>Motif</TableHead>
                                 <TableHead>Statut</TableHead>
                                 <TableHead>Date</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
@@ -222,7 +301,7 @@ export default function AdminSignalementsPage() {
                                     <TableCell>{renderCible(s)}</TableCell>
                                     <TableCell>
                                         <Badge className="bg-secondary text-secondary-foreground text-xs">
-                                            {s.type}
+                                            {s.motif}
                                         </Badge>
                                     </TableCell>
                                     <TableCell>
@@ -232,30 +311,31 @@ export default function AdminSignalementsPage() {
                                         {new Date(s.date_signalement).toLocaleDateString("fr-FR")}
                                     </TableCell>
                                     <TableCell>
-                                        {/* Actions uniquement sur les signalements ouverts */}
+                                        {/* Bouton unique d'ouverture de la modale — uniquement sur les signalements ouverts */}
                                         {s.statut === "en_attente" ? (
-                                            <div className="flex items-center justify-end gap-1">
+                                            <div className="flex items-center justify-end">
                                                 <Button
                                                     size="sm"
                                                     variant="outline"
-                                                    className="h-7 text-xs border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800"
-                                                    onClick={() => setPending({ id: s.id, action: "traiter" })}
+                                                    className="h-7 text-xs"
+                                                    onClick={() => openModal(s)}
                                                 >
-                                                    <CheckCircle2 className="h-3 w-3 mr-1" />
-                                                    Traiter
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="h-7 text-xs border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
-                                                    onClick={() => setPending({ id: s.id, action: "rejeter" })}
-                                                >
-                                                    <XCircle className="h-3 w-3 mr-1" />
-                                                    Rejeter
+                                                    <FileText className="h-3 w-3 mr-1" />
+                                                    Voir & traiter
                                                 </Button>
                                             </div>
                                         ) : (
-                                            <span className="text-xs text-muted-foreground text-right block">—</span>
+                                            <div className="flex items-center justify-end">
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="h-7 text-xs"
+                                                    onClick={() => setDetail(s)}
+                                                >
+                                                    <FileText className="h-3 w-3 mr-1" />
+                                                    Voir détail
+                                                </Button>
+                                            </div>
                                         )}
                                     </TableCell>
                                 </TableRow>
@@ -270,46 +350,286 @@ export default function AdminSignalementsPage() {
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                     <span>Page {page} sur {totalPages}</span>
                     <div className="flex gap-2">
-                        <Button variant="outline" size="sm" disabled={page <= 1}          onClick={() => setPage(p => p - 1)}>
+                        <Button variant="outline" size="sm" disabled={page <= 1}         onClick={() => setPage(p => p - 1)}>
                             <ChevronLeft className="h-4 w-4" />
                         </Button>
-                        <Button variant="outline" size="sm" disabled={page >= totalPages}  onClick={() => setPage(p => p + 1)}>
+                        <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
                             <ChevronRight className="h-4 w-4" />
                         </Button>
                     </div>
                 </div>
             )}
 
-            {/* Dialog de confirmation */}
-            <AlertDialog open={!!pending} onOpenChange={open => !open && setPending(null)}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>
-                            {pending?.action === "traiter" ? "Marquer comme traité" : "Rejeter le signalement"}
-                        </AlertDialogTitle>
-                        <AlertDialogDescription>
-                            {pending?.action === "traiter"
-                                ? "Le signalement sera marqué comme traité. Une action correctrice a-t-elle bien été prise ?"
-                                : "Le signalement sera rejeté et classé sans suite."
-                            }
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Annuler</AlertDialogCancel>
-                        <AlertDialogAction
+            {/* ── Drawer détail (lecture seule) ──────────────────────────────── */}
+            <Sheet open={!!detail} onOpenChange={open => !open && setDetail(null)}>
+                <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+                    <SheetHeader className="mb-6">
+                        <SheetTitle className="flex items-center gap-2">
+                            <ShieldAlert className="h-4 w-4 text-orange-500" />
+                            Détail du signalement
+                        </SheetTitle>
+                    </SheetHeader>
+
+                    {detail && (
+                        <div className="space-y-5 text-sm">
+                            {/* Statut */}
+                            <div className="flex items-center justify-between">
+                                <span className="text-muted-foreground">Statut</span>
+                                <StatutBadge statut={detail.statut} />
+                            </div>
+
+                            <div className="border-t" />
+
+                            {/* Signalé par */}
+                            <div className="flex items-center justify-between">
+                                <span className="text-muted-foreground">Signalé par</span>
+                                <span className="font-medium">{detail.client?.fullname ?? "Inconnu"}</span>
+                            </div>
+
+                            {/* Cible */}
+                            <div className="flex items-center justify-between">
+                                <span className="text-muted-foreground">Cible</span>
+                                {renderCible(detail)}
+                            </div>
+
+                            {/* Motif */}
+                            <div className="flex items-center justify-between">
+                                <span className="text-muted-foreground">Motif</span>
+                                <Badge className="bg-secondary text-secondary-foreground text-xs">
+                                    {detail.motif}
+                                </Badge>
+                            </div>
+
+                            {/* Date */}
+                            <div className="flex items-center justify-between">
+                                <span className="text-muted-foreground">Date</span>
+                                <span>{new Date(detail.date_signalement).toLocaleDateString("fr-FR", {
+                                    day: "numeric", month: "long", year: "numeric"
+                                })}</span>
+                            </div>
+
+                            {/* Description */}
+                            {detail.description && (
+                                <>
+                                    <div className="border-t" />
+                                    <div className="space-y-1.5">
+                                        <span className="text-muted-foreground">Description</span>
+                                        <p className="bg-muted rounded p-3 leading-relaxed">{detail.description}</p>
+                                    </div>
+                                </>
+                            )}
+
+                            {/* Action prise par l'admin */}
+                            {detail.action_cible && (
+                                <>
+                                    <div className="border-t" />
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-muted-foreground">Action appliquée</span>
+                                        <Badge className="bg-orange-100 text-orange-700 border-orange-200 text-xs capitalize">
+                                            {detail.action_cible}
+                                        </Badge>
+                                    </div>
+                                </>
+                            )}
+
+                            {/* Note admin */}
+                            {detail.note_admin && (
+                                <div className="space-y-1.5">
+                                    <span className="text-muted-foreground">Note de l&apos;admin</span>
+                                    <p className="bg-muted rounded p-3 leading-relaxed">{detail.note_admin}</p>
+                                </div>
+                            )}
+
+                            {/* Photos du véhicule signalé */}
+                            {detail.cible_vehicule?.photos && detail.cible_vehicule.photos.length > 0 && (
+                                <>
+                                    <div className="border-t" />
+                                    <div className="space-y-2">
+                                        <span className="text-muted-foreground">Photos du véhicule</span>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {detail.cible_vehicule.photos.map((photo, i) => (
+                                                <img
+                                                    key={i}
+                                                    src={`${process.env.NEXT_PUBLIC_BACKEND_URL}/storage/${photo.path}`}
+                                                    alt={`Photo ${i + 1}`}
+                                                    className="w-full h-32 object-cover rounded-md border"
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    )}
+                </SheetContent>
+            </Sheet>
+
+            {/* ── Modale de traitement enrichie ─────────────────────────────── */}
+            <Dialog open={!!selected} onOpenChange={open => !open && setSelected(null)}>
+                <DialogContent className="max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <AlertTriangle className="h-4 w-4 text-orange-500" />
+                            Traiter le signalement
+                        </DialogTitle>
+                        <DialogDescription>
+                            Consultez les détails puis choisissez l&apos;action à appliquer.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {selected && (
+                        <div className="space-y-5 py-1">
+                            {/* ── Section 1 : Détails du signalement (lecture seule) ── */}
+                            <div className="space-y-3 text-sm">
+                                <div className="flex items-start justify-between gap-4">
+                                    <span className="text-muted-foreground shrink-0">Signalé par</span>
+                                    <span className="font-medium text-right">
+                                        {selected.client?.fullname ?? "Inconnu"}
+                                    </span>
+                                </div>
+
+                                <div className="flex items-start justify-between gap-4">
+                                    <span className="text-muted-foreground shrink-0">Cible</span>
+                                    <span className="text-right">{renderCible(selected)}</span>
+                                </div>
+
+                                <div className="flex items-start justify-between gap-4">
+                                    <span className="text-muted-foreground shrink-0">Motif</span>
+                                    <Badge className="bg-secondary text-secondary-foreground text-xs">
+                                        {selected.motif}
+                                    </Badge>
+                                </div>
+
+                                {selected.description && (
+                                    <div className="space-y-1">
+                                        <span className="text-muted-foreground">Description</span>
+                                        <p className="bg-muted rounded p-3 text-sm leading-relaxed">
+                                            {selected.description}
+                                        </p>
+                                    </div>
+                                )}
+
+                                <div className="flex items-start justify-between gap-4">
+                                    <span className="text-muted-foreground shrink-0">Date</span>
+                                    <span>
+                                        {new Date(selected.date_signalement).toLocaleDateString("fr-FR", {
+                                            day: "numeric",
+                                            month: "long",
+                                            year: "numeric",
+                                        })}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="border-t" />
+
+                            {/* ── Section 2 : Choisir l'action ── */}
+                            <div className="space-y-3">
+                                <Label className="text-sm font-medium">Action</Label>
+
+                                {/* Toggle Traiter / Rejeter */}
+                                <div className="flex gap-2">
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant={modalAction === "traiter" ? "default" : "outline"}
+                                        className={
+                                            modalAction === "traiter"
+                                                ? "bg-green-600 text-white hover:bg-green-700 flex-1"
+                                                : "border-green-200 text-green-700 hover:bg-green-50 flex-1"
+                                        }
+                                        onClick={() => setModalAction("traiter")}
+                                    >
+                                        <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                                        Traiter
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant={modalAction === "rejeter" ? "default" : "outline"}
+                                        className={
+                                            modalAction === "rejeter"
+                                                ? "bg-red-600 text-white hover:bg-red-700 flex-1"
+                                                : "border-red-200 text-red-700 hover:bg-red-50 flex-1"
+                                        }
+                                        onClick={() => setModalAction("rejeter")}
+                                    >
+                                        <XCircle className="h-4 w-4 mr-1.5" />
+                                        Rejeter
+                                    </Button>
+                                </div>
+
+                                {/* Select action sur la cible — uniquement si on traite */}
+                                {modalAction === "traiter" && (
+                                    <div className="space-y-1.5">
+                                        <Label htmlFor="action-cible" className="text-xs text-muted-foreground">
+                                            Action sur la cible
+                                        </Label>
+                                        <Select value={actionCible} onValueChange={setActionCible}>
+                                            <SelectTrigger id="action-cible" className="w-full">
+                                                <SelectValue placeholder="Choisir une action" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {getActionCibleOptions().map(opt => (
+                                                    <SelectItem key={opt.value} value={opt.value}>
+                                                        {opt.label}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* ── Section 3 : Note admin — toujours visible ── */}
+                            <div className="space-y-1.5">
+                                <Label htmlFor="note-admin" className="text-xs text-muted-foreground">
+                                    {modalAction === "traiter"
+                                        ? "Note visible par la personne concernée (optionnel)"
+                                        : "Motif du rejet visible par le reporter (optionnel)"}
+                                </Label>
+                                <Textarea
+                                    id="note-admin"
+                                    placeholder={
+                                        modalAction === "traiter"
+                                            ? "Ex : votre annonce contient des informations incorrectes..."
+                                            : "Ex : le signalement ne correspond pas à nos conditions..."
+                                    }
+                                    value={noteAdmin}
+                                    maxLength={500}
+                                    rows={3}
+                                    onChange={e => setNoteAdmin(e.target.value)}
+                                    className="resize-none text-sm"
+                                />
+                                <p className="text-xs text-muted-foreground text-right">
+                                    {noteAdmin.length} / 500
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    <DialogFooter className="gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={() => setSelected(null)}
+                            disabled={acting}
+                        >
+                            Annuler
+                        </Button>
+                        <Button
                             onClick={executeAction}
                             disabled={acting}
                             className={
-                                pending?.action === "traiter"
+                                modalAction === "traiter"
                                     ? "bg-green-600 text-white hover:bg-green-700"
-                                    : "bg-destructive text-white hover:bg-destructive/90"
+                                    : "bg-red-600 text-white hover:bg-red-700"
                             }
                         >
                             {acting ? "En cours..." : "Confirmer"}
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

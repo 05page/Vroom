@@ -24,10 +24,14 @@ import {
     ChevronLeft,
     ChevronRight,
     Info,
+    Eye,
 } from "lucide-react"
 import { toast } from "sonner"
 import { api } from "@/src/lib/api"
 import { PaginatedResponse } from "@/src/types"
+import { useSearchParams } from "next/navigation"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import Link from "next/link"
 
 interface LogEntry {
     id: string
@@ -41,33 +45,42 @@ interface LogEntry {
 
 // Mappage action → libellé lisible + couleur sémantique (thème clair)
 const ACTION_MAP: Record<string, { label: string; class: string }> = {
-    VALIDATE_VEHICLE:   { label: "Véhicule validé",    class: "bg-green-100 text-green-700 border-green-200" },
-    REJECT_VEHICLE:     { label: "Véhicule rejeté",    class: "bg-red-100 text-red-700 border-red-200" },
-    SUSPEND_USER:       { label: "Suspension",         class: "bg-orange-100 text-orange-700 border-orange-200" },
-    BAN_USER:           { label: "Bannissement",       class: "bg-red-100 text-red-700 border-red-200" },
-    RESTORE_USER:       { label: "Restauration",       class: "bg-blue-100 text-blue-700 border-blue-200" },
-    VALIDATE_ACCOUNT:   { label: "Compte validé",      class: "bg-green-100 text-green-700 border-green-200" },
+    VALIDATE_VEHICLE: { label: "Véhicule validé", class: "bg-green-100 text-green-700 border-green-200" },
+    REJECT_VEHICLE: { label: "Véhicule rejeté", class: "bg-red-100 text-red-700 border-red-200" },
+    SUSPEND_USER: { label: "Suspension", class: "bg-orange-100 text-orange-700 border-orange-200" },
+    BAN_USER: { label: "Bannissement", class: "bg-red-100 text-red-700 border-red-200" },
+    RESTORE_USER: { label: "Restauration", class: "bg-blue-100 text-blue-700 border-blue-200" },
+    VALIDATE_ACCOUNT: { label: "Compte validé", class: "bg-green-100 text-green-700 border-green-200" },
     HANDLE_SIGNALEMENT: { label: "Signalement traité", class: "bg-primary/15 text-primary border-primary/25" },
+}
+
+const CIBLE_ROUTES: Record<string, string> = {
+    vehicule: "/admin/vehicules",
+    utilisateur: "/admin/users",
+    signalement: "/admin/signalements",
 }
 
 // Badge pour le type de ressource ciblée
 const CIBLE_MAP: Record<string, string> = {
     utilisateur: "bg-blue-100 text-blue-700 border-blue-200",
-    vehicule:    "bg-primary/15 text-primary border-primary/25",
+    vehicule: "bg-primary/15 text-primary border-primary/25",
     signalement: "bg-orange-100 text-orange-700 border-orange-200",
 }
 
 export default function AdminLogsPage() {
-    const [logs, setLogs]             = useState<LogEntry[]>([])
-    const [loading, setLoading]       = useState(true)
-    const [page, setPage]             = useState(1)
+    const [logs, setLogs] = useState<LogEntry[]>([])
+    const [loading, setLoading] = useState(true)
+    const [page, setPage] = useState(1)
     const [totalPages, setTotalPages] = useState(1)
-    const [total, setTotal]           = useState(0)
+    const [total, setTotal] = useState(0)
+    const [filterType, setFilterType] = useState("all")
 
     const fetchLogs = useCallback(async () => {
         setLoading(true)
         try {
-            const res = await api.get<PaginatedResponse<LogEntry>>(`/admin/logs?page=${page}`)
+            const params = new URLSearchParams({ page: String(page) })
+            if (filterType !== "all") params.append("cible_type", filterType)
+            const res = await api.get<PaginatedResponse<LogEntry>>(`/admin/logs?${params}`)
             if (res.data) {
                 setLogs(res.data.data)
                 setTotalPages(res.data.last_page)
@@ -78,7 +91,7 @@ export default function AdminLogsPage() {
         } finally {
             setLoading(false)
         }
-    }, [page])
+    }, [page, filterType])
 
     useEffect(() => { fetchLogs() }, [fetchLogs])
 
@@ -95,6 +108,22 @@ export default function AdminLogsPage() {
                 <div className="p-2 rounded-lg bg-secondary">
                     <ScrollText className="h-4 w-4 text-muted-foreground" />
                 </div>
+            </div>
+
+            <div>
+                <Select value={filterType} onValueChange={v => { setFilterType(v); setPage(1) }}>
+                    <SelectTrigger className="w-45">
+                        <SelectValue placeholder="Filtrer par statut" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Tous les statuts</SelectItem>
+                        <SelectItem value="utilisateur">Utilisateurs</SelectItem>
+                        <SelectItem value="vehicule">Véhicules</SelectItem>
+                        <SelectItem value="signalement">Signalements</SelectItem>
+                        <SelectItem value="formation">Formation</SelectItem>
+                        <SelectItem value="abonnements">Abonnements</SelectItem>
+                    </SelectContent>
+                </Select>
             </div>
 
             {/* Tableau des logs */}
@@ -131,7 +160,8 @@ export default function AdminLogsPage() {
                                 </TableRow>
                             ) : logs.map((log) => {
                                 const actionConfig = ACTION_MAP[log.action]
-                                const cibleClass   = CIBLE_MAP[log.cible_type] ?? "bg-secondary text-secondary-foreground"
+                                const route = CIBLE_ROUTES[log.cible_type]  
+                                const cibleClass = CIBLE_MAP[log.cible_type] ?? "bg-secondary text-secondary-foreground"
 
                                 return (
                                     <TableRow key={log.id} className="hover:bg-muted/40">
@@ -171,9 +201,8 @@ export default function AdminLogsPage() {
                                             #{log.id_cible}
                                         </TableCell>
 
-                                        <TableCell className="max-w-[200px]">
-                                            {log.details ? (
-                                                // Tooltip pour afficher le détail complet au survol (texte potentiellement long)
+                                        <TableCell className="max-w-50 space-y-1">
+                                            {log.details && (
                                                 <TooltipProvider>
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
@@ -187,8 +216,11 @@ export default function AdminLogsPage() {
                                                         </TooltipContent>
                                                     </Tooltip>
                                                 </TooltipProvider>
-                                            ) : (
-                                                <span className="text-xs text-muted-foreground/50">—</span>
+                                            )}
+                                            {route && (
+                                                <Link href={`${route}?open=${log.id_cible}`} className="text-xs text-primary underline underline-offset-2">
+                                                    Voir le détail
+                                                </Link>
                                             )}
                                         </TableCell>
                                     </TableRow>
@@ -204,10 +236,10 @@ export default function AdminLogsPage() {
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                     <span>Page {page} sur {totalPages} — {total} entrées au total</span>
                     <div className="flex gap-2">
-                        <Button variant="outline" size="sm" disabled={page <= 1}          onClick={() => setPage(p => p - 1)}>
+                        <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
                             <ChevronLeft className="h-4 w-4" />
                         </Button>
-                        <Button variant="outline" size="sm" disabled={page >= totalPages}  onClick={() => setPage(p => p + 1)}>
+                        <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
                             <ChevronRight className="h-4 w-4" />
                         </Button>
                     </div>

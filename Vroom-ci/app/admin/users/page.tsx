@@ -189,7 +189,7 @@ export default function AdminUsersPage() {
                     />
                 </div>
                 <Select value={filterRole} onValueChange={v => { setFilterRole(v); setPage(1) }}>
-                    <SelectTrigger className="w-[160px]">
+                    <SelectTrigger className="w-40">
                         <SelectValue placeholder="Rôle" />
                     </SelectTrigger>
                     <SelectContent>
@@ -202,7 +202,7 @@ export default function AdminUsersPage() {
                     </SelectContent>
                 </Select>
                 <Select value={filterStatut} onValueChange={v => { setFilterStatut(v); setPage(1) }}>
-                    <SelectTrigger className="w-[160px]">
+                    <SelectTrigger className="w-40">
                         <SelectValue placeholder="Statut" />
                     </SelectTrigger>
                     <SelectContent>

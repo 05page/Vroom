@@ -8,6 +8,7 @@ import {
     CheckCheck,
     LayoutDashboard,
     LogOut,
+    BarChart3,
     ScrollText,
     Settings,
     Shield,
@@ -53,6 +54,7 @@ const navItems = [
     { href: "/admin/admins",       label: "Administrateurs",      icon: UserCog },
     { href: "/admin/vehicules",    label: "Modération véhicules", icon: Car },
     { href: "/admin/signalements", label: "Signalements",         icon: ShieldAlert },
+    { href: "/admin/stats",        label: "Statistiques",         icon: BarChart3 },
     { href: "/admin/logs",         label: "Journal",              icon: ScrollText },
     { href: "/admin/settings",     label: "Paramètres",           icon: Settings },
 ]
@@ -168,7 +170,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                     </Button>
                                 </SheetTrigger>
 
-                                <SheetContent className="w-[380px] sm:w-[420px] flex flex-col p-0">
+                                <SheetContent className="w-95 sm:w-105 flex flex-col p-0">
                                     <SheetHeader className="px-4 pt-4 pb-3 border-b">
                                         <div className="flex items-center justify-between">
                                             <SheetTitle className="flex items-center gap-2 text-base">
