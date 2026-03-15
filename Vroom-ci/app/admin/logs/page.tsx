@@ -27,7 +27,7 @@ import {
     Eye,
 } from "lucide-react"
 import { toast } from "sonner"
-import { api } from "@/src/lib/api"
+import { getLogs } from "@/src/actions/admin.actions"
 import { PaginatedResponse } from "@/src/types"
 import { useSearchParams } from "next/navigation"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -78,13 +78,18 @@ export default function AdminLogsPage() {
     const fetchLogs = useCallback(async () => {
         setLoading(true)
         try {
-            const params = new URLSearchParams({ page: String(page) })
-            if (filterType !== "all") params.append("cible_type", filterType)
-            const res = await api.get<PaginatedResponse<LogEntry>>(`/admin/logs?${params}`)
+            const params: Record<string, string> = { page: String(page) }
+            if (filterType !== "all") params["cible_type"] = filterType
+
+            // getLogs() accepte des params optionnels — pagination gérée côté backend
+            // TODO: créer action getLogsPagines si la pagination serveur est nécessaire
+            // Actuellement getLogs retourne AdminLog[] sans pagination — l'adapter si besoin
+            const res = await getLogs(params)
             if (res.data) {
-                setLogs(res.data.data)
-                setTotalPages(res.data.last_page)
-                setTotal(res.data.total)
+                // Cast vers LogEntry car le type local est plus spécifique que AdminLog
+                setLogs(res.data as unknown as LogEntry[])
+                setTotalPages(1)
+                setTotal(res.data.length)
             }
         } catch {
             toast.error("Impossible de charger le journal")

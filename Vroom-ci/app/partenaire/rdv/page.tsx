@@ -28,7 +28,7 @@ import {
     FileText,
 } from "lucide-react"
 import { toast } from "sonner"
-import { api } from "@/src/lib/api"
+import { getNosRdv, confirmerRdv, refuserRdv, annulerRdv, terminerRdv } from "@/src/actions/rdv.actions"
 import { RendezVous } from "@/src/types"
 
 // Filtres disponibles sur le statut du RDV
@@ -75,7 +75,7 @@ export default function NosRdvPage() {
     const fetchRdvs = useCallback(async () => {
         setLoading(true)
         try {
-            const res = await api.get<RendezVous[]>("/rdv/nos-rdv")
+            const res = await getNosRdv()
             if (res.data) setRdvs(res.data)
         } catch {
             toast.error("Impossible de charger les rendez-vous")
@@ -99,7 +99,11 @@ export default function NosRdvPage() {
         if (!actionRdv) return
         setSubmitting(true)
         try {
-            await api.post(`/rdv/${actionRdv.rdv.id}/${actionRdv.action}`, {})
+            // Appel de l'action correspondante selon le type d'action demandé
+            if (actionRdv.action === "confirmer") await confirmerRdv(actionRdv.rdv.id)
+            else if (actionRdv.action === "refuser")   await refuserRdv(actionRdv.rdv.id)
+            else if (actionRdv.action === "terminer")  await terminerRdv(actionRdv.rdv.id)
+            else if (actionRdv.action === "annuler")   await annulerRdv(actionRdv.rdv.id)
             const labels: Record<string, string> = {
                 confirmer: "confirmé",
                 refuser:   "refusé",

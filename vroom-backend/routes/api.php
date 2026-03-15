@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\AlerteController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AvisController;
@@ -102,6 +103,16 @@ Route::middleware('auth:sanctum')->group(function () {
     //     Route::get('/rdv/{rdvId}',       [TransactionController::class, 'parRdv']);
     //     Route::post('/{id}/confirmer',   [TransactionController::class, 'confirmer']);
     // });
+
+    // Conversations / Messagerie
+    Route::prefix('conversations')->group(function () {
+        Route::get('/',               [ConversationController::class, 'index']);
+        Route::post('/',              [ConversationController::class, 'findOrCreate']);
+        Route::get('/{id}/messages',  [ConversationController::class, 'messages']);
+        Route::post('/{id}/messages', [ConversationController::class, 'sendMessage']);
+        Route::put('/{conversationId}/messages/{messageId}', [ConversationController::class, 'updateMessage']);
+        Route::post('/{id}/read',     [ConversationController::class, 'markAsRead']);
+    });
 
     // Avis (écriture — authentifié)
     Route::post('/avis', [AvisController::class, 'store']);

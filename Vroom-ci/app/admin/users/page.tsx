@@ -42,8 +42,7 @@ import {
     Users,
 } from "lucide-react"
 import { toast } from "sonner"
-import { api } from "@/src/lib/api"
-import { PaginatedResponse } from "@/src/types"
+import { suspendreUser, bannirUser, restaurerUser, validerUser, getUsersPaginated } from "@/src/actions/admin.actions"
 
 interface AdminUser {
     id: number
@@ -120,13 +119,13 @@ export default function AdminUsersPage() {
     const fetchUsers = useCallback(async () => {
         setLoading(true)
         try {
-            const params = new URLSearchParams({ page: String(page) })
-            if (filterRole   !== "all") params.append("role",   filterRole)
-            if (filterStatut !== "all") params.append("statut", filterStatut)
+            const params: Record<string, string> = { page: String(page) }
+            if (filterRole   !== "all") params.role   = filterRole
+            if (filterStatut !== "all") params.statut = filterStatut
 
-            const res = await api.get<PaginatedResponse<AdminUser>>(`/admin/users?${params}`)
+            const res = await getUsersPaginated(params)
             if (res.data) {
-                setUsers(res.data.data)
+                setUsers(res.data.data as AdminUser[])
                 setTotalPages(res.data.last_page)
                 setTotal(res.data.total)
             }
@@ -143,7 +142,11 @@ export default function AdminUsersPage() {
         if (!pending) return
         setActing(true)
         try {
-            await api.post(`/admin/users/${pending.userId}/${pending.type}`, {})
+            // Appel de l'action admin correspondante selon le type d'action
+            if (pending.type === "suspendre") await suspendreUser(pending.userId)
+            else if (pending.type === "bannir")    await bannirUser(pending.userId)
+            else if (pending.type === "restaurer") await restaurerUser(pending.userId)
+            else if (pending.type === "valider")   await validerUser(pending.userId)
             toast.success(`${ACTION_CONFIG[pending.type].label} effectué pour ${pending.userName}`)
             setPending(null)
             fetchUsers()

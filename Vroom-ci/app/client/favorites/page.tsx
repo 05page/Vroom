@@ -21,7 +21,8 @@ import {
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { Favori, Alerte } from "@/src/types"
-import { api } from "@/src/lib/api"
+import { getFavoris, removeFavori } from "@/src/actions/favoris.actions"
+import { getAlertes, deleteAlerte, updateAlerte } from "@/src/actions/alertes.actions"
 import { Switch } from "@/components/ui/switch"
 
 const FavoritesPage = () => {
@@ -35,8 +36,8 @@ const FavoritesPage = () => {
                 setIsLoading(true)
                 // Charge favoris et alertes en parallèle
                 const [favorisRes, alertesRes] = await Promise.all([
-                    api.get<Favori[]>("/favoris/"),
-                    api.get<Alerte[]>("/alertes/"),
+                    getFavoris(),
+                    getAlertes(),
                 ])
                 setFavoris(favorisRes.data ?? [])
                 setAlertes(alertesRes.data ?? [])
@@ -51,7 +52,7 @@ const FavoritesPage = () => {
 
     const handleRemoveFavori = async (vehiculeId: string) => {
         try {
-            await api.delete(`/favoris/${vehiculeId}`)
+            await removeFavori(vehiculeId)
             setFavoris(favoris.filter(f => f.vehicule_id !== vehiculeId))
             toast.success("Véhicule retiré des favoris")
         } catch (error) {
@@ -62,7 +63,7 @@ const FavoritesPage = () => {
     // Supprime une alerte et met à jour la liste locale
     const handleDeleteAlerte = async (id: string) => {
         try {
-            await api.delete(`/alertes/${id}`)
+            await deleteAlerte(id)
             setAlertes(prev => prev.filter(a => a.id !== id))
             toast.success("Alerte supprimée")
         } catch {
@@ -73,7 +74,7 @@ const FavoritesPage = () => {
     // Active ou désactive une alerte via PUT /alertes/{id}
     const handleToggleAlerte = async (alerte: Alerte) => {
         try {
-            await api.put(`/alertes/${alerte.id}`, { active: !alerte.active })
+            await updateAlerte(alerte.id, { active: !alerte.active })
             setAlertes(prev =>
                 prev.map(a => a.id === alerte.id ? { ...a, active: !a.active } : a)
             )

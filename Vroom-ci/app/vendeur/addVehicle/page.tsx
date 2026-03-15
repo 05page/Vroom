@@ -41,8 +41,8 @@ import {
     Camera,
     Link,
 } from "lucide-react"
-import { api } from "@/src/lib/api"
-
+// Note : ce fichier utilise fetch() natif pour l'upload multipart (gestion du Content-Type par le navigateur)
+// postVehicule() de vehicules.actions utilise api.upload() qui est une alternative possible
 interface FormData {
     typePublication: "vente" | "location" | ""
     type: "neuf" | "occasion" | ""

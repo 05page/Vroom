@@ -9,13 +9,15 @@ import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogFooter } from "
 import {
     Car, Tag, Key, Calendar, Fuel, Settings, Palette, DoorOpen, Users,
     Gauge, Check, ChevronLeft, ChevronRight, Clock, CalendarPlus,
-    Bell, Flag, Star, User,
+    Bell, Flag, Star, User, MessageSquare,
 } from "lucide-react"
 import { vehicule, Avis } from "@/src/types"
 import Image from "next/image"
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { api } from "@/src/lib/api"
+import { getOrCreateConversation } from "@/src/actions/conversations.actions"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -33,11 +35,13 @@ const formatDate = (date: string | Date | undefined) => {
 }
 
 const VehicleDetails = ({ isOpen, onClose, vehicule }: Props) => {
+    const router = useRouter()
     const isVente = vehicule.post_type === "vente"
     const isLocation = vehicule.post_type === "location"
     const photos = vehicule.photos ?? []
     const [photoIndex, setPhotoIndex] = useState(0)
     const [rdvOpen, setRdvOpen] = useState(false)
+    const [msgLoading, setMsgLoading] = useState(false)
     const [rdvLoading, setRdvLoading] = useState(false)
     const [rdvForm, setRdvForm] = useState({
         date: "",
@@ -116,6 +120,28 @@ const VehicleDetails = ({ isOpen, onClose, vehicule }: Props) => {
             toast.error("Impossible de créer l'alerte")
         } finally {
             setAlerteLoading(false)
+        }
+    }
+
+    /**
+     * Crée ou récupère la conversation avec le vendeur pour ce véhicule,
+     * puis redirige vers la page messages avec la conv pré-sélectionnée.
+     */
+    const handleContact = async () => {
+        if (!vehicule.creator?.id) return
+        setMsgLoading(true)
+        try {
+            const res = await getOrCreateConversation({
+                other_user_id: vehicule.creator.id,
+                vehicule_id: vehicule.id,
+            })
+            if (res.data) {
+                router.push(`/client/messages?conv=${res.data.id}`)
+            }
+        } catch {
+            toast.error("Impossible de contacter le vendeur")
+        } finally {
+            setMsgLoading(false)
         }
     }
 
@@ -383,6 +409,19 @@ const VehicleDetails = ({ isOpen, onClose, vehicule }: Props) => {
                             <CalendarPlus className="h-4 w-4" />
                             Prendre RDV
                         </Button>
+                        {/* Contacter le vendeur — visible uniquement si le creator est connu */}
+                        {vehicule.creator && (
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={handleContact}
+                                disabled={msgLoading}
+                                className="rounded-xl border-zinc-200 text-zinc-600 hover:text-blue-600 hover:border-blue-300 cursor-pointer"
+                                title="Contacter le vendeur"
+                            >
+                                <MessageSquare className="h-4 w-4" />
+                            </Button>
+                        )}
                         <Button
                             variant="outline"
                             size="icon"

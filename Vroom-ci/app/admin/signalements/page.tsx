@@ -48,8 +48,7 @@ import {
     AlertTriangle,
 } from "lucide-react"
 import { toast } from "sonner"
-import { api } from "@/src/lib/api"
-import { PaginatedResponse } from "@/src/types"
+import { traiterSignalement, getSignalementsPaginated } from "@/src/actions/admin.actions"
 
 
 interface SignalementAdmin {
@@ -117,14 +116,12 @@ export default function AdminSignalementsPage() {
     const fetchSignalements = useCallback(async () => {
         setLoading(true)
         try {
-            const params = new URLSearchParams({ page: String(page) })
-            if (filterStatut !== "all") params.append("statut", filterStatut)
+            const params: Record<string, string> = { page: String(page) }
+            if (filterStatut !== "all") params.statut = filterStatut
 
-            const res = await api.get<PaginatedResponse<SignalementAdmin>>(
-                `/admin/signalements?${params}`
-            )
+            const res = await getSignalementsPaginated(params)
             if (res.data) {
-                setSignalements(res.data.data)
+                setSignalements(res.data.data as SignalementAdmin[])
                 setTotalPages(res.data.last_page)
                 setTotal(res.data.total)
             }
@@ -157,10 +154,10 @@ export default function AdminSignalementsPage() {
         if (!selected) return
         setActing(true)
         try {
-            await api.post(`/admin/signalements/${selected.id}/traiter`, {
-                action: modalAction,
+            await traiterSignalement(selected.id, {
+                statut: modalAction === "traiter" ? "traité" : "rejeté",
                 action_cible: modalAction === "traiter" ? actionCible : undefined,
-                note_admin: noteAdmin.trim() || undefined, // envoyé dans les deux cas
+                note_admin: noteAdmin.trim() || undefined,
             })
             toast.success(`Signalement ${modalAction === "traiter" ? "traité" : "rejeté"}`)
             setSelected(null)

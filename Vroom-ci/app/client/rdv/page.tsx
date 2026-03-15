@@ -23,7 +23,8 @@ import {
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { RendezVous } from "@/src/types"
-import { api } from "@/src/lib/api"
+import { getMesRdv, annulerRdv } from "@/src/actions/rdv.actions"
+import { createAvis } from "@/src/actions/avis.actions"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 
@@ -56,7 +57,7 @@ const MesRdv = () => {
         const fetchRdvs = async () => {
             try {
                 setIsLoading(true)
-                const res = await api.get<RendezVous[]>("/rdv/mes-rdv")
+                const res = await getMesRdv()
                 setRdvList(res.data ?? [])
             } catch (error) {
                 toast.error(error instanceof Error ? error.message : "Erreur serveur")
@@ -71,7 +72,7 @@ const MesRdv = () => {
     const handleAnnuler = async (id: string) => {
         setCancelling(id)
         try {
-            await api.post(`/rdv/${id}/annuler`, {})
+            await annulerRdv(id)
             setRdvList(prev =>
                 prev.map(r => r.id === id ? { ...r, statut: "annulé" } : r)
             )
@@ -91,10 +92,10 @@ const MesRdv = () => {
         }
         setAvisLoading(true)
         try {
-            await api.post("/avis/", {
-                rdv_id: avisRdv.id,
+            await createAvis({
+                vendeur_id: avisRdv.vendeur_id,
                 note: avisForm.note,
-                commentaire: avisForm.commentaire || null,
+                commentaire: avisForm.commentaire || undefined,
             })
             setAvisSubmis(prev => new Set([...prev, avisRdv.id]))
             toast.success("Avis enregistré, merci !")

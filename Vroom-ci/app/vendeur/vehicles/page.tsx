@@ -22,7 +22,8 @@ import { EditVehicle } from "./EditVehicle"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogMedia, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { VendeurStats } from "@/src/types";
 import { vehicule, MesVehicules } from "@/src/types";
-import { api } from "@/src/lib/api";
+import { getMesStats } from "@/src/actions/stats.actions";
+import { getMesVehicules } from "@/src/actions/vehicules.actions";
 
 const CARD = "rounded-2xl md:rounded-3xl shadow-xl border border-border/40 overflow-hidden bg-card/50 backdrop-blur-sm"
 export default function VehiclesPage() {
@@ -50,8 +51,8 @@ export default function VehiclesPage() {
             try {
                 setIsLoading(true);
                 const [statsRes, mesVehiculesRes] = await Promise.all([
-                    api.get<VendeurStats>("/stats/mes-stats"),
-                    api.get<MesVehicules>("/vehicules/mes-vehicules")
+                    getMesStats(),
+                    getMesVehicules()
                 ]);
                 setStats(statsRes.data ?? null)
                 setMesVehicules(mesVehiculesRes.data?.vehicules ?? [])

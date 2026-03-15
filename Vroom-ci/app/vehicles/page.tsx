@@ -30,7 +30,8 @@ import Image from "next/image"
 import { useEffect, useState, useMemo } from "react"
 import { toast } from "sonner";
 import { vehicule, User, AllVehicules, VehiculeStats, Favori } from "@/src/types"
-import { api } from "@/src/lib/api"
+import { getVehicules } from "@/src/actions/vehicules.actions"
+import { getFavoris, removeFavori, addFavori } from "@/src/actions/favoris.actions"
 import { useUser } from "@/src/context/UserContext"
 import VehicleDetails from "./VehicleDetails"
 import { cn } from "@/src/lib/utils"
@@ -62,8 +63,8 @@ const VehiclesPage = () => {
             try {
                 setIsLoading(true)
                 const [vehiculeRes, favorisRes] = await Promise.all([
-                    api.get<AllVehicules>('/vehicules/'),
-                    api.get<Favori[]>('/favoris/')
+                    getVehicules(),
+                    getFavoris(),
                 ]);
                 setVehiculesList(vehiculeRes?.data?.vehicules ?? [])
                 setStats(vehiculeRes?.data?.statsVehicules ?? null)
@@ -114,7 +115,7 @@ const VehiclesPage = () => {
         setFavLoading(v.id)
         try {
             if (isFavori.has(v.id)) {
-                await api.delete(`/favoris/${v.id}`)
+                await removeFavori(v.id)
                 setIsFavori(prev => {
                     const next = new Set(prev)
                     next.delete(v.id)
@@ -122,7 +123,7 @@ const VehiclesPage = () => {
                 })
                 toast.success("Retiré des favoris")
             } else {
-                await api.post(`/favoris/${v.id}`, {})
+                await addFavori(v.id)
                 setIsFavori(prev => new Set([...prev, v.id]))
                 toast.success("Ajouté aux favoris")
             }

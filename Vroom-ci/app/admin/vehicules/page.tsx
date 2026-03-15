@@ -50,7 +50,7 @@ import {
     DollarSign,
 } from "lucide-react"
 import { toast } from "sonner"
-import { api } from "@/src/lib/api"
+import { getVehicules, validerVehicule, rejeterVehicule } from "@/src/actions/admin.actions"
 
 // Interface complète du véhicule avec tous les champs renvoyés par le backend
 interface Vehicule {
@@ -146,8 +146,9 @@ export default function AdminVehiculesPage() {
     const fetchVehicules = useCallback(async () => {
         setLoading(true)
         try {
-            const res = await api.get<Vehicule[]>("/admin/vehicules")
-            if (res.data) setVehicules(res.data)
+            // getVehicules() retourne vehicule[] (type public) — castée ici vers Vehicule (type local admin plus complet)
+            const res = await getVehicules()
+            if (res.data) setVehicules(res.data as unknown as Vehicule[])
         } catch {
             toast.error("Impossible de charger les véhicules")
         } finally {
@@ -193,7 +194,7 @@ export default function AdminVehiculesPage() {
         if (!toValidate) return
         setValidating(true)
         try {
-            await api.post(`/admin/vehicules/${toValidate.id}/valider`, {})
+            await validerVehicule(toValidate.id)
             toast.success(`Annonce validée — ${toValidate.description?.marque} ${toValidate.description?.modele}`)
             setToValidate(null)
             fetchVehicules()
@@ -208,7 +209,7 @@ export default function AdminVehiculesPage() {
         if (!toReject || !motif.trim()) return
         setRejecting(true)
         try {
-            await api.post(`/admin/vehicules/${toReject.id}/rejeter`, { details: motif })
+            await rejeterVehicule(toReject.id, { motif })
             toast.success(`Annonce rejetée — ${toReject.description?.marque} ${toReject.description?.modele}`)
             setToReject(null)
             setMotif("")

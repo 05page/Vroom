@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton"
 import { BarChart3, Car, TrendingUp, CalendarCheck } from "lucide-react"
 import { toast } from "sonner"
-import { api } from "@/src/lib/api"
+import { getMesStats } from "@/src/actions/stats.actions"
 import { VendeurStats } from "@/src/types"
 
 export default function PartenaireDashboard() {
@@ -15,7 +15,7 @@ export default function PartenaireDashboard() {
     const fetchStats = useCallback(async () => {
         setLoading(true)
         try {
-            const res = await api.get<VendeurStats>("/stats/mes-stats")
+            const res = await getMesStats()
             if (res.data) setData(res.data)
         } catch {
             toast.error("Impossible de charger les statistiques")

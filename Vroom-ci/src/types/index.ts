@@ -1,5 +1,5 @@
 export interface User {
-  id: number;
+  id: string;
   fullname: string;
   role: string;
   partenaire_type: string;
@@ -144,7 +144,7 @@ export interface VehiculePhotos {
   vehicule_id: string;
   path: string;
   is_primary: boolean
-  postion: number
+  position: number
 }
 
 export interface AllVehicules {
@@ -222,4 +222,53 @@ export interface AvisVendeur {
   avis: Avis[]
   note_moyenne: number
   total: number
+}
+
+// ─── Messagerie ───────────────────────────────────────────────────────────────
+
+/** Un participant minimal retourné dans une conversation */
+export interface ConversationParticipant {
+  id: string
+  fullname: string
+  avatar?: string | null
+  role: string
+}
+
+/** Une conversation entre deux utilisateurs, toujours liée à un véhicule */
+export interface Conversation {
+  id: string   // UUID
+  participant_1_id: string
+  participant_2_id: string
+  vehicule_id: string
+  last_message_at: string | null
+  created_at: string
+  updated_at: string
+  // Relations chargées par le backend
+  other_participant: ConversationParticipant  // l'autre user (pas moi)
+  vehicule?: Pick<vehicule, 'id' | 'description' | 'photos'>
+  last_message?: Pick<Message, 'content' | 'created_at' | 'sender_id'>
+  unread_count: number
+}
+
+/** Un message dans une conversation */
+export interface Message {
+  id: string   // UUID
+  conversation_id: string
+  sender_id: string
+  content: string
+  read_at: string | null  // null = non lu
+  created_at: string
+  updated_at: string
+  // Relation chargée
+  sender?: ConversationParticipant
+}
+
+/** Réponse du backend pour la liste des conversations */
+export interface ConversationsResponse {
+  conversations: Conversation[]
+}
+
+/** Réponse du backend pour les messages d'une conversation */
+export interface MessagesResponse {
+  messages: Message[]
 }

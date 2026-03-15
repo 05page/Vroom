@@ -9,7 +9,7 @@ import { AddVehicule } from "./add-vehicule"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
-import { api } from "@/src/lib/api"
+import { getMesVehicules } from "@/src/actions/vehicules.actions"
 import { vehicule } from "@/src/types"
 
 interface GarageStats {
@@ -29,7 +29,10 @@ export default function MonGaragePage() {
     const fetchVehicules = useCallback(async () => {
         setLoading(true)
         try {
-            const res = await api.get<{ vehicules: vehicule[]; stats: GarageStats }>("/vehicules/mes-vehicules")
+            // getMesVehicules() retourne MesVehicules ({ vehicules }) mais le backend renvoie
+            // aussi les stats. Le type MesVehicules ne contient pas stats — cast via unknown.
+            // TODO: ajouter stats?: GarageStats dans l'interface MesVehicules (src/types/index.ts)
+            const res = await getMesVehicules() as unknown as { data: { vehicules: vehicule[]; stats: GarageStats } | null }
             if (res.data) {
                 setVehicules(res.data.vehicules ?? [])
                 setStats(res.data.stats ?? null)

@@ -13,3 +13,11 @@ Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
 Broadcast::channel('notifications.{userId}', function($user, $userId){
     return $user->id === $userId;
 });
+
+// Canal privé d'une conversation : seuls les deux participants sont autorisés.
+Broadcast::channel('conversation.{conversationId}', function ($user, $conversationId) {
+    $conversation = \App\Models\Conversation::find($conversationId);
+    if (!$conversation) return false;
+    return $conversation->participant_1_id === $user->id
+        || $conversation->participant_2_id === $user->id;
+});

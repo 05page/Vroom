@@ -19,7 +19,7 @@ import { type DateRange } from "react-day-picker"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 import { RendezVous } from "@/src/types"
-import { api } from "@/src/lib/api"
+import { getNosRdv, confirmerRdv, refuserRdv, annulerRdv, terminerRdv } from "@/src/actions/rdv.actions"
 
 const CARD = "rounded-2xl md:rounded-3xl shadow-xl border border-border/40 overflow-hidden bg-card/50 backdrop-blur-sm"
 
@@ -49,7 +49,7 @@ export default function RdvPage() {
         const fetchData = async () => {
             try {
                 setIsLoading(true)
-                const response = await api.get<RendezVous[]>("/rdv/nos-rdv")
+                const response = await getNosRdv()
                 setRdvList(response?.data ?? [])
             } catch (error) {
                 toast.error(error instanceof Error ? error.message : "Erreur Serveur")
@@ -67,13 +67,17 @@ export default function RdvPage() {
 
     const handleAction = async (
         id: string,
-        endpoint: string,
+        action: "confirmer" | "refuser" | "annuler" | "terminer",
         nouveauStatut: RendezVous["statut"],
         successMsg: string,
     ) => {
-        setActionLoading(id + endpoint)
+        setActionLoading(id + action)
         try {
-            await api.post(endpoint, {})
+            // Appel de l'action correspondante selon le type d'action demandé
+            if (action === "confirmer") await confirmerRdv(id)
+            else if (action === "refuser") await refuserRdv(id)
+            else if (action === "annuler") await annulerRdv(id)
+            else if (action === "terminer") await terminerRdv(id)
             updateStatut(id, nouveauStatut)
             toast.success(successMsg)
         } catch {
@@ -179,7 +183,7 @@ export default function RdvPage() {
                                 <Button
                                     size="sm"
                                     disabled={!!actionLoading}
-                                    onClick={() => handleAction(rdv.id, `/rdv/${rdv.id}/confirmer`, "confirmé", "RDV confirmé")}
+                                    onClick={() => handleAction(rdv.id, "confirmer", "confirmé", "RDV confirmé")}
                                     className="gap-1 cursor-pointer rounded-lg text-xs bg-green-600 hover:bg-green-700 text-white"
                                 >
                                     <Check className="h-3 w-3" /> Confirmer
@@ -188,7 +192,7 @@ export default function RdvPage() {
                                     variant="outline"
                                     size="sm"
                                     disabled={!!actionLoading}
-                                    onClick={() => handleAction(rdv.id, `/rdv/${rdv.id}/refuser`, "refusé", "RDV refusé")}
+                                    onClick={() => handleAction(rdv.id, "refuser", "refusé", "RDV refusé")}
                                     className="gap-1 cursor-pointer rounded-lg text-xs text-red-500 hover:text-red-600"
                                 >
                                     <X className="h-3 w-3" /> Refuser
@@ -200,7 +204,7 @@ export default function RdvPage() {
                                 <Button
                                     size="sm"
                                     disabled={!!actionLoading}
-                                    onClick={() => handleAction(rdv.id, `/rdv/${rdv.id}/terminer`, "terminé", "RDV marqué terminé")}
+                                    onClick={() => handleAction(rdv.id, "terminer", "terminé", "RDV marqué terminé")}
                                     className="gap-1 cursor-pointer rounded-lg text-xs bg-zinc-900 hover:bg-zinc-700 text-white"
                                 >
                                     <CheckCircle2 className="h-3 w-3" /> Terminer
@@ -209,7 +213,7 @@ export default function RdvPage() {
                                     variant="outline"
                                     size="sm"
                                     disabled={!!actionLoading}
-                                    onClick={() => handleAction(rdv.id, `/rdv/${rdv.id}/annuler`, "annulé", "RDV annulé")}
+                                    onClick={() => handleAction(rdv.id, "annuler", "annulé", "RDV annulé")}
                                     className="gap-1 cursor-pointer rounded-lg text-xs text-red-500 hover:text-red-600"
                                 >
                                     <XCircle className="h-3 w-3" /> Annuler

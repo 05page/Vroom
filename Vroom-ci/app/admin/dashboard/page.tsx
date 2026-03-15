@@ -14,7 +14,7 @@ import {
     Clock,
     Activity,
 } from "lucide-react"
-import { api } from "@/src/lib/api"
+import { getUsers, getVehiculesEnAttente, getSignalements, getLogs } from "@/src/actions/admin.actions"
 import { PaginatedResponse } from "@/src/types"
 
 // Types locaux pour les données admin non encore dans src/types/index.ts
@@ -81,20 +81,23 @@ export default function AdminDashboard() {
 
     useEffect(() => {
         // On récupère le total de chaque ressource pour construire les stats
-        api.get<PaginatedResponse<AdminUser>>("/admin/users")
-            .then(r => { if (r.data) setTotalUsers(r.data.total) })
+        // getUsers() retourne User[] (pas paginé) — on compte directement la longueur
+        getUsers()
+            .then(r => { if (r.data) setTotalUsers(r.data.length) })
             .finally(() => setLoadingUsers(false))
 
-        api.get<AdminVehicule[]>("/admin/vehicules/en-attente")
+        getVehiculesEnAttente()
             .then(r => { if (r.data) setPendingVehicules(r.data.length) })
             .finally(() => setLoadingVehicules(false))
 
-        api.get<PaginatedResponse<Signalement>>("/admin/signalements")
-            .then(r => { if (r.data) setPendingSignal(r.data.total) })
+        // getSignalements() retourne AdminSignalement[] — on compte la longueur
+        getSignalements()
+            .then(r => { if (r.data) setPendingSignal(r.data.length) })
             .finally(() => setLoadingSignal(false))
 
-        api.get<PaginatedResponse<LogEntry>>("/admin/logs")
-            .then(r => { if (r.data) setRecentLogs(r.data.data.slice(0, 5)) })
+        // getLogs() retourne AdminLog[] — on prend les 5 premiers
+        getLogs()
+            .then(r => { if (r.data) setRecentLogs(r.data.slice(0, 5) as unknown as LogEntry[]) })
             .finally(() => setLoadingLogs(false))
     }, [])
 

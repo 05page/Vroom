@@ -41,7 +41,8 @@ import Link from "next/link"
 
 //Endpoint vendeur
 import { VendeurStats, VendeurRdv, Avis } from "@/src/types"
-import { api } from "@/src/lib/api"
+import { getMesStats } from "@/src/actions/stats.actions"
+import { getAvisVendeur } from "@/src/actions/avis.actions"
 import { useUser } from "@/src/context/UserContext"
 const VendeurDashboard = () => {
     const [isLoading, setIsLoading] = useState(true)
@@ -54,7 +55,7 @@ const VendeurDashboard = () => {
     // Fetch des avis — séparé car user.id arrive de façon asynchrone via UserContext
     useEffect(() => {
         if (!user?.id) return
-        api.get<{ avis: Avis[]; note_moyenne: number; total: number }>(`/avis/vendeur/${user.id}`)
+        getAvisVendeur(user.id)
             .then(res => setAvisData(res.data ?? null))
             .catch(() => {}) // silencieux si pas d'avis
     }, [user?.id])
@@ -64,7 +65,7 @@ const VendeurDashboard = () => {
             try {
                 setIsLoading(true);
                 const [statsRes] = await Promise.all([
-                    api.get<VendeurStats>('/stats/mes-stats')
+                    getMesStats()
                 ]);
                 setStats(statsRes?.data ?? null);
             } catch (error) {
