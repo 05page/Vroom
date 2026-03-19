@@ -13,8 +13,9 @@ import {
     CheckCircle2,
     Clock,
     Activity,
+    UserCheck,
 } from "lucide-react"
-import { getUsers, getVehiculesEnAttente, getSignalements, getLogs } from "@/src/actions/admin.actions"
+import { getUsersPaginated, getVehiculesEnAttente, getSignalements, getLogs } from "@/src/actions/admin.actions"
 import { PaginatedResponse } from "@/src/types"
 
 // Types locaux pour les données admin non encore dans src/types/index.ts
@@ -74,17 +75,20 @@ export default function AdminDashboard() {
     const [loadingSignal, setLoadingSignal]       = useState(true)
     const [loadingLogs, setLoadingLogs]           = useState(true)
 
-    const [totalUsers, setTotalUsers]             = useState(0)
-    const [pendingVehicules, setPendingVehicules] = useState(0)
-    const [pendingSignal, setPendingSignal]       = useState(0)
-    const [recentLogs, setRecentLogs]             = useState<LogEntry[]>([])
+    const [totalUsers, setTotalUsers]                 = useState(0)
+    const [pendingVehicules, setPendingVehicules]     = useState(0)
+    const [pendingSignal, setPendingSignal]           = useState(0)
+    const [pendingPartenaires, setPendingPartenaires] = useState(0)
+    const [recentLogs, setRecentLogs]                 = useState<LogEntry[]>([])
 
     useEffect(() => {
-        // On récupère le total de chaque ressource pour construire les stats
-        // getUsers() retourne User[] (pas paginé) — on compte directement la longueur
-        getUsers()
-            .then(r => { if (r.data) setTotalUsers(r.data.length) })
+        getUsersPaginated({ page: "1" })
+            .then(r => { if (r.data) setTotalUsers(r.data.total) })
             .finally(() => setLoadingUsers(false))
+
+        // Compter les demandes partenaires en attente de validation
+        getUsersPaginated({ statut: "en_attente", page: "1" })
+            .then(r => { if (r.data) setPendingPartenaires(r.data.total) })
 
         getVehiculesEnAttente()
             .then(r => { if (r.data) setPendingVehicules(r.data.length) })
@@ -127,6 +131,15 @@ export default function AdminDashboard() {
             iconColor: "text-orange-600",
             iconBg: "bg-orange-50",
             urgent: pendingSignal > 0,
+        },
+        {
+            label: "Demandes partenaires",
+            value: pendingPartenaires,
+            icon: UserCheck,
+            loading: loadingUsers,
+            iconColor: "text-yellow-600",
+            iconBg: "bg-yellow-50",
+            urgent: pendingPartenaires > 0,
         },
         {
             label: "Actions récentes",
@@ -280,6 +293,23 @@ export default function AdminDashboard() {
                                     </p>
                                     <p className="text-xs text-muted-foreground">
                                         {pendingSignal} signalement(s) ouvert(s)
+                                    </p>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </a>
+                    <a href="/admin/users?statut=en_attente">
+                        <Card className={`hover:shadow-sm transition-shadow cursor-pointer group ${pendingPartenaires > 0 ? "ring-1 ring-yellow-300" : ""}`}>
+                            <CardContent className="flex items-center gap-3 p-4">
+                                <div className="p-2 rounded-lg bg-yellow-50">
+                                    <UserCheck className="h-5 w-5 text-yellow-600" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium group-hover:text-yellow-600 transition-colors">
+                                        Valider les partenaires
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {pendingPartenaires} demande(s) en attente
                                     </p>
                                 </div>
                             </CardContent>

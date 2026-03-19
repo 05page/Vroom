@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\GeocodingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -157,6 +158,15 @@ class AuthController extends Controller
             DB::beginTransaction();
 
             $user->update($validatedData);
+
+            // Si l'adresse a changé, on recalcule les coordonnées GPS
+            if ($request->filled('adresse') && $request->adresse !== $user->getOriginal('adresse')) {
+                $coords = (new GeocodingService())->geocode($request->adresse);
+                if ($coords) {
+                    $user->update($coords);
+                }
+            }
+
             DB::commit();
 
             return response()->json([

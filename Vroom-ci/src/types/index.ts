@@ -63,6 +63,139 @@ export interface MesVehicules {
   vehicules: vehicule[]
 }
 
+export interface PlanAbonnement {
+  id: string
+  nom: string
+  description: string
+  cible: 'vendeur' | 'concessionnaire' | 'auto_ecole'
+  prix_mensuel: number
+  prix_annuel: number
+  nb_annonces_max: number
+  nb_photos_max: number
+  stats_avancees: boolean
+  badge_premium: boolean
+  boost_annonces: boolean
+  acces_leads: boolean
+  support_prioritaire: boolean
+}
+
+export interface Abonnement {
+  id: string
+  plan_id: string
+  user_id: string
+  date_debut: string
+  date_fin: string
+  statut: 'actif' | 'expiré' | 'suspendu' | 'résilié'
+  periodicite: 'mensuel' | 'annuel'
+  renouvellement_auto: boolean
+  plan?: PlanAbonnement
+}
+
+export interface CrmNote {
+  id: string
+  vendeur_id: string
+  client_id: string
+  contenu: string
+  created_at: string
+  updated_at: string
+}
+
+export interface CrmClient {
+  id: string
+  fullname: string
+  email: string
+  avatar?: string
+  telephone?: string
+  adresse?: string
+  nb_rdv: number
+  nb_transactions: number
+  chiffre_affaires: number
+  derniere_interaction: string | null
+  statut_dernier_rdv: string | null
+}
+
+export interface CrmClientDetail {
+  client: CrmClient
+  rdvs: RendezVous[]
+  transactions: TransactionConclue[]
+  notes: CrmNote[]
+  stats: {
+    nb_rdv: number
+    nb_confirmes: number
+    nb_termines: number
+    nb_transactions: number
+    chiffre_affaires: number
+  }
+}
+
+export interface RendezVous {
+  id: string
+  client_id: string
+  vendeur_id: string
+  vehicule_id: string
+  date_heure: string
+  type: string
+  statut: string
+  motif?: string
+  lieu?: string
+  notes?: string
+  vehicule?: vehicule
+}
+
+export interface DescriptionFormation {
+  id: string
+  formation_id: string
+  titre: string
+  texte: string
+  langue: string
+}
+
+export interface Formation {
+  id: string
+  auto_ecole_id: string
+  type_permis: 'A' | 'A2' | 'B' | 'B1' | 'C' | 'D'
+  prix: number
+  duree_heures: number
+  statut_validation: 'en_attente' | 'validé' | 'rejeté'
+  inscriptions_count?: number
+  created_at: string
+  auto_ecole?: { id: string; fullname: string; avatar?: string; note_moyenne?: number; taux_reussite?: number }
+  description?: DescriptionFormation
+}
+
+export interface InscriptionFormation {
+  id: string
+  client_id: string
+  formation_id: string
+  date_inscription: string
+  statut_eleve: 'inscrit' | 'en_cours' | 'examen_passe' | 'terminé' | 'abandonné'
+  date_examen: string | null
+  reussite: boolean | null
+  client?: { id: string; fullname: string; avatar?: string; email?: string; telephone?: string }
+  formation?: Formation
+}
+
+export interface TransactionConclue {
+  id: string
+  rendez_vous_id: string
+  vehicule_id: string
+  vendeur_id: string
+  client_id: string
+  type: 'vente' | 'location' | null
+  prix_final: number | null
+  date_debut_location: string | null
+  date_fin_location: string | null
+  code_confirmation: string
+  expires_at: string
+  confirme_par_vendeur: boolean
+  confirme_par_client: boolean
+  statut: 'en_attente' | 'confirmé' | 'expiré' | 'refusé'
+  created_at: string
+  vendeur?: { id: string; fullname: string; avatar?: string }
+  client?: { id: string; fullname: string; avatar?: string }
+  vehicule?: vehicule
+}
+
 export interface TopVehiculesVues {
   my_top_vehicle_most_vues: TopVehicle[];
   my_recent_vehicle: TopVehicle[];

@@ -18,6 +18,7 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { api } from "@/src/lib/api"
 import { getOrCreateConversation } from "@/src/actions/conversations.actions"
+import { useUser } from "@/src/context/UserContext"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -36,6 +37,17 @@ const formatDate = (date: string | Date | undefined) => {
 
 const VehicleDetails = ({ isOpen, onClose, vehicule }: Props) => {
     const router = useRouter()
+    const { user } = useUser()
+
+    /** Redirige vers /auth si l'utilisateur n'est pas connecté */
+    const requireAuth = (): boolean => {
+        if (!user) {
+            toast.error("Connectez-vous pour effectuer cette action")
+            router.push("/auth")
+            return false
+        }
+        return true
+    }
     const isVente = vehicule.post_type === "vente"
     const isLocation = vehicule.post_type === "location"
     const photos = vehicule.photos ?? []
@@ -77,6 +89,7 @@ const VehicleDetails = ({ isOpen, onClose, vehicule }: Props) => {
 
     // Soumet la demande de RDV au backend
     const handleRdvSubmit = async () => {
+        if (!requireAuth()) return
         if (!rdvForm.date || !rdvForm.heure) {
             toast.error("Veuillez choisir une date et une heure")
             return
@@ -101,6 +114,7 @@ const VehicleDetails = ({ isOpen, onClose, vehicule }: Props) => {
     }
     // Crée une alerte prix pré-remplie avec la marque/modèle du véhicule
     const handleAlerteSubmit = async () => {
+        if (!requireAuth()) return
         if (!alerteForm.prix_max) {
             toast.error("Veuillez saisir un prix maximum")
             return
@@ -128,6 +142,7 @@ const VehicleDetails = ({ isOpen, onClose, vehicule }: Props) => {
      * puis redirige vers la page messages avec la conv pré-sélectionnée.
      */
     const handleContact = async () => {
+        if (!requireAuth()) return
         if (!vehicule.creator?.id) return
         setMsgLoading(true)
         try {
@@ -147,6 +162,7 @@ const VehicleDetails = ({ isOpen, onClose, vehicule }: Props) => {
 
     // Signale le véhicule avec motif + description
     const handleSignalSubmit = async () => {
+        if (!requireAuth()) return
         if (!signalForm.motif.trim()) {
             toast.error("Veuillez indiquer un motif")
             return

@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import {
     Bell,
+    BookOpen,
     Calendar,
     Car,
     ChevronDown,
@@ -10,9 +11,12 @@ import {
     Home,
     LayoutDashboard,
     LogOut,
+    MapPin,
     Menu,
     MessageCircle,
     User as UserIcon,
+    Users,
+    X,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -20,6 +24,7 @@ import { api } from "@/src/lib/api";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/src/context/UserContext";
 import { useNotification } from "@/src/context/NotificationContext";
+import { useMessage } from "@/src/context/MessageContext";
 
 const Header = () => {
     const pathname = usePathname();
@@ -27,6 +32,7 @@ const Header = () => {
     const [mobileOpen, setMobileOpen] = useState(false);
     const [profileOpen, setProfileOpen] = useState(false);
     const { unreadCount } = useNotification()
+    const { unreadMessages } = useMessage()
     const router = useRouter();
 
     const isVendeur = user?.role === "vendeur";
@@ -41,14 +47,21 @@ const Header = () => {
     const navLinks = [
         { href: "/", label: "Accueil", icon: Home },
         { href: "/vehicles", label: "Véhicules", icon: Car },
+        { href: "/vendeurs-proches", label: "Carte", icon: MapPin },
         ...(!isVendeur
-            ? [{ href: "/client/favorites", label: "Favoris", icon: Heart }]
+            ? [
+                { href: "/client/favorites", label: "Favoris", icon: Heart },
+                { href: "/client/formations", label: "Formations", icon: BookOpen },
+              ]
             : []),
         {
             href: isVendeur ? "/vendeur/rdv" : "/client/rdv",
             label: "Rendez-vous",
             icon: Calendar,
         },
+        ...(isVendeur
+            ? [{ href: "/vendeur/crm", label: "CRM", icon: Users }]
+            : []),
     ];
 
     const handleLogout = async () => {
@@ -107,7 +120,14 @@ const Header = () => {
                             href={isVendeur ? "/vendeur/messages" : "/client/messages"}
                             className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-all"
                         >
-                            <MessageCircle className="h-4 w-4" />
+                            <div className="relative">
+                                <MessageCircle className="h-4 w-4" />
+                                {unreadMessages > 0 && (
+                                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                                        {unreadMessages > 9 ? "9+" : unreadMessages}
+                                    </span>
+                                )}
+                            </div>
                         </Link>
                         <Link
                             href={isVendeur ? "/vendeur/notifications" : "/client/notifications"}
@@ -198,82 +218,118 @@ const Header = () => {
                         </span>
                     </Link>
 
-                    <button
-                        onClick={() => setMobileOpen(!mobileOpen)}
-                        className="w-9 h-9 flex items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50 transition-all cursor-pointer"
-                    >
-                        <Menu className="h-4 w-4" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                        {/* Cloche notifications avec badge */}
+                        <Link
+                            href={isVendeur ? "/vendeur/notifications" : "/client/notifications"}
+                            className="w-9 h-9 flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-all"
+                        >
+                            <div className="relative">
+                                <Bell className="h-4 w-4" />
+                                {unreadCount > 0 && (
+                                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                                        {unreadCount > 9 ? "9+" : unreadCount}
+                                    </span>
+                                )}
+                            </div>
+                        </Link>
+
+                        {/* Hamburger / X */}
+                        <button
+                            onClick={() => setMobileOpen(!mobileOpen)}
+                            className="w-9 h-9 flex items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50 transition-all cursor-pointer"
+                            aria-label={mobileOpen ? "Fermer le menu" : "Ouvrir le menu"}
+                        >
+                            {mobileOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+                        </button>
+                    </div>
                 </div>
 
+                {/* Overlay sombre derrière le menu */}
                 {mobileOpen && (
-                    <div className="fixed inset-0 z-40" onClick={() => setMobileOpen(false)}>
-                        <div
-                            className="absolute top-14 left-0 right-0 bg-white border-b border-zinc-200 shadow-xl p-4 space-y-1"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            {/* User info */}
-                            <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-zinc-50 mb-3">
-                                <div className="w-9 h-9 rounded-lg bg-zinc-100 flex items-center justify-center">
-                                    <UserIcon className="h-4 w-4 text-zinc-500" />
-                                </div>
-                                <div>
-                                    <p className="text-sm font-semibold text-zinc-800">{user?.fullname}</p>
-                                    <p className="text-xs text-zinc-400 flex items-center gap-1 mt-0.5">
-                                        <span className={`w-1.5 h-1.5 rounded-full ${roleDot}`} />
-                                        {roleLabel}
-                                    </p>
-                                </div>
-                            </div>
-
-                            {navLinks.map((item) => {
-                                const active = pathname === item.href;
-                                return (
-                                    <Link
-                                        key={item.href}
-                                        href={item.href}
-                                        onClick={() => setMobileOpen(false)}
-                                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all
-                      ${active ? "bg-zinc-100 text-zinc-900" : "text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50"}`}
-                                    >
-                                        <item.icon className="h-4 w-4" />
-                                        {item.label}
-                                    </Link>
-                                );
-                            })}
-
-                            <div className="h-px bg-zinc-100 my-2" />
-
-                            <Link
-                                href={isVendeur ? "/vendeur/dashboard" : "/client/profile"}
-                                onClick={() => setMobileOpen(false)}
-                                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50 transition-all"
-                            >
-                                <LayoutDashboard className="h-4 w-4" />
-                                {isVendeur ? "Dashboard" : "Mon compte"}
-                            </Link>
-
-                            <Link
-                                href={isVendeur ? "/vendeur/messages" : "/client/messages"}
-                                onClick={() => setMobileOpen(false)}
-                                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50 transition-all"
-                            >
-                                <MessageCircle className="h-4 w-4" />
-                                Messages
-                            </Link>
-
-                            <div className="h-px bg-zinc-100 my-2" />
-
-                            <button
-                                onClick={handleLogout}
-                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-red-500 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer"
-                            >
-                                <LogOut className="h-4 w-4" />
-                                Déconnexion
-                            </button>
-                        </div>
-                    </div>
+                    <div
+                        className="fixed inset-0 top-14 bg-black/20 z-40"
+                        onClick={() => setMobileOpen(false)}
+                    />
                 )}
+
+                {/* Panneau menu */}
+                <div
+                    className={`absolute top-14 left-0 right-0 z-50 bg-white border-b border-zinc-200 shadow-xl transition-all duration-200 overflow-hidden
+                        ${mobileOpen ? "max-h-[80vh] opacity-100" : "max-h-0 opacity-0 pointer-events-none"}`}
+                >
+                    <div className="p-4 space-y-1 overflow-y-auto max-h-[calc(80vh-1px)]">
+                        {/* User info */}
+                        <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-zinc-50 mb-3">
+                            <div className="w-9 h-9 rounded-lg bg-zinc-100 flex items-center justify-center">
+                                <UserIcon className="h-4 w-4 text-zinc-500" />
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-sm font-semibold text-zinc-800 truncate">{user?.fullname}</p>
+                                <p className="text-xs text-zinc-400 flex items-center gap-1 mt-0.5">
+                                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${roleDot}`} />
+                                    {roleLabel}
+                                </p>
+                            </div>
+                        </div>
+
+                        {navLinks.map((item) => {
+                            const active = pathname === item.href;
+                            return (
+                                <Link
+                                    key={item.href}
+                                    href={item.href}
+                                    onClick={() => setMobileOpen(false)}
+                                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all
+                                        ${active ? "bg-zinc-100 text-zinc-900" : "text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50"}`}
+                                >
+                                    <item.icon className="h-4 w-4 shrink-0" />
+                                    {item.label}
+                                </Link>
+                            );
+                        })}
+
+                        <div className="h-px bg-zinc-100 my-2" />
+
+                        <Link
+                            href={isVendeur ? "/vendeur/dashboard" : "/client/profile"}
+                            onClick={() => setMobileOpen(false)}
+                            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50 transition-all"
+                        >
+                            <LayoutDashboard className="h-4 w-4 shrink-0" />
+                            {isVendeur ? "Dashboard" : "Mon compte"}
+                        </Link>
+
+                        <Link
+                            href={isVendeur ? "/vendeur/messages" : "/client/messages"}
+                            onClick={() => setMobileOpen(false)}
+                            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50 transition-all"
+                        >
+                            <div className="relative shrink-0">
+                                <MessageCircle className="h-4 w-4" />
+                                {unreadMessages > 0 && (
+                                    <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                                        {unreadMessages > 9 ? "9+" : unreadMessages}
+                                    </span>
+                                )}
+                            </div>
+                            Messages
+                            {unreadMessages > 0 && (
+                                <span className="ml-auto text-xs font-bold text-red-500">{unreadMessages}</span>
+                            )}
+                        </Link>
+
+                        <div className="h-px bg-zinc-100 my-2" />
+
+                        <button
+                            onClick={handleLogout}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-red-500 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer"
+                        >
+                            <LogOut className="h-4 w-4 shrink-0" />
+                            Déconnexion
+                        </button>
+                    </div>
+                </div>
             </header>
         </>
     );

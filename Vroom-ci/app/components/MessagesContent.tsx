@@ -29,12 +29,13 @@ import {
     ArrowLeft,
 } from "lucide-react"
 
-import { use, useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import type { Conversation, Message, User } from "@/src/types"
 import { getMe } from "@/src/actions/auth.actions"
 import { useSearchParams } from "next/navigation"
 import { getEcho } from "@/src/lib/echo"
+import { useMessage } from "@/src/context/MessageContext"
 type TabValue = "all" | "unread" | "archived"
 
 //Retourne l'intials du nom complet
@@ -138,6 +139,7 @@ const colors = {
 
 export function MessagesContent({ variant = "default" }: MessagesContentProps) {
     const c = colors[variant]
+    const { markConversationRead } = useMessage()
 
     const [me, setMe] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true)
@@ -172,6 +174,8 @@ export function MessagesContent({ variant = "default" }: MessagesContentProps) {
             setMessages(msgs)
             const list = convList ?? conversations
             setConversations(list.map(c => c.id === conv.id ? { ...c, unread_count: 0 } : c))
+            // Décrémente aussi le compteur global dans le Header
+            markConversationRead(conv.id)
         } catch {
             toast.error("Impossible de charger les messages")
         } finally {

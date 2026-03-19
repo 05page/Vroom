@@ -5,6 +5,7 @@ import ConditionalHeader from "./components/ConditionalHeader";
 import { Toaster } from "sonner";
 import { UserProvider } from "@/src/context/UserContext";
 import { NotificationProvider } from "@/src/context/NotificationContext";
+import { MessageProvider } from "@/src/context/MessageContext";
 
 const workSans = Work_Sans({
   variable: "--font-syne",
@@ -42,9 +43,11 @@ export default function RootLayout({
       <body className="antialiased bg-white text-zinc-900 min-h-screen">
         <UserProvider>
           <NotificationProvider>
-            <ConditionalHeader />
-            {children}
-            <Toaster position="top-center" />
+            <MessageProvider>
+              <ConditionalHeader />
+              {children}
+              <Toaster position="top-center" />
+            </MessageProvider>
           </NotificationProvider>
         </UserProvider>
       </body>

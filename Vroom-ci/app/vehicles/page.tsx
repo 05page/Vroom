@@ -24,7 +24,11 @@ import {
     Heart,
     ShoppingBag,
     Eye,
+    LogIn,
+    Building2,
+    GitCompare,
 } from "lucide-react"
+import Link from "next/link"
 import { Separator } from "@/components/ui/separator"
 import Image from "next/image"
 import { useEffect, useState, useMemo } from "react"
@@ -44,6 +48,7 @@ interface Filters {
     prixMax: string
     anneeMin: string
     anneeMax: string
+    marque: string
 }
 
 const CARBURANTS = ["Tous", "Essence", "Diesel", "Hybride", "Électrique"]
@@ -58,20 +63,34 @@ const VehiclesPage = () => {
     const [selectedVehicule, setSelectedVehicule] = useState<vehicule | null>(null)
     const [isFavori, setIsFavori] = useState<Set<string>>(new Set())
     const [favLoading, setFavLoading] = useState<string  |  null>(null)
+    const [compareIds, setCompareIds] = useState<string[]>([])
+
+    /** Ajoute ou retire un véhicule de la sélection de comparaison (max 3). */
+    const toggleCompare = (id: string) => {
+        setCompareIds(prev => {
+            if (prev.includes(id)) return prev.filter(x => x !== id)
+            if (prev.length >= 3) { toast.info("Maximum 3 véhicules à comparer"); return prev }
+            return [...prev, id]
+        })
+    }
     useEffect(() => {
         const fetchData = async () => {
             try {
                 setIsLoading(true)
-                const [vehiculeRes, favorisRes] = await Promise.all([
+                // Promise.allSettled : les véhicules chargent même si l'user n'est pas connecté (favoris = 401)
+                const [vehiculeRes, favorisRes] = await Promise.allSettled([
                     getVehicules(),
                     getFavoris(),
                 ]);
-                setVehiculesList(vehiculeRes?.data?.vehicules ?? [])
-                setStats(vehiculeRes?.data?.statsVehicules ?? null)
-                setIsFavori(new Set((favorisRes?.data ?? []).map(f => f.vehicule_id)))
-
-            } catch (error) {
-                toast.error(error instanceof Error ? error?.message : "Erreur serveur")
+                if (vehiculeRes.status === 'fulfilled') {
+                    setVehiculesList(vehiculeRes.value?.data?.vehicules ?? [])
+                    setStats(vehiculeRes.value?.data?.statsVehicules ?? null)
+                } else {
+                    toast.error("Erreur lors du chargement des véhicules")
+                }
+                if (favorisRes.status === 'fulfilled') {
+                    setIsFavori(new Set((favorisRes.value?.data ?? []).map((f: Favori) => f.vehicule_id)))
+                }
             } finally {
                 setIsLoading(false)
             }
@@ -112,6 +131,10 @@ const VehiclesPage = () => {
     }, [])
 
     const toggleFavori = async (v: vehicule) => {
+        if (!user) {
+            toast.error("Connectez-vous pour ajouter aux favoris")
+            return
+        }
         setFavLoading(v.id)
         try {
             if (isFavori.has(v.id)) {
@@ -143,7 +166,16 @@ const VehiclesPage = () => {
         prixMax: "",
         anneeMin: "",
         anneeMax: "",
+        marque: "Toutes",
     })
+
+    /** Extrait les marques uniques depuis la liste chargée pour les chips de filtre. */
+    const marquesDisponibles = useMemo(() => {
+        const uniques = Array.from(
+            new Set(vehiculesList.map(v => v.description?.marque).filter(Boolean))
+        ).sort()
+        return ["Toutes", ...uniques]
+    }, [vehiculesList])
 
     const activeFilterCount = useMemo(() => {
         let count = 0
@@ -154,6 +186,7 @@ const VehiclesPage = () => {
         if (filters.prixMax) count++
         if (filters.anneeMin) count++
         if (filters.anneeMax) count++
+        if (filters.marque !== "Toutes") count++
         return count
     }, [filters])
 
@@ -166,6 +199,7 @@ const VehiclesPage = () => {
                     !v.description.modele.toLowerCase().includes(q)
                 ) return false
             }
+            if (filters.marque !== "Toutes" && v.description.marque !== filters.marque) return false
             if (filters.carburant !== "Tous" && v.description.carburant.toLowerCase() !== filters.carburant.toLowerCase()) return false
             if (filters.statut !== "Tous" && v.statut.toLowerCase() !== filters.statut.toLowerCase()) return false
             if (filters.prixMin && v.prix < Number(filters.prixMin)) return false
@@ -192,6 +226,7 @@ const VehiclesPage = () => {
             prixMax: "",
             anneeMin: "",
             anneeMax: "",
+            marque: "Toutes",
         })
         toast.success("Filtres réinitialisés")
     }
@@ -233,14 +268,40 @@ const VehiclesPage = () => {
                         <Separator />
                         <div className="flex items-center justify-between text-xs text-zinc-500">
                             <span className="flex items-center gap-1"><Eye className="h-3 w-3" /> {v.views_count} vues</span>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="rounded-lg text-xs cursor-pointer border-zinc-200"
-                                onClick={() => setSelectedVehicule(v)}
-                            >
-                                Voir détails
-                            </Button>
+                            <div className="flex items-center gap-1.5">
+                                {/* Lien vers la page détail partageable */}
+                                <Link href={`/vehicles/${v.id}`}>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="rounded-lg text-xs cursor-pointer border-zinc-200"
+                                    >
+                                        Voir détails
+                                    </Button>
+                                </Link>
+                                {/* Conserve l'ouverture du Dialog pour accès rapide depuis le catalogue */}
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="rounded-lg text-xs cursor-pointer text-zinc-400 hover:text-zinc-700 px-2"
+                                    onClick={() => setSelectedVehicule(v)}
+                                    title="Aperçu rapide"
+                                >
+                                    <Eye className="h-3.5 w-3.5" />
+                                </Button>
+                                {/* Bouton d'ajout/retrait de la sélection de comparaison */}
+                                <button
+                                    onClick={() => toggleCompare(v.id)}
+                                    title={compareIds.includes(v.id) ? "Retirer de la comparaison" : "Ajouter à la comparaison"}
+                                    className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer
+                                        ${compareIds.includes(v.id)
+                                            ? "bg-amber-500 text-white shadow-sm"
+                                            : "bg-zinc-100 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700"
+                                        }`}
+                                >
+                                    <GitCompare className="h-3.5 w-3.5" />
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </CardContent>
@@ -369,6 +430,24 @@ const VehiclesPage = () => {
                 </CardContent>
             </Card>
 
+            {/* Bannière non-connecté — visible uniquement pour les visiteurs anonymes */}
+            {!user && (
+                <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-amber-50 border border-amber-200 animate-in fade-in slide-in-from-top duration-300">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                        <Building2 className="h-4 w-4 text-amber-600 shrink-0" />
+                        <p className="text-sm text-amber-800 truncate">
+                            Parcourez librement — Connectez-vous pour contacter les vendeurs et prendre rendez-vous.
+                        </p>
+                    </div>
+                    <Link href="/auth" className="shrink-0">
+                        <Button size="sm" className="rounded-xl bg-amber-500 hover:bg-amber-600 text-white cursor-pointer gap-1.5">
+                            <LogIn className="h-3.5 w-3.5" />
+                            Se connecter
+                        </Button>
+                    </Link>
+                </div>
+            )}
+
             {/* Search Bar */}
             <Card className="rounded-2xl md:rounded-3xl shadow-sm border border-zinc-200 bg-white animate-in fade-in slide-in-from-bottom duration-500">
                 <CardContent className="p-3 md:p-4">
@@ -423,6 +502,28 @@ const VehiclesPage = () => {
                     </CardHeader>
                     <CardContent className="p-4 md:p-6">
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                            {/* Marque */}
+                            <div className="space-y-3 sm:col-span-2 lg:col-span-4">
+                                <label className="text-sm font-bold flex items-center gap-2 text-zinc-700">
+                                    <Car className="h-4 w-4 text-zinc-500" />
+                                    Marque
+                                </label>
+                                <div className="flex flex-wrap gap-2">
+                                    {marquesDisponibles.map(m => (
+                                        <button
+                                            key={m}
+                                            onClick={() => setFilters({ ...filters, marque: m })}
+                                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${filters.marque === m
+                                                ? "bg-zinc-900 text-white shadow-md"
+                                                : "bg-zinc-50 text-zinc-600 hover:bg-zinc-100 border border-zinc-200"
+                                                }`}
+                                        >
+                                            {m}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
                             {/* Carburant */}
                             <div className="space-y-3">
                                 <label className="text-sm font-bold flex items-center gap-2 text-zinc-700">
@@ -524,6 +625,12 @@ const VehiclesPage = () => {
                                     <Badge variant="outline" className="rounded-full text-xs gap-1 bg-zinc-100 text-zinc-700 border-zinc-300">
                                         Recherche: {filters.search}
                                         <X className="h-3 w-3 cursor-pointer" onClick={() => setFilters({ ...filters, search: "" })} />
+                                    </Badge>
+                                )}
+                                {filters.marque !== "Toutes" && (
+                                    <Badge variant="outline" className="rounded-full text-xs gap-1 bg-zinc-100 text-zinc-700 border-zinc-300">
+                                        {filters.marque}
+                                        <X className="h-3 w-3 cursor-pointer" onClick={() => setFilters({ ...filters, marque: "Toutes" })} />
                                     </Badge>
                                 )}
                                 {filters.carburant !== "Tous" && (
@@ -806,6 +913,55 @@ const VehiclesPage = () => {
                     vehicule={selectedVehicule}
                     onClose={() => setSelectedVehicule(null)}
                 />
+            )}
+
+            {/* ── Barre de comparaison flottante ── */}
+            {compareIds.length > 0 && (
+                <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-zinc-200 shadow-2xl shadow-black/10 px-4 py-3">
+                    <div className="max-w-6xl mx-auto flex items-center gap-3">
+                        {/* Miniatures des véhicules sélectionnés */}
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <span className="text-xs font-bold text-zinc-500 shrink-0">Comparer :</span>
+                            <div className="flex items-center gap-2">
+                                {compareIds.map(id => {
+                                    const v = vehiculesList.find(x => x.id === id)
+                                    if (!v) return null
+                                    return (
+                                        <div key={id} className="flex items-center gap-1.5 bg-zinc-100 rounded-lg px-2.5 py-1.5">
+                                            <span className="text-xs font-semibold text-zinc-800 truncate max-w-[100px]">
+                                                {v.description?.marque} {v.description?.modele}
+                                            </span>
+                                            <button onClick={() => toggleCompare(id)} className="text-zinc-400 hover:text-zinc-700 cursor-pointer">
+                                                <X className="h-3 w-3" />
+                                            </button>
+                                        </div>
+                                    )
+                                })}
+                                {/* Slots vides si moins de 3 */}
+                                {Array.from({ length: 3 - compareIds.length }).map((_, i) => (
+                                    <div key={i} className="w-24 h-7 rounded-lg border-2 border-dashed border-zinc-200 flex items-center justify-center">
+                                        <span className="text-[10px] text-zinc-300">+ véhicule</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                            <button onClick={() => setCompareIds([])} className="text-xs text-zinc-400 hover:text-zinc-600 cursor-pointer">
+                                Effacer
+                            </button>
+                            <Link href={`/vehicles/comparer?ids=${compareIds.join(",")}`}>
+                                <Button
+                                    size="sm"
+                                    disabled={compareIds.length < 2}
+                                    className="bg-zinc-900 hover:bg-zinc-700 text-white rounded-xl cursor-pointer gap-1.5 text-xs"
+                                >
+                                    <GitCompare className="h-3.5 w-3.5" />
+                                    Comparer ({compareIds.length})
+                                </Button>
+                            </Link>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     )

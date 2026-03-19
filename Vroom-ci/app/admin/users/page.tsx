@@ -1,11 +1,13 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
+import { useSearchParams } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
     Select,
     SelectContent,
@@ -40,6 +42,9 @@ import {
     ChevronLeft,
     ChevronRight,
     Users,
+    Clock,
+    Building2,
+    GraduationCap,
 } from "lucide-react"
 import { toast } from "sonner"
 import { suspendreUser, bannirUser, restaurerUser, validerUser, getUsersPaginated } from "@/src/actions/admin.actions"
@@ -51,6 +56,9 @@ interface AdminUser {
     role: string
     statut: "actif" | "suspendu" | "banni" | "en_attente"
     partenaire_type?: string
+    raison_sociale?: string
+    rccm?: string
+    numero_agrement?: string
     created_at: string
 }
 
@@ -105,6 +113,7 @@ const ACTION_CONFIG: Record<ActionType, { label: string; description: string; de
 }
 
 export default function AdminUsersPage() {
+    const searchParams = useSearchParams()
     const [users, setUsers]               = useState<AdminUser[]>([])
     const [loading, setLoading]           = useState(true)
     const [page, setPage]                 = useState(1)
@@ -112,7 +121,8 @@ export default function AdminUsersPage() {
     const [total, setTotal]               = useState(0)
     const [search, setSearch]             = useState("")
     const [filterRole, setFilterRole]     = useState("all")
-    const [filterStatut, setFilterStatut] = useState("all")
+    const [filterStatut, setFilterStatut] = useState(() => searchParams.get("statut") ?? "all")
+    const [activeTab, setActiveTab]       = useState(() => searchParams.get("statut") === "en_attente" ? "demandes" : "tous")
     const [pending, setPending]           = useState<PendingAction | null>(null)
     const [acting, setActing]             = useState(false)
 
@@ -125,7 +135,7 @@ export default function AdminUsersPage() {
 
             const res = await getUsersPaginated(params)
             if (res.data) {
-                setUsers(res.data.data as AdminUser[])
+                setUsers(res.data.data as unknown as AdminUser[])
                 setTotalPages(res.data.last_page)
                 setTotal(res.data.total)
             }
@@ -165,6 +175,15 @@ export default function AdminUsersPage() {
           )
         : users
 
+    const switchTab = (tab: string) => {
+        setActiveTab(tab)
+        setFilterStatut(tab === "demandes" ? "en_attente" : "all")
+        setFilterRole("all")
+        setPage(1)
+    }
+
+    const isDemandesTab = activeTab === "demandes"
+
     return (
         <div className="space-y-6">
             {/* En-tête */}
@@ -180,7 +199,20 @@ export default function AdminUsersPage() {
                 </div>
             </div>
 
-            {/* Barre de filtres */}
+            {/* Onglets */}
+            <Tabs value={activeTab} onValueChange={switchTab}>
+                <TabsList>
+                    <TabsTrigger value="tous" className="gap-2">
+                        <Users className="h-3.5 w-3.5" /> Tous les comptes
+                    </TabsTrigger>
+                    <TabsTrigger value="demandes" className="gap-2">
+                        <Clock className="h-3.5 w-3.5" /> Demandes partenaires
+                    </TabsTrigger>
+                </TabsList>
+            </Tabs>
+
+            {/* Barre de filtres — masquée sur l'onglet demandes */}
+            {!isDemandesTab && (
             <div className="flex flex-col sm:flex-row gap-3">
                 <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -217,6 +249,7 @@ export default function AdminUsersPage() {
                     </SelectContent>
                 </Select>
             </div>
+            )}
 
             {/* Tableau */}
             <Card>
@@ -225,8 +258,10 @@ export default function AdminUsersPage() {
                         <TableHeader>
                             <TableRow className="hover:bg-transparent">
                                 <TableHead>Utilisateur</TableHead>
-                                <TableHead>Rôle</TableHead>
-                                <TableHead>Statut</TableHead>
+                                {isDemandesTab
+                                    ? <TableHead>Infos métier</TableHead>
+                                    : <><TableHead>Rôle</TableHead><TableHead>Statut</TableHead></>
+                                }
                                 <TableHead>Inscrit le</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
@@ -245,23 +280,43 @@ export default function AdminUsersPage() {
                             ) : filtered.length === 0 ? (
                                 <TableRow>
                                     <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
-                                        Aucun utilisateur trouvé
+                                        {isDemandesTab ? "Aucune demande en attente" : "Aucun utilisateur trouvé"}
                                     </TableCell>
                                 </TableRow>
                             ) : filtered.map((user) => (
-                                <TableRow key={user.id} className="hover:bg-muted/40">
+                                <TableRow key={user.id} className={`hover:bg-muted/40 ${isDemandesTab ? "bg-yellow-50/30" : ""}`}>
                                     <TableCell>
                                         <div>
                                             <p className="font-medium text-sm">{user.fullname}</p>
                                             <p className="text-xs text-muted-foreground">{user.email}</p>
                                         </div>
                                     </TableCell>
+                                    {isDemandesTab ? (
+                                        <TableCell>
+                                            <div className="space-y-0.5">
+                                                <div className="flex items-center gap-1.5">
+                                                    {user.role === "concessionnaire"
+                                                        ? <Building2 className="h-3.5 w-3.5 text-purple-500" />
+                                                        : <GraduationCap className="h-3.5 w-3.5 text-cyan-500" />
+                                                    }
+                                                    {/* role = "concessionnaire" | "auto_ecole" directement en base */}
+                                                    <span className="text-sm font-medium">{user.raison_sociale ?? "—"}</span>
+                                                </div>
+                                                {user.rccm && <p className="text-xs text-muted-foreground">RCCM : {user.rccm}</p>}
+                                                {user.numero_agrement && <p className="text-xs text-muted-foreground">Agrément : {user.numero_agrement}</p>}
+                                                <RoleBadge role={user.role} partenaireType={user.partenaire_type} />
+                                            </div>
+                                        </TableCell>
+                                    ) : (
+                                        <>
                                     <TableCell>
                                         <RoleBadge role={user.role} partenaireType={user.partenaire_type} />
                                     </TableCell>
                                     <TableCell>
                                         <StatutBadge statut={user.statut} />
                                     </TableCell>
+                                        </>
+                                    )}
                                     <TableCell className="text-sm text-muted-foreground">
                                         {new Date(user.created_at).toLocaleDateString("fr-FR")}
                                     </TableCell>

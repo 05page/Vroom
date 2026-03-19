@@ -2,32 +2,22 @@
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import {
     ArrowRight,
+    Building2,
     ChartBarIncreasing,
     ChevronLeft,
+    ChevronRight,
     Clock,
-    Send,
+    GraduationCap,
     Shield,
     Star,
     TrendingUp,
     Users,
     UsersRound,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { toast } from "sonner";
-
-interface FormData {
-    nomEntreprise: string
-    email: string
-    typeEntreprise: string
-    contact: string
-    message?: string
-}
 
 interface Partenaire {
     open: boolean;
@@ -50,41 +40,13 @@ const stats = [
 ];
 
 export function DevenirPartenaire({ open, onClose }: Partenaire) {
-    const [formData, setFormData] = useState<FormData>({
-        nomEntreprise: "",
-        email: "",
-        typeEntreprise: "",
-        contact: "",
-        message: "",
-    });
-    const [currentStep, setCurrentStep] = useState(1);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const router = useRouter()
+    const [currentStep, setCurrentStep] = useState(1)
 
-    const updateFormData = (key: keyof FormData, value: string) =>
-        setFormData((prev) => ({ ...prev, [key]: value }));
-
-    const validateStep = (): boolean => {
-        if (currentStep === 2) {
-            if (!formData.nomEntreprise || !formData.email || !formData.contact || !formData.typeEntreprise) {
-                toast.error("Veuillez renseigner tous les champs obligatoires.");
-                return false;
-            }
-        }
-        return true;
-    };
-
-    const goToNext = () => { if (validateStep()) setCurrentStep(2); };
-    const goToPrev = () => setCurrentStep(1);
-
-    const handleSubmit = () => {
-        if (!validateStep()) return;
-        setIsSubmitting(true);
-        setTimeout(() => {
-            toast.success("Demande envoyée avec succès !");
-            setIsSubmitting(false);
-            onClose();
-        }, 1200);
-    };
+    const handleChoixRole = (role: "concessionnaire" | "auto_ecole") => {
+        onClose()
+        router.push(`/auth?tab=register&role=${role}`)
+    }
 
     return (
         <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
@@ -175,86 +137,50 @@ export function DevenirPartenaire({ open, onClose }: Partenaire) {
                         </div>
                     )}
 
-                    {/* ── ÉTAPE 2 : Formulaire ── */}
+                    {/* ── ÉTAPE 2 : Choix du type de partenaire ── */}
                     {currentStep === 2 && (
-                        <form
-                            className="space-y-5"
-                            onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}
-                        >
+                        <div className="space-y-6">
+                            <p className="text-sm text-zinc-500">Vous serez redirigé vers le formulaire d&apos;inscription adapté à votre activité.</p>
                             <div className="grid md:grid-cols-2 gap-4">
-                                <div className="space-y-1.5">
-                                    <Label htmlFor="nomEntreprise" className="text-xs font-semibold text-zinc-700">
-                                        Nom de l&apos;entreprise <span className="text-amber-500">*</span>
-                                    </Label>
-                                    <Input
-                                        id="nomEntreprise"
-                                        placeholder="Ex : Garage Auto Plus"
-                                        value={formData.nomEntreprise}
-                                        onChange={(e) => updateFormData("nomEntreprise", e.target.value)}
-                                        className="h-11 text-sm"
-                                    />
-                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => handleChoixRole("concessionnaire")}
+                                    className="group flex flex-col items-start gap-4 p-6 rounded-2xl border-2 border-zinc-100 bg-white hover:border-amber-400 hover:shadow-md hover:shadow-amber-500/10 transition-all duration-200 text-left cursor-pointer"
+                                >
+                                    <div className="w-12 h-12 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center group-hover:scale-105 transition-transform">
+                                        <Building2 className="h-6 w-6 text-purple-500" />
+                                    </div>
+                                    <div>
+                                        <p className="font-bold text-zinc-900 text-base">Concessionnaire</p>
+                                        <p className="text-sm text-zinc-500 mt-1 leading-relaxed">
+                                            Réseau de vente, show-room, garage multimarques — gérez votre stock et vos ventes.
+                                        </p>
+                                    </div>
+                                    <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-600 mt-auto">
+                                        Créer mon compte <ChevronRight className="h-3.5 w-3.5" />
+                                    </span>
+                                </button>
 
-                                <div className="space-y-1.5">
-                                    <Label htmlFor="contact" className="text-xs font-semibold text-zinc-700">
-                                        Téléphone <span className="text-amber-500">*</span>
-                                    </Label>
-                                    <Input
-                                        id="contact"
-                                        placeholder="+225 07 00 00 00 00"
-                                        value={formData.contact}
-                                        onChange={(e) => updateFormData("contact", e.target.value)}
-                                        className="h-11 text-sm"
-                                    />
-                                </div>
-
-                                <div className="space-y-1.5">
-                                    <Label htmlFor="email" className="text-xs font-semibold text-zinc-700">
-                                        Email professionnel <span className="text-amber-500">*</span>
-                                    </Label>
-                                    <Input
-                                        id="email"
-                                        type="email"
-                                        placeholder="contact@entreprise.com"
-                                        value={formData.email}
-                                        onChange={(e) => updateFormData("email", e.target.value)}
-                                        className="h-11 text-sm"
-                                    />
-                                </div>
-
-                                <div className="space-y-1.5">
-                                    <Label htmlFor="typeEntreprise" className="text-xs font-semibold text-zinc-700">
-                                        Type d&apos;entreprise <span className="text-amber-500">*</span>
-                                    </Label>
-                                    <Select
-                                        value={formData.typeEntreprise}
-                                        onValueChange={(v) => updateFormData("typeEntreprise", v)}
-                                    >
-                                        <SelectTrigger id="typeEntreprise" className="h-11 text-sm">
-                                            <SelectValue placeholder="Sélectionner" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {["Concessionnaire", "Auto-école", "Assureur", "Banque", "Prestataire automobile", "Autre"].map((item) => (
-                                                <SelectItem key={item} value={item}>{item}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => handleChoixRole("auto_ecole")}
+                                    className="group flex flex-col items-start gap-4 p-6 rounded-2xl border-2 border-zinc-100 bg-white hover:border-amber-400 hover:shadow-md hover:shadow-amber-500/10 transition-all duration-200 text-left cursor-pointer"
+                                >
+                                    <div className="w-12 h-12 rounded-xl bg-cyan-50 border border-cyan-100 flex items-center justify-center group-hover:scale-105 transition-transform">
+                                        <GraduationCap className="h-6 w-6 text-cyan-500" />
+                                    </div>
+                                    <div>
+                                        <p className="font-bold text-zinc-900 text-base">Auto-école</p>
+                                        <p className="text-sm text-zinc-500 mt-1 leading-relaxed">
+                                            Publiez vos formations, gérez les inscriptions et suivez vos élèves.
+                                        </p>
+                                    </div>
+                                    <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-600 mt-auto">
+                                        Créer mon compte <ChevronRight className="h-3.5 w-3.5" />
+                                    </span>
+                                </button>
                             </div>
-
-                            <div className="space-y-1.5">
-                                <Label htmlFor="message" className="text-xs font-semibold text-zinc-700">
-                                    Message <span className="text-zinc-400">(optionnel)</span>
-                                </Label>
-                                <Textarea
-                                    id="message"
-                                    placeholder="Décrivez votre activité ou vos besoins spécifiques..."
-                                    value={formData.message}
-                                    onChange={(e) => updateFormData("message", e.target.value)}
-                                    className="min-h-24 text-sm resize-none"
-                                />
-                            </div>
-                        </form>
+                        </div>
                     )}
                 </div>
 
@@ -269,7 +195,7 @@ export function DevenirPartenaire({ open, onClose }: Partenaire) {
                             <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={goToPrev}
+                                onClick={() => setCurrentStep(1)}
                                 className="gap-1.5 cursor-pointer border-zinc-200 text-zinc-600 hover:text-zinc-900"
                             >
                                 <ChevronLeft className="h-3.5 w-3.5" />
@@ -277,24 +203,14 @@ export function DevenirPartenaire({ open, onClose }: Partenaire) {
                             </Button>
                         )}
 
-                        {currentStep === 1 ? (
+                        {currentStep === 1 && (
                             <Button
                                 size="sm"
-                                onClick={goToNext}
+                                onClick={() => setCurrentStep(2)}
                                 className="gap-2 bg-amber-500 hover:bg-amber-600 text-white font-semibold cursor-pointer px-5 shadow-sm hover:shadow-amber-200 hover:shadow-md transition-all duration-200"
                             >
                                 Continuer
                                 <ArrowRight className="h-3.5 w-3.5" />
-                            </Button>
-                        ) : (
-                            <Button
-                                size="sm"
-                                onClick={handleSubmit}
-                                disabled={isSubmitting}
-                                className="gap-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white font-semibold cursor-pointer px-5 shadow-sm transition-all duration-200"
-                            >
-                                <Send className="h-3.5 w-3.5" />
-                                {isSubmitting ? "Envoi en cours…" : "Envoyer la demande"}
                             </Button>
                         )}
                     </div>

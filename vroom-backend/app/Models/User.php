@@ -28,6 +28,8 @@ class User extends Authenticatable
         // client
         'telephone',
         'adresse',
+        'latitude',
+        'longitude',
         // vendeur
         'rccm',
         'note_moyenne',

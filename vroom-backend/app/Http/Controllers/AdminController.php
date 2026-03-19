@@ -67,7 +67,11 @@ class AdminController extends Controller
         if ($request->filled('role'))   $query->where('role', $request->role);
         if ($request->filled('statut')) $query->where('statut', $request->statut);
 
-        $users = $query->orderBy('created_at', 'desc')->paginate(20);
+        $users = $query
+            ->select('id','fullname','email','telephone','role','statut','created_at',
+                     'raison_sociale','rccm','numero_agrement')
+            ->orderBy('created_at', 'desc')
+            ->paginate(20);
 
         return response()->json(['success' => true, 'data' => $users], 200);
     }

@@ -9,6 +9,13 @@ const  ROLE_ROUTES: Record<UserRole, string[]> = {
     client: ["/client"]
 }
 
+// Routes interdites par sous-rôle partenaire
+// auto_ecole n'a pas de garage → concessionnaire n'a pas de formations
+const BLOCKED_ROUTES: Partial<Record<UserRole, string[]>> = {
+    auto_ecole:     ["/partenaire/mongarage"],
+    concessionnaire: ["/partenaire/formations"],
+}
+
 const ROLE_DASHBOARD: Record<UserRole, string> = {
     admin: "/admin/dashboard",
     vendeur: "/vendeur/dashboard",
@@ -29,9 +36,13 @@ export function getDashBoard(role: UserRole) {
 
 export function hasRouteAccess(role:UserRole, pathname:string):boolean
 {
+    // Vérifier d'abord les routes explicitement bloquées pour ce rôle
+    const blocked = BLOCKED_ROUTES[role] ?? []
+    if (blocked.some(route => pathname.startsWith(route))) return false
+
     const allowedRoutes = ROLE_ROUTES[role];
-    if(allowedRoutes.includes("*")) return true; //includes vérifie si un tableau contient une valeur spécifique
-    return allowedRoutes.some(route => pathname.startsWith(route)); //some vérifie si au moins un élément du tableau satisfait une condition donnée
+    if(allowedRoutes.includes("*")) return true;
+    return allowedRoutes.some(route => pathname.startsWith(route));
 }
 
 export function isPublicRoute(pathname:string):boolean

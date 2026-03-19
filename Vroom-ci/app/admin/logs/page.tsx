@@ -86,10 +86,12 @@ export default function AdminLogsPage() {
             // Actuellement getLogs retourne AdminLog[] sans pagination — l'adapter si besoin
             const res = await getLogs(params)
             if (res.data) {
-                // Cast vers LogEntry car le type local est plus spécifique que AdminLog
-                setLogs(res.data as unknown as LogEntry[])
-                setTotalPages(1)
-                setTotal(res.data.length)
+                // Le backend retourne un objet paginé Laravel : { data: [...], total, last_page }
+                const paginated = res.data as unknown as { data: LogEntry[]; total: number; last_page: number }
+                const items = Array.isArray(paginated.data) ? paginated.data : (Array.isArray(res.data) ? res.data as unknown as LogEntry[] : [])
+                setLogs(items)
+                setTotalPages(paginated.last_page ?? 1)
+                setTotal(paginated.total ?? items.length)
             }
         } catch {
             toast.error("Impossible de charger le journal")

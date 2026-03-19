@@ -7,6 +7,11 @@ import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+    Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
+} from "@/components/ui/dialog"
 import {
     ArrowDown,
     ArrowRight,
@@ -21,6 +26,8 @@ import {
     MapPin,
     MessageCircle,
     MoreHorizontal,
+    Pencil,
+    Phone,
     Plus,
     Star,
     Tag,
@@ -43,11 +50,22 @@ import Link from "next/link"
 import { VendeurStats, VendeurRdv, Avis } from "@/src/types"
 import { getMesStats } from "@/src/actions/stats.actions"
 import { getAvisVendeur } from "@/src/actions/avis.actions"
+import { updateProfile, updateContact } from "@/src/actions/auth.actions"
 import { useUser } from "@/src/context/UserContext"
+
 const VendeurDashboard = () => {
     const [isLoading, setIsLoading] = useState(true)
     const [stats, setStats] = useState<VendeurStats | null>(null);
-    const {user} = useUser()
+    const { user, setUser } = useUser()
+
+    // État du dialog de modification de profil
+    const [editOpen, setEditOpen]     = useState(false)
+    const [saving, setSaving]         = useState(false)
+    const [editForm, setEditForm]     = useState({
+        fullname:  "",
+        telephone: "",
+        adresse:   "",
+    })
     const [rdv, setRdv] = useState<VendeurRdv | null>(null);
     // Avis reçus par le vendeur connecté
     const [avisData, setAvisData] = useState<{ avis: Avis[]; note_moyenne: number; total: number } | null>(null)
@@ -76,6 +94,35 @@ const VendeurDashboard = () => {
         }
         fetchData()
     }, [])
+
+    // Pré-remplit le form avec les données actuelles de l'user
+    const openEdit = () => {
+        setEditForm({
+            fullname:  user?.fullname  ?? "",
+            telephone: user?.telephone ?? "",
+            adresse:   user?.adresse   ?? "",
+        })
+        setEditOpen(true)
+    }
+
+    const handleSave = async () => {
+        setSaving(true)
+        try {
+            // fullname → PUT /me/update  |  telephone + adresse → PUT /me/contact
+            await Promise.all([
+                updateProfile({ fullname: editForm.fullname }),
+                updateContact({ telephone: editForm.telephone, adresse: editForm.adresse }),
+            ])
+            // Met à jour le contexte user localement pour éviter un rechargement
+            setUser(prev => prev ? { ...prev, ...editForm } : prev)
+            toast.success("Profil mis à jour")
+            setEditOpen(false)
+        } catch {
+            toast.error("Erreur lors de la mise à jour")
+        } finally {
+            setSaving(false)
+        }
+    }
 
     const formatMontant = (montant: number) => {
         if (montant >= 1000000) return `${(montant / 1000000).toFixed(1)}M`
@@ -208,6 +255,7 @@ const VendeurDashboard = () => {
     }
 
     return (
+        <>
         <div className="pt-20 px-4 md:px-6 space-y-4 md:space-y-6 max-w-6xl mx-auto mb-12">
 
             {/* ==================== WELCOME HEADER ==================== */}
@@ -242,6 +290,15 @@ const VendeurDashboard = () => {
                             </div>
                         </div>
                         <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={openEdit}
+                                className="rounded-xl cursor-pointer gap-2"
+                            >
+                                <Pencil className="h-4 w-4" />
+                                Modifier le profil
+                            </Button>
                             <Link href="/vendeur/addVehicle">
                                 <Button size="sm" className="rounded-xl cursor-pointer bg-zinc-900 hover:bg-zinc-700 text-white font-bold">
                                     <Plus className="h-4 w-4 mr-2" />
@@ -721,6 +778,71 @@ const VendeurDashboard = () => {
                 </CardContent>
             </Card>
         </div>
+
+        {/* ── Dialog modification de profil ── */}
+        <Dialog open={editOpen} onOpenChange={setEditOpen}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                        <Pencil className="h-4 w-4" /> Modifier mon profil
+                    </DialogTitle>
+                </DialogHeader>
+
+                <div className="space-y-4 py-2">
+                    <div className="space-y-1.5">
+                        <Label htmlFor="edit-fullname">Nom complet</Label>
+                        <div className="relative">
+                            <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                id="edit-fullname"
+                                className="pl-9"
+                                value={editForm.fullname}
+                                onChange={e => setEditForm(p => ({ ...p, fullname: e.target.value }))}
+                                placeholder="Votre nom complet"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="edit-telephone">Téléphone</Label>
+                        <div className="relative">
+                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                id="edit-telephone"
+                                className="pl-9"
+                                value={editForm.telephone}
+                                onChange={e => setEditForm(p => ({ ...p, telephone: e.target.value }))}
+                                placeholder="+225 07 00 00 00 00"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="edit-adresse">Adresse</Label>
+                        <div className="relative">
+                            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                id="edit-adresse"
+                                className="pl-9"
+                                value={editForm.adresse}
+                                onChange={e => setEditForm(p => ({ ...p, adresse: e.target.value }))}
+                                placeholder="Abidjan, Cocody..."
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <DialogFooter className="gap-2">
+                    <Button variant="ghost" onClick={() => setEditOpen(false)} disabled={saving}>
+                        Annuler
+                    </Button>
+                    <Button onClick={handleSave} disabled={saving || !editForm.fullname.trim()}>
+                        {saving ? "Enregistrement…" : "Enregistrer"}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+        </>
     )
 }
 

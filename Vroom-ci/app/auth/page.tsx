@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,9 +10,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
     ArrowLeft,
     ArrowRight,
+    Building2,
     Car,
     Eye,
     EyeOff,
+    GraduationCap,
     Lock,
     Mail,
     MapPin,
@@ -29,12 +31,15 @@ import { UserRole } from "@/src/types"
 
 interface FormRegister {
     fullname: string,
-    role: "vendeur" | "client",
+    role: "vendeur" | "client" | "concessionnaire" | "auto_ecole",
     email: string,
     telephone: string,
     adresse: string
     password: string,
     passwordConfirmation: string,
+    raison_sociale: string,
+    rccm: string,
+    numero_agrement: string,
 }
 
 interface FormLogin {
@@ -44,22 +49,35 @@ interface FormLogin {
 
 const AuthPage = () => {
     const router = useRouter()
+    const searchParams = useSearchParams()
     const [showPassword, setShowPassword] = useState(false)
     const [showConfirmPassword, setShowConfirmPassword] = useState(false)
     const [registerStep, setRegisterStep] = useState(1)
+    const defaultTab = searchParams.get("tab") === "register" ? "register" : "login"
     const [formDataLogin, setFormDataLogin] = useState<FormLogin>({
         email: "",
         password: ""
     })
+    const roleFromUrl = searchParams.get("role")
+    const initialRole: FormRegister["role"] =
+        roleFromUrl === "concessionnaire" || roleFromUrl === "auto_ecole" || roleFromUrl === "vendeur"
+            ? roleFromUrl
+            : "client"
+
     const [formDataRegister, setFormDataRegister] = useState<FormRegister>({
         fullname: "",
-        role: "client",
+        role: initialRole,
         email: "",
         telephone: "",
         adresse: "",
         password: "",
-        passwordConfirmation: ""
+        passwordConfirmation: "",
+        raison_sociale: "",
+        rccm: "",
+        numero_agrement: "",
     })
+
+    const isPartenaire = formDataRegister.role === "concessionnaire" || formDataRegister.role === "auto_ecole"
 
     const handleChange = (key: keyof FormRegister, value: FormRegister[keyof FormRegister]) => {
         setFormDataRegister(prev => ({
@@ -98,18 +116,25 @@ const AuthPage = () => {
         e.preventDefault()
 
         try {
+            const body: Record<string, string> = {
+                fullname: formDataRegister.fullname,
+                role: formDataRegister.role,
+                email: formDataRegister.email,
+                telephone: formDataRegister.telephone,
+                adresse: formDataRegister.adresse,
+                password: formDataRegister.password,
+                password_confirmation: formDataRegister.passwordConfirmation,
+            }
+            if (formDataRegister.role === "concessionnaire" || formDataRegister.role === "auto_ecole") {
+                body.raison_sociale = formDataRegister.raison_sociale
+                if (formDataRegister.role === "concessionnaire") body.rccm = formDataRegister.rccm
+                if (formDataRegister.role === "auto_ecole") body.numero_agrement = formDataRegister.numero_agrement
+            }
+
             const res = await fetch('/api/auth/register', {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    fullname: formDataRegister.fullname,
-                    role: formDataRegister.role,
-                    email: formDataRegister.email,
-                    telephone: formDataRegister.telephone,
-                    adresse: formDataRegister.adresse,
-                    password: formDataRegister.password,
-                    password_confirmation: formDataRegister.passwordConfirmation
-                }),
+                body: JSON.stringify(body),
             })
 
             const data = await res.json()
@@ -117,8 +142,14 @@ const AuthPage = () => {
                 toast.error(data.message || "Erreur lors de l'inscription")
                 return
             }
-            toast.success(data.message ||"Compte créé avec succès !")
-            router.push(getDashBoard(data.role as UserRole))
+
+            if (formDataRegister.role === "concessionnaire" || formDataRegister.role === "auto_ecole") {
+                toast.success("Demande envoyée ! Votre compte est en attente de validation par notre équipe.")
+                router.push("/auth/en-attente")
+            } else {
+                toast.success(data.message || "Compte créé avec succès !")
+                router.push(getDashBoard(data.role as UserRole))
+            }
         } catch (error) {
             toast.error("Erreur de connexion au serveur")
         }
@@ -164,7 +195,7 @@ const AuthPage = () => {
                             </Link>
                         </div>
 
-                        <Tabs defaultValue="login" className="w-full" onValueChange={() => setRegisterStep(1)}>
+                        <Tabs defaultValue={defaultTab} className="w-full" onValueChange={() => setRegisterStep(1)}>
                             <TabsList className="grid w-full grid-cols-2 bg-gray-100 h-12 p-1 rounded-2xl">
                                 <TabsTrigger
                                     value="login"
@@ -306,59 +337,40 @@ const AuthPage = () => {
                                                 </Label>
                                                 <p className="text-xs text-zinc-400">Choisissez le type de compte qui vous correspond</p>
                                                 <div className="grid grid-cols-2 gap-3">
-                                                    <button
-                                                        onClick={() => handleChange("role", "client")}
-                                                        type="button"
-                                                        className={`relative flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer ${formDataRegister.role === "client"
-                                                            ? "border-orange-500 bg-orange-50 shadow-md shadow-orange-500/10"
-                                                            : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
-                                                            }`}
-                                                    >
-                                                        {formDataRegister.role === "client" && (
-                                                            <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center">
-                                                                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                                                </svg>
-                                                            </div>
-                                                        )}
-                                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${formDataRegister.role === "client" ? "bg-orange-100" : "bg-gray-50"
-                                                            }`}>
-                                                            <UserCircle className={`h-6 w-6 ${formDataRegister.role === "client" ? "text-orange-600" : "text-gray-400"
-                                                                }`} />
-                                                        </div>
-                                                        <div className="text-center">
-                                                            <p className={`text-sm font-bold ${formDataRegister.role === "client" ? "text-orange-700" : "text-zinc-700"
-                                                                }`}>Client</p>
-                                                            <p className="text-xs text-zinc-400">Acheter ou louer</p>
-                                                        </div>
-                                                    </button>
-
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleChange("role", "vendeur")}
-                                                        className={`relative flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer ${formDataRegister.role === "vendeur"
-                                                            ? "border-orange-500 bg-orange-50 shadow-md shadow-orange-500/10"
-                                                            : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
-                                                            }`}
-                                                    >
-                                                        {formDataRegister.role === "vendeur" && (
-                                                            <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center">
-                                                                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                                                </svg>
-                                                            </div>
-                                                        )}
-                                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${formDataRegister.role === "vendeur" ? "bg-orange-100" : "bg-gray-50"
-                                                            }`}>
-                                                            <Store className={`h-6 w-6 ${formDataRegister.role === "vendeur" ? "text-orange-600" : "text-gray-400"
-                                                                }`} />
-                                                        </div>
-                                                        <div className="text-center">
-                                                            <p className={`text-sm font-bold ${formDataRegister.role === "vendeur" ? "text-orange-700" : "text-zinc-700"
-                                                                }`}>Vendeur</p>
-                                                            <p className="text-xs text-zinc-400">Vendre des vehicules</p>
-                                                        </div>
-                                                    </button>
+                                                    {([
+                                                        { role: "client",          label: "Client",          sub: "Acheter ou louer",       Icon: UserCircle },
+                                                        { role: "vendeur",         label: "Vendeur",         sub: "Vendre des véhicules",   Icon: Store },
+                                                        { role: "concessionnaire", label: "Concessionnaire", sub: "Réseau de vente pro",    Icon: Building2 },
+                                                        { role: "auto_ecole",      label: "Auto-école",      sub: "Formations au permis",   Icon: GraduationCap },
+                                                    ] as const).map(({ role, label, sub, Icon }) => {
+                                                        const active = formDataRegister.role === role
+                                                        return (
+                                                            <button
+                                                                key={role}
+                                                                type="button"
+                                                                onClick={() => handleChange("role", role)}
+                                                                className={`relative flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer ${active
+                                                                    ? "border-orange-500 bg-orange-50 shadow-md shadow-orange-500/10"
+                                                                    : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
+                                                                    }`}
+                                                            >
+                                                                {active && (
+                                                                    <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center">
+                                                                        <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                                        </svg>
+                                                                    </div>
+                                                                )}
+                                                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${active ? "bg-orange-100" : "bg-gray-50"}`}>
+                                                                    <Icon className={`h-6 w-6 ${active ? "text-orange-600" : "text-gray-400"}`} />
+                                                                </div>
+                                                                <div className="text-center">
+                                                                    <p className={`text-sm font-bold ${active ? "text-orange-700" : "text-zinc-700"}`}>{label}</p>
+                                                                    <p className="text-xs text-zinc-400">{sub}</p>
+                                                                </div>
+                                                            </button>
+                                                        )
+                                                    })}
                                                 </div>
                                             </div>
 
@@ -451,6 +463,53 @@ const AuthPage = () => {
                                                     />
                                                 </div>
                                             </div>
+
+                                            {/* Champs spécifiques partenaires */}
+                                            {isPartenaire && (
+                                                <div className="space-y-4 p-4 rounded-2xl bg-orange-50 border border-orange-100">
+                                                    <p className="text-xs font-semibold text-orange-700 uppercase tracking-wide">Informations professionnelles</p>
+                                                    <div className="space-y-2">
+                                                        <Label className="text-sm font-semibold text-zinc-700">Raison sociale</Label>
+                                                        <div className="relative">
+                                                            <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                                                            <Input
+                                                                type="text"
+                                                                value={formDataRegister.raison_sociale}
+                                                                onChange={(e) => handleChange("raison_sociale", e.target.value)}
+                                                                placeholder="Nom de votre entreprise"
+                                                                className="pl-11 h-12 rounded-xl bg-white border-orange-200 focus:border-orange-500 focus:ring-orange-500/20"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    {formDataRegister.role === "concessionnaire" && (
+                                                        <div className="space-y-2">
+                                                            <Label className="text-sm font-semibold text-zinc-700">Numéro RCCM</Label>
+                                                            <Input
+                                                                type="text"
+                                                                value={formDataRegister.rccm}
+                                                                onChange={(e) => handleChange("rccm", e.target.value)}
+                                                                placeholder="Ex: CI-ABJ-2024-B-12345"
+                                                                className="h-12 rounded-xl bg-white border-orange-200 focus:border-orange-500 focus:ring-orange-500/20"
+                                                            />
+                                                        </div>
+                                                    )}
+                                                    {formDataRegister.role === "auto_ecole" && (
+                                                        <div className="space-y-2">
+                                                            <Label className="text-sm font-semibold text-zinc-700">Numéro d&apos;agrément</Label>
+                                                            <Input
+                                                                type="text"
+                                                                value={formDataRegister.numero_agrement}
+                                                                onChange={(e) => handleChange("numero_agrement", e.target.value)}
+                                                                placeholder="Ex: AE-2024-0123"
+                                                                className="h-12 rounded-xl bg-white border-orange-200 focus:border-orange-500 focus:ring-orange-500/20"
+                                                            />
+                                                        </div>
+                                                    )}
+                                                    <p className="text-xs text-orange-600">
+                                                        Votre compte sera activé après vérification par notre équipe (24-48h).
+                                                    </p>
+                                                </div>
+                                            )}
 
                                             {/* Navigation */}
                                             <div className="flex gap-3">

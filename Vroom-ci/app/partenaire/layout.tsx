@@ -5,6 +5,7 @@ import Link from "next/link"
 import {
     BarChart3,
     Bell,
+    BookOpen,
     Car,
     CreditCard,
     MessageSquare,
@@ -16,7 +17,6 @@ import {
     User,
     Warehouse,
     Calendar,
-    Router,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -37,15 +37,19 @@ import {
 } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
 import { api } from "@/src/lib/api"
+import { useUser } from "@/src/context/UserContext"
+import { useMessage } from "@/src/context/MessageContext"
 
-const navItems = [
-    { href: "/partenaire/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/partenaire/mongarage", label: "Mon Garage", icon: Warehouse },
-    { href: "/partenaire/stats", label: "Statistiques", icon: BarChart3 },
-    { href: "/partenaire/trend", label: "Tendances", icon: TrendingUp },
-    { href: "/partenaire/rdv", label: "Nos Rendez-vous", icon: Calendar },
-    { href: "/partenaire/abonnements", label: "Abonnements", icon: CreditCard },
-    { href: "/partenaire/settings", label: "Paramètres", icon: Settings },
+// Tous les items de nav avec leur restriction éventuelle par rôle
+const ALL_NAV_ITEMS = [
+    { href: "/partenaire/dashboard",  label: "Dashboard",       icon: LayoutDashboard, roles: null },
+    { href: "/partenaire/mongarage",  label: "Mon Garage",      icon: Warehouse,       roles: ["concessionnaire"] },
+    { href: "/partenaire/stats",      label: "Statistiques",    icon: BarChart3,       roles: null },
+    { href: "/partenaire/trend",      label: "Tendances",       icon: TrendingUp,      roles: null },
+    { href: "/partenaire/rdv",        label: "Nos Rendez-vous", icon: Calendar,        roles: null },
+    { href: "/partenaire/formations", label: "Formations",      icon: BookOpen,        roles: ["auto_ecole"] },
+    { href: "/partenaire/abonnements",label: "Abonnements",     icon: CreditCard,      roles: null },
+    { href: "/partenaire/settings",   label: "Paramètres",      icon: Settings,        roles: null },
 ]
 
 export default function PartenaireLayout({
@@ -54,6 +58,16 @@ export default function PartenaireLayout({
     children: React.ReactNode
 }) {
     const pathname = usePathname()
+    const { user } = useUser()
+
+    // Filtre les items selon le rôle : null = visible par tous
+    const navItems = ALL_NAV_ITEMS.filter(item =>
+        item.roles === null || item.roles.includes(user?.role ?? "")
+    )
+
+    const isAutoEcole      = user?.role === "auto_ecole"
+    const roleLabel        = isAutoEcole ? "Auto-école" : "Concessionnaire"
+    const { unreadMessages } = useMessage()
 
     const router = useRouter()
     const handleLogout = async () => {
@@ -125,12 +139,12 @@ export default function PartenaireLayout({
                     <SidebarMenu>
                         <SidebarMenuItem>
                             <SidebarMenuButton size="lg">
-                                <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-blue-600">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-orange-500">
                                     <User className="h-4 w-4" />
                                 </div>
                                 <div className="flex flex-col gap-0.5 leading-none">
-                                    <span className="text-sm font-medium">Partenaire</span>
-                                    <span className="text-xs text-muted-foreground">contact@partenaire.ci</span>
+                                    <span className="text-sm font-medium truncate">{user?.fullname ?? "Partenaire"}</span>
+                                    <span className="text-xs text-muted-foreground">{roleLabel}</span>
                                 </div>
                             </SidebarMenuButton>
                         </SidebarMenuItem>
@@ -157,6 +171,11 @@ export default function PartenaireLayout({
                     <div className="ml-auto flex items-center gap-4">
                         <Link href="/partenaire/messages" className="relative text-muted-foreground hover:text-foreground transition-colors">
                             <MessageSquare className="h-5 w-5" />
+                            {unreadMessages > 0 && (
+                                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                                    {unreadMessages > 9 ? "9+" : unreadMessages}
+                                </span>
+                            )}
                         </Link>
                         <Link href="/partenaire/notifications" className="relative text-muted-foreground hover:text-foreground transition-colors">
                             <Bell className="h-5 w-5" />

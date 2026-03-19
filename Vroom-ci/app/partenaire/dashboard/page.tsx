@@ -3,67 +3,80 @@
 import { useCallback, useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { BarChart3, Car, TrendingUp, CalendarCheck } from "lucide-react"
+import { BarChart3, BookOpen, Car, GraduationCap, TrendingUp, CalendarCheck, Users } from "lucide-react"
 import { toast } from "sonner"
 import { getMesStats } from "@/src/actions/stats.actions"
-import { VendeurStats } from "@/src/types"
+import { getMesFormations } from "@/src/actions/formations.actions"
+import { VendeurStats, Formation } from "@/src/types"
+import { useUser } from "@/src/context/UserContext"
 
 export default function PartenaireDashboard() {
-    const [data, setData]       = useState<VendeurStats | null>(null)
-    const [loading, setLoading] = useState(true)
+    const { user } = useUser()
+    const isAutoEcole = user?.role === "auto_ecole"
+
+    const [data, setData]             = useState<VendeurStats | null>(null)
+    const [formations, setFormations]  = useState<Formation[]>([])
+    const [loading, setLoading]        = useState(true)
 
     const fetchStats = useCallback(async () => {
         setLoading(true)
         try {
-            const res = await getMesStats()
-            if (res.data) setData(res.data)
+            if (isAutoEcole) {
+                // Auto-école : on charge les formations pour dériver les KPIs
+                const res = await getMesFormations()
+                setFormations((res.data as unknown as Formation[]) ?? [])
+            } else {
+                // Concessionnaire : stats véhicules classiques
+                const res = await getMesStats()
+                if (res.data) setData(res.data)
+            }
         } catch {
             toast.error("Impossible de charger les statistiques")
         } finally {
             setLoading(false)
         }
-    }, [])
+    }, [isAutoEcole])
 
     useEffect(() => { fetchStats() }, [fetchStats])
 
+    // ── KPIs Concessionnaire ──────────────────────────────────────────────────
     const totalVehicules = data
         ? (data.stats.total_vehicule ?? 0) + (data.stats.total_vehicule_vendu ?? 0) + (data.stats.total_vehicule_loue ?? 0)
         : 0
 
-    const stats = [
-        {
-            label: "Véhicules listés",
-            value: totalVehicules.toLocaleString("fr-FR"),
-            icon:  Car,
-        },
-        {
-            label: "Vues totales",
-            value: (data?.stats.total_vues ?? 0).toLocaleString("fr-FR"),
-            icon:  TrendingUp,
-        },
-        {
-            label: "Rendez-vous",
-            value: (data?.rdv.total_rdv ?? 0).toLocaleString("fr-FR"),
-            icon:  CalendarCheck,
-        },
-        {
-            label: "Revenus du mois",
-            value: data
-                ? Number(data.stats.total_revenus ?? 0).toLocaleString("fr-FR") + " FCFA"
-                : "— FCFA",
-            icon:  BarChart3,
-        },
+    const concessStats = [
+        { label: "Véhicules listés",  value: totalVehicules.toLocaleString("fr-FR"),                                    icon: Car },
+        { label: "Vues totales",      value: (data?.stats.total_vues ?? 0).toLocaleString("fr-FR"),                     icon: TrendingUp },
+        { label: "Rendez-vous",       value: (data?.rdv.total_rdv ?? 0).toLocaleString("fr-FR"),                        icon: CalendarCheck },
+        { label: "Revenus du mois",   value: Number(data?.stats.total_revenus ?? 0).toLocaleString("fr-FR") + " FCFA",  icon: BarChart3 },
     ]
+
+    // ── KPIs Auto-école (dérivés de la liste formations) ─────────────────────
+    const formationsActives     = formations.filter(f => f.statut_validation === "validé").length
+    const totalInscriptions     = formations.reduce((sum, f) => sum + (f.inscriptions_count ?? 0), 0)
+    const totalRevenus          = formations.reduce((sum, f) => sum + (f.prix ?? 0) * (f.inscriptions_count ?? 0), 0)
+
+    const autoEcoleStats = [
+        { label: "Formations actives",  value: formationsActives.toString(),                         icon: BookOpen },
+        { label: "Inscriptions totales",value: totalInscriptions.toLocaleString("fr-FR"),            icon: Users },
+        { label: "Permis proposés",     value: new Set(formations.map(f => f.type_permis)).size.toString(), icon: GraduationCap },
+        { label: "Revenus estimés",     value: totalRevenus.toLocaleString("fr-FR") + " FCFA",       icon: BarChart3 },
+    ]
+
+    const stats = isAutoEcole ? autoEcoleStats : concessStats
 
     return (
         <div className="space-y-6">
             <div>
                 <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
                 <p className="text-muted-foreground">
-                    Bienvenue sur votre espace partenaire.
+                    {isAutoEcole
+                        ? "Bienvenue sur votre espace auto-école."
+                        : "Bienvenue sur votre espace concessionnaire."}
                 </p>
             </div>
 
+            {/* KPIs */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {stats.map((stat) => (
                     <Card key={stat.label}>
@@ -83,6 +96,7 @@ export default function PartenaireDashboard() {
                 ))}
             </div>
 
+            {/* Blocs secondaires selon le rôle */}
             <div className="grid gap-4 md:grid-cols-2">
                 <Card>
                     <CardHeader>
@@ -95,13 +109,22 @@ export default function PartenaireDashboard() {
                                 <Skeleton className="h-4 w-full" />
                                 <Skeleton className="h-4 w-3/4" />
                             </div>
-                        ) : (data?.rdv.rdv_recents?.length ?? 0) > 0 ? (
+                        ) : !isAutoEcole && (data?.rdv.rdv_recents?.length ?? 0) > 0 ? (
                             <ul className="space-y-2 text-sm text-muted-foreground">
                                 {data!.rdv.rdv_recents.slice(0, 3).map((rdv) => (
                                     <li key={rdv.id} className="flex justify-between">
                                         <span>RDV — {rdv.client?.fullname ?? "Client"}</span>
+                                        <span className="text-xs opacity-60 capitalize">{rdv.post_type}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : isAutoEcole && formations.length > 0 ? (
+                            <ul className="space-y-2 text-sm text-muted-foreground">
+                                {formations.slice(0, 3).map((f) => (
+                                    <li key={f.id} className="flex justify-between">
+                                        <span>Permis {f.type_permis} — {f.description?.titre ?? "Formation"}</span>
                                         <span className="text-xs opacity-60">
-                                            {new Date(rdv.created_at).toLocaleDateString("fr-FR")}
+                                            {f.inscriptions_count ?? 0} inscrits
                                         </span>
                                     </li>
                                 ))}
@@ -116,8 +139,12 @@ export default function PartenaireDashboard() {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Top véhicules</CardTitle>
-                        <CardDescription>Les plus consultés sur la plateforme</CardDescription>
+                        <CardTitle>{isAutoEcole ? "Mes formations" : "Top véhicules"}</CardTitle>
+                        <CardDescription>
+                            {isAutoEcole
+                                ? "Formations avec le plus d'inscrits"
+                                : "Les plus consultés sur la plateforme"}
+                        </CardDescription>
                     </CardHeader>
                     <CardContent>
                         {loading ? (
@@ -125,21 +152,39 @@ export default function PartenaireDashboard() {
                                 <Skeleton className="h-4 w-full" />
                                 <Skeleton className="h-4 w-3/4" />
                             </div>
-                        ) : (data?.top_vehicule_vues.my_top_vehicle_most_vues?.length ?? 0) > 0 ? (
-                            <ul className="space-y-2 text-sm">
-                                {data!.top_vehicule_vues.my_top_vehicle_most_vues.slice(0, 3).map((v) => (
-                                    <li key={v.id} className="flex justify-between">
-                                        <span className="text-muted-foreground">
-                                            {v.description?.marque} {v.description?.modele}
-                                        </span>
-                                        <span className="font-medium">{v.views_count} vues</span>
-                                    </li>
-                                ))}
-                            </ul>
+                        ) : isAutoEcole ? (
+                            formations.length > 0 ? (
+                                <ul className="space-y-2 text-sm">
+                                    {[...formations]
+                                        .sort((a, b) => (b.inscriptions_count ?? 0) - (a.inscriptions_count ?? 0))
+                                        .slice(0, 3)
+                                        .map((f) => (
+                                            <li key={f.id} className="flex justify-between">
+                                                <span className="text-muted-foreground">
+                                                    Permis {f.type_permis} — {f.prix?.toLocaleString("fr-FR")} FCFA
+                                                </span>
+                                                <span className="font-medium">{f.inscriptions_count ?? 0} inscrits</span>
+                                            </li>
+                                        ))}
+                                </ul>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">Aucune formation publiée.</p>
+                            )
                         ) : (
-                            <p className="text-sm text-muted-foreground">
-                                Aucun véhicule publié pour le moment.
-                            </p>
+                            (data?.top_vehicule_vues.my_top_vehicle_most_vues?.length ?? 0) > 0 ? (
+                                <ul className="space-y-2 text-sm">
+                                    {data!.top_vehicule_vues.my_top_vehicle_most_vues.slice(0, 3).map((v) => (
+                                        <li key={v.id} className="flex justify-between">
+                                            <span className="text-muted-foreground">
+                                                {v.description?.marque} {v.description?.modele}
+                                            </span>
+                                            <span className="font-medium">{v.views_count} vues</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">Aucun véhicule publié.</p>
+                            )
                         )}
                     </CardContent>
                 </Card>

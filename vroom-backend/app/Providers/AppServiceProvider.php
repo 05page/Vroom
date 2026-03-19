@@ -11,7 +11,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Bind du gateway de paiement — remplacer SimulationPaymentService
+        // par StripePaymentService ou CinetPayPaymentService pour le vrai paiement
+        $this->app->bind(
+            \App\Contracts\PaymentGatewayInterface::class,
+            \App\Services\SimulationPaymentService::class,
+        );
     }
 
     /**

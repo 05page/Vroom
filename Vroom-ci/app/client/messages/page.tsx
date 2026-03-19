@@ -36,6 +36,7 @@ import {
 } from "@/src/actions/conversations.actions"
 import { getMe } from "@/src/actions/auth.actions"
 import { getEcho } from "@/src/lib/echo"
+import { useMessage } from "@/src/context/MessageContext"
 import type { Conversation, Message, User, VehiculePhotos } from "@/src/types"
 
 type TabValue = "all" | "unread" | "archived"
@@ -100,6 +101,7 @@ const MessagesPage = () => {
     const [closedVehicleCards, setClosedVehicleCards] = useState(new Set<string>())
     const isVendeur = me?.role === "vendeur" || me?.role === "partenaire"
     const unreadCount = conversations.filter(c => c.unread_count > 0).length
+    const { markConversationRead } = useMessage()
 
     /**
      * Sélectionne une conversation, charge ses messages et remet unread_count à 0.
@@ -123,6 +125,8 @@ const MessagesPage = () => {
             // Remet le badge non-lu à 0 localement sans recharger toute la liste
             const list = convList ?? conversations
             setConversations(list.map(c => c.id === conv.id ? { ...c, unread_count: 0 } : c))
+            // Décrémente aussi le compteur global dans le Header
+            markConversationRead(conv.id)
         } catch {
             toast.error("Impossible de charger les messages")
         } finally {
