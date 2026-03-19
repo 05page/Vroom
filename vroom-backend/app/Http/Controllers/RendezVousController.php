@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Notifications;
 use App\Models\RendezVous;
-use App\Models\Transaction;
+use App\Models\TransactionConclue;
 use App\Models\Vehicules;
 use App\Services\GoogleCalendarService;
 use Illuminate\Http\JsonResponse;
@@ -145,14 +145,6 @@ class RendezVousController extends Controller
                 }
             }
 
-            // Création automatique de la transaction liée à ce RDV
-            // Le montant est figé au prix actuel du véhicule
-            $rdv->load('vehicule');
-            Transaction::create([
-                'rdv_id'  => $rdv->id,
-                'montant' => $rdv->vehicule->prix,
-            ]);
-
             Notifications::create([
                 'user_id' => $rdv->client_id,
                 'type'    => Notifications::TYPE_RDV,
@@ -246,20 +238,54 @@ class RendezVousController extends Controller
             $user = Auth::user();
             $rdv  = RendezVous::where('id', $id)->where('vendeur_id', $user->id)->firstOrFail();
 
+            DB::beginTransaction();
+
             $rdv->terminer();
 
-            Notifications::create([
-                'user_id' => $rdv->client_id,
-                'type'    => Notifications::TYPE_RDV,
-                'title'   => 'Rendez-vous terminé',
-                'message' => 'Votre rendez-vous du ' . $rdv->date_heure->format('d/m/Y à H:i') . ' est terminé.',
-                'data'    => ['rdv_id' => $rdv->id],
+            // Génère le code de confirmation et crée la TransactionConclue
+            $code = TransactionConclue::genererCode();
+
+            $transaction = TransactionConclue::create([
+                'rendez_vous_id' => $rdv->id,
+                'vehicule_id'    => $rdv->vehicule_id,
+                'vendeur_id'     => $rdv->vendeur_id,
+                'client_id'      => $rdv->client_id,
+                'code_confirmation' => $code,
+                'expires_at'     => now()->addHours(48),
+                'statut'         => TransactionConclue::STATUT_EN_ATTENTE,
             ]);
 
-            return response()->json(['success' => true, 'message' => 'Rendez-vous marqué comme terminé'], 200);
+            // Notifie le vendeur avec le code (pour qu'il puisse le saisir)
+            Notifications::create([
+                'user_id'    => $rdv->vendeur_id,
+                'type'       => Notifications::TYPE_TRANSACTION,
+                'title'      => 'RDV terminé — confirmez la transaction',
+                'message'    => 'Rendez-vous du ' . $rdv->date_heure->format('d/m/Y') . ' terminé. Code de confirmation : ' . $code . '. Renseignez les détails du deal sur votre dashboard.',
+                'data'       => ['transaction_id' => $transaction->id, 'code' => $code],
+                'date_envoi' => now(),
+            ]);
+
+            // Notifie le client avec le code (pour qu'il puisse confirmer)
+            Notifications::create([
+                'user_id'    => $rdv->client_id,
+                'type'       => Notifications::TYPE_TRANSACTION,
+                'title'      => 'Confirmation de transaction requise',
+                'message'    => 'Votre rendez-vous du ' . $rdv->date_heure->format('d/m/Y') . ' est terminé. Code de confirmation : ' . $code . '. Confirmez la transaction sur votre dashboard.',
+                'data'       => ['transaction_id' => $transaction->id, 'code' => $code],
+                'date_envoi' => now(),
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Rendez-vous terminé. Codes de confirmation envoyés.',
+                'data'    => ['rdv' => $rdv, 'transaction_id' => $transaction->id],
+            ], 200);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['success' => false, 'message' => 'Rendez-vous introuvable'], 404);
         } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
         }
     }

@@ -1,6 +1,12 @@
 <?php
 
+use App\Http\Controllers\AbonnementController;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\CrmController;
+use App\Http\Controllers\GeolocalisationController;
+use App\Http\Controllers\FormationController;
+use App\Http\Controllers\InscriptionFormationController;
+use App\Http\Controllers\TransactionConclueController;
 use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\AlerteController;
 use App\Http\Controllers\AuthController;
@@ -20,6 +26,9 @@ use App\Http\Controllers\VendeurStatsController;
 use Illuminate\Support\Facades\Route;
 
 // ── Public ────────────────────────────────────────────────
+// Géolocalisation — accessible sans connexion (visiteurs + clients)
+Route::get('/geo/proches', [GeolocalisationController::class, 'proches']);
+
 Route::get('/auth/{provider}/redirect', [AuthController::class, 'redirect']);
 Route::get('/auth/{provider}/callback', [AuthController::class, 'callback']);
 Route::post('/login',    [AuthController::class, 'login']);
@@ -28,8 +37,21 @@ Route::post('/register', [AuthController::class, 'register']);
 // Avis vendeur (public — visible sans connexion)
 Route::get('/avis/vendeur/{id}', [AvisController::class, 'avisVendeur']);
 
+// Catalogue véhicules (public — visiteurs non connectés)
+// ->where() contraint {id} à n'accepter que des UUIDs valides,
+// évitant que "mes-vehicules" soit capturé par cette route publique
+Route::prefix('vehicules')->group(function () {
+    Route::get('/',     [VehiculesController::class, 'index']);
+    Route::get('/{id}', [VehiculesController::class, 'vehicule'])
+        ->where('id', '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}');
+});
+
 // ── Authentifié ───────────────────────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
+
+    // Géolocalisation — mise à jour position (authentifié)
+    Route::post('/geo/position',  [GeolocalisationController::class, 'updatePosition']);
+    Route::post('/geo/geocode',   [GeolocalisationController::class, 'geocodeAdresse']);
 
     // Profil
     Route::get('/me',         [AuthController::class, 'getInfoUser']);
@@ -37,19 +59,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/me/contact', [AuthController::class, 'updatePhoneAndAddress']);
     Route::post('/logout',    [AuthController::class, 'logout']);
 
-    // Véhicules (lecture — tous les rôles)
+    // Véhicules — écriture (vendeurs et partenaires)
     Route::prefix('vehicules')->group(function () {
-        Route::get('/',     [VehiculesController::class, 'index']);
-
-        // Écriture — vendeurs et partenaires
         Route::middleware('role:vendeur,concessionnaire,auto_ecole')->group(function () {
-            Route::get('/mes-vehicules', [VehiculesController::class, 'mesVehicules']);
+            Route::get('/mes-vehicules',  [VehiculesController::class, 'mesVehicules']);
             Route::post('/post-vehicule', [VehiculesController::class, 'postVehicules']);
             Route::put('/{id}',          [VehiculesController::class, 'updateVehicule']);
             Route::delete('/{id}',       [VehiculesController::class, 'deleteVehicule']);
         });
-        
-        Route::get('/{id}', [VehiculesController::class, 'vehicule']);
     });
 
     // Stats vendeur
@@ -120,23 +137,51 @@ Route::middleware('auth:sanctum')->group(function () {
     // ── Routes à activer une fois les contrôleurs créés ──
 
     // Formations (auto-école)
-    // Route::prefix('formations')->group(function () {
-    //     Route::get('/',     [FormationController::class, 'index']);
-    //     Route::get('/{id}', [FormationController::class, 'show']);
-    //     Route::middleware('role:auto_ecole')->group(function () {
-    //         Route::post('/',     [FormationController::class, 'store']);
-    //         Route::put('/{id}',  [FormationController::class, 'update']);
-    //         Route::delete('/{id}', [FormationController::class, 'destroy']);
-    //     });
-    //     Route::post('/{id}/inscrire', [InscriptionFormationController::class, 'store']);
-    // });
+    Route::prefix('formations')->group(function () {
+        Route::get('/',                    [FormationController::class, 'index']);
+        Route::get('/mes-inscriptions',    [InscriptionFormationController::class, 'mesInscriptions']);
+        // Routes statiques avant /{id} pour éviter que Laravel capture "mes-formations" comme UUID
+        Route::middleware('role:auto_ecole')->group(function () {
+            Route::get('/mes-formations',  [FormationController::class, 'mesFormations']);
+            Route::post('/',               [FormationController::class, 'store']);
+            Route::put('/{id}',            [FormationController::class, 'update']);
+            Route::delete('/{id}',         [FormationController::class, 'destroy']);
+            Route::get('/{id}/inscrits',   [FormationController::class, 'inscrits']);
+            Route::put('/{formationId}/inscrits/{inscriptionId}', [FormationController::class, 'updateInscrit']);
+        });
+        // Routes dynamiques après les routes statiques pour éviter les conflits UUID
+        Route::get('/{id}',                [FormationController::class, 'show']);
+        Route::post('/{id}/inscrire',      [InscriptionFormationController::class, 'store']);
+        Route::delete('/{id}/inscrire',    [InscriptionFormationController::class, 'destroy']);
+    });
+
+    // CRM vendeur
+    Route::middleware('role:vendeur,concessionnaire,auto_ecole')->prefix('crm')->group(function () {
+        Route::get('/clients',                         [CrmController::class, 'clients']);
+        Route::get('/clients/{clientId}',              [CrmController::class, 'clientDetail']);
+        Route::post('/clients/{clientId}/notes',       [CrmController::class, 'storeNote']);
+        Route::put('/notes/{noteId}',                  [CrmController::class, 'updateNote']);
+        Route::delete('/notes/{noteId}',               [CrmController::class, 'destroyNote']);
+    });
+
+    // Transactions conclues
+    Route::prefix('transactions-conclues')->group(function () {
+        Route::get('/mes-demandes',    [TransactionConclueController::class, 'mesDemandes']);
+        Route::post('/{id}/confirmer-client',  [TransactionConclueController::class, 'confirmerClient']);
+        Route::post('/{id}/refuser',           [TransactionConclueController::class, 'refuserClient']);
+        Route::middleware('role:vendeur,concessionnaire,auto_ecole')->group(function () {
+            Route::get('/mes-transactions',    [TransactionConclueController::class, 'mesTransactions']);
+            Route::post('/{id}/confirmer-vendeur', [TransactionConclueController::class, 'confirmerVendeur']);
+        });
+    });
 
     // Abonnements
-    // Route::prefix('abonnements')->group(function () {
-    //     Route::get('/plans',          [AbonnementController::class, 'plans']);
-    //     Route::post('/souscrire',     [AbonnementController::class, 'souscrire']);
-    //     Route::get('/mon-abonnement', [AbonnementController::class, 'monAbonnement']);
-    // });
+    Route::middleware('role:vendeur,concessionnaire,auto_ecole')->prefix('abonnements')->group(function () {
+        Route::get('/plans',          [AbonnementController::class, 'plans']);
+        Route::get('/mon-abonnement', [AbonnementController::class, 'monAbonnement']);
+        Route::post('/souscrire',     [AbonnementController::class, 'souscrire']);
+        Route::post('/resilier',      [AbonnementController::class, 'resilier']);
+    });
 
     // ── Admin ─────────────────────────────────────────────
     Route::middleware('role:admin')->prefix('admin')->group(function () {

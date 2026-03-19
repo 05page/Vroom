@@ -37,6 +37,7 @@ class Notifications extends Model
     const TYPE_ALERTE_VEHICULE = 'alerte_vehicule';
     const TYPE_ABONNEMENT      = 'abonnement';
     const TYPE_MODERATION      = 'moderation';
+    const TYPE_TRANSACTION     = 'transaction';
 
     public function user()
     {
