@@ -24,7 +24,6 @@ import {
     Shield,
     Clock,
     AlertCircle,
-    MessageCircle,
     CalendarPlus,
     Heart,
     Eye,
@@ -32,6 +31,7 @@ import {
     Star,
     Bell,
     Flag,
+    MessageSquare,
 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
@@ -43,7 +43,6 @@ import { getVehicule } from "@/src/actions/vehicules.actions"
 import { useUser } from "@/src/context/UserContext"
 import { cn } from "@/src/lib/utils"
 import { api } from "@/src/lib/api"
-import { getOrCreateConversation } from "@/src/actions/conversations.actions"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -52,7 +51,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { getFavoris, addFavori, removeFavori } from "@/src/actions/favoris.actions"
 import { Favori } from "@/src/types"
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Formate une date ISO ou Date en chaîne lisible en français. */
 const formatDate = (date: string | Date | undefined): string => {
@@ -110,8 +108,7 @@ const VehicleDetailPage = () => {
     const [isFavori, setIsFavori] = useState(false)
     const [favLoading, setFavLoading] = useState(false)
 
-    // Messagerie
-    const [msgLoading, setMsgLoading] = useState(false)
+    const [contactLoading, setContactLoading] = useState(false)
 
     // Avis du vendeur
     const [avisData, setAvisData] = useState<{ avis: Avis[]; note_moyenne: number; total: number } | null>(null)
@@ -218,23 +215,26 @@ const VehicleDetailPage = () => {
         }
     }
 
-    // ── Contacter le vendeur ──────────────────────────────────────────────────
+    /** Crée ou récupère la conversation avec le vendeur et redirige vers les messages. */
     const handleContact = async () => {
         if (!requireAuth()) return
         if (!vehiculeData?.creator?.id) return
-        setMsgLoading(true)
+        if (user?.id === vehiculeData.creator.id) return
+        setContactLoading(true)
         try {
-            const res = await getOrCreateConversation({
+            const { findOrCreateConversation } = await import("@/src/actions/conversations.actions")
+            const res = await findOrCreateConversation({
+                vehicule_id:   vehiculeData.id,
                 other_user_id: vehiculeData.creator.id,
-                vehicule_id: vehiculeData.id,
             })
-            if (res.data) {
-                router.push(`/client/messages?conv=${res.data.id}`)
-            }
+            const convId = (res as unknown as { conversation: { id: string } })?.conversation?.id
+            if (!convId) throw new Error()
+            const base = user?.role === "vendeur" ? "/vendeur" : user?.role === "partenaire" ? "/partenaire" : "/client"
+            router.push(`${base}/messages?conv=${convId}`)
         } catch {
-            toast.error("Impossible de contacter le vendeur")
+            toast.error("Impossible d'ouvrir la conversation")
         } finally {
-            setMsgLoading(false)
+            setContactLoading(false)
         }
     }
 
@@ -500,24 +500,31 @@ const VehicleDetailPage = () => {
 
             {/* ── Boutons d'action ────────────────────────────────────────────── */}
             <div className="flex gap-2 flex-wrap">
-                {/* Contacter le vendeur */}
-                <Button
-                    onClick={handleContact}
-                    disabled={msgLoading}
-                    className="flex-1 min-w-[140px] bg-zinc-900 hover:bg-zinc-700 text-white font-bold rounded-xl gap-2 cursor-pointer"
-                >
-                    <MessageCircle className="h-4 w-4" />
-                    Contacter le vendeur
-                </Button>
-
                 {/* Prendre RDV */}
                 <Button
                     onClick={() => { if (requireAuth()) setRdvOpen(true) }}
-                    className="flex-1 min-w-[120px] bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-xl gap-2 cursor-pointer"
+                    className="flex-1 min-w-30 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-xl gap-2 cursor-pointer"
                 >
                     <CalendarPlus className="h-4 w-4" />
                     Prendre RDV
                 </Button>
+
+                {/* Contacter le vendeur — masqué si l'user est le proprio */}
+                {vehiculeData.creator && user?.id !== vehiculeData.creator.id && (
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={handleContact}
+                        disabled={contactLoading}
+                        className="rounded-xl border-zinc-200 text-zinc-600 hover:text-primary hover:border-primary/50 cursor-pointer"
+                        title="Contacter le vendeur"
+                    >
+                        {contactLoading
+                            ? <span className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                            : <MessageSquare className="h-4 w-4" />
+                        }
+                    </Button>
+                )}
 
                 {/* Alerte prix */}
                 <Button

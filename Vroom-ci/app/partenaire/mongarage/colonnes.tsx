@@ -237,7 +237,7 @@ function ActionsCell({ vehicule: v, onRefresh }: { vehicule: vehicule; onRefresh
             <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
                 <AlertDialogContent size="sm">
                     <AlertDialogHeader>
-                        <AlertDialogMedia className="bg-destructive/10 text-destructive">
+                        <AlertDialogMedia className="bg-red-100 text-red-600">
                             <Trash2 />
                         </AlertDialogMedia>
                         <AlertDialogTitle>Supprimer le véhicule ?</AlertDialogTitle>

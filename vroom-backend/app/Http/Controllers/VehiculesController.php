@@ -28,7 +28,7 @@ class VehiculesController extends Controller
                 'description',
                 'photos',
             ])->whereIn('status_validation', ['validee', 'restauree'])
-                ->whereIn('statut', ['disponible', 'vendu', 'loué'])
+                ->where('statut', 'disponible')
                 ->get();
 
             if ($query->count() == 0) {
@@ -71,7 +71,7 @@ class VehiculesController extends Controller
                 'description',
                 'photos',
             ])->whereIn('status_validation', ['validee', 'restauree'])
-                ->whereIn('statut', ['disponible', 'vendu', 'loué'])
+                ->where('statut', 'disponible')
                 ->findOrFail($id);
 
             $vehicule->registerView($user, request()->ip());

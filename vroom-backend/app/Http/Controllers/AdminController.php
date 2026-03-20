@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Formation;
+use App\Models\InscriptionFormation;
 use App\Models\LogModeration;
 use App\Models\Notifications;
 use App\Models\Signalement;
+use App\Models\TransactionConclue;
 use App\Models\User;
 use App\Models\Vehicules;
 use Illuminate\Http\JsonResponse;
@@ -157,6 +160,57 @@ class AdminController extends Controller
         return response()->json(['success' => true, 'message' => 'Véhicule rejeté'], 200);
     }
 
+    // ── Formations ─────────────────────────────────────────
+
+    /**
+     * Liste toutes les formations avec filtres optionnels.
+     * Parametre statut_validation : en_attente | validé | rejeté
+     */
+    public function formations(Request $request): JsonResponse
+    {
+        $query = Formation::with(['autoEcole:id,fullname,avatar', 'description'])
+            ->withCount('inscriptions')
+            ->orderBy('created_at', 'desc');
+
+        if ($request->filled('statut_validation')) {
+            $query->where('statut_validation', $request->statut_validation);
+        }
+
+        $formations = $query->paginate(20);
+
+        return response()->json(['success' => true, 'data' => $formations], 200);
+    }
+
+    /**
+     * Valide une formation soumise par une auto-ecole.
+     * La formation devient visible dans le catalogue public.
+     */
+    public function validerFormation(Request $request, $id): JsonResponse
+    {
+        $formation = Formation::findOrFail($id);
+        $formation->update(['statut_validation' => 'validé']);
+
+        $this->logAction('VALIDATE_FORMATION', 'formation', $id, $request->input('details'));
+
+        return response()->json(['success' => true, 'message' => 'Formation validée'], 200);
+    }
+
+    /**
+     * Rejette une formation avec un motif obligatoire.
+     * Le motif est sauvegarde dans les details du log.
+     */
+    public function rejeterFormation(Request $request, $id): JsonResponse
+    {
+        $request->validate(['motif' => 'required|string|max:500']);
+
+        $formation = Formation::findOrFail($id);
+        $formation->update(['statut_validation' => 'rejeté']);
+
+        $this->logAction('REJECT_FORMATION', 'formation', $id, $request->motif);
+
+        return response()->json(['success' => true, 'message' => 'Formation rejetée'], 200);
+    }
+
     // ── Signalements ───────────────────────────────────────
 
     public function signalements(Request $request): JsonResponse
@@ -291,6 +345,120 @@ class AdminController extends Controller
             'success' => true,
             'message' => $action === 'traiter' ? 'Signalement traité avec succès' : 'Signalement rejeté',
         ], 200);
+    }
+
+    /**
+     * Liste toutes les transactions conclues — vue admin globale.
+     * Filtres optionnels : statut, type, vendeur_id
+     */
+    public function transactions(Request $request): JsonResponse
+    {
+        $query = TransactionConclue::with([
+            'vendeur:id,fullname,email,role',
+            'client:id,fullname,email',
+            'vehicule.description',
+        ]);
+
+        if ($request->filled('statut')) $query->where('statut', $request->statut);
+        if ($request->filled('type'))   $query->where('type', $request->type);
+
+        $transactions = $query->orderBy('created_at', 'desc')->paginate(30);
+
+        return response()->json(['success' => true, 'data' => $transactions], 200);
+    }
+
+    /**
+     * Statistiques globales de la plateforme pour le dashboard admin.
+     * Agrège les données utilisateurs, véhicules, transactions et signalements.
+     */
+    public function stats(): JsonResponse
+    {
+        $rolesUtilisateurs = [User::CLIENT, User::VENDEUR, User::CONCESSIONNAIRE, User::AUTO_ECOLE];
+
+        // --- Utilisateurs ---
+        $usersByRole = User::whereIn('role', $rolesUtilisateurs)
+            ->selectRaw('role, count(*) as total')
+            ->groupBy('role')
+            ->pluck('total', 'role');
+
+        $usersByStatut = User::whereIn('role', $rolesUtilisateurs)
+            ->selectRaw('statut, count(*) as total')
+            ->groupBy('statut')
+            ->pluck('total', 'statut');
+
+        // Inscriptions par mois sur les 6 derniers mois
+        $inscriptionsParMois = User::whereIn('role', $rolesUtilisateurs)
+            ->where('created_at', '>=', now()->subMonths(5)->startOfMonth())
+            ->selectRaw("TO_CHAR(created_at, 'YYYY-MM') as mois, count(*) as total")
+            ->groupBy('mois')
+            ->orderBy('mois')
+            ->get();
+
+        // --- Véhicules ---
+        $vehiculesValidation = Vehicules::selectRaw('status_validation, count(*) as total')
+            ->groupBy('status_validation')
+            ->pluck('total', 'status_validation');
+
+        $vehiculesStatut = Vehicules::selectRaw('statut, count(*) as total')
+            ->groupBy('statut')
+            ->pluck('total', 'statut');
+
+        // --- Transactions ---
+        $transactionsRaw = TransactionConclue::selectRaw('type, statut, count(*) as total')
+            ->groupBy('type', 'statut')
+            ->get();
+
+        $caVentes = TransactionConclue::where('type', 'vente')
+            ->where('statut', TransactionConclue::STATUT_CONFIRME)
+            ->sum('prix_final');
+
+        // --- Signalements ---
+        $signalementsStatut = Signalement::selectRaw('statut, count(*) as total')
+            ->groupBy('statut')
+            ->pluck('total', 'statut');
+
+        // --- Auto-écoles & formations ---
+        $partenairesParType = User::whereIn('role', [User::CONCESSIONNAIRE, User::AUTO_ECOLE])
+            ->selectRaw('role, count(*) as total')
+            ->groupBy('role')
+            ->pluck('total', 'role');
+
+        $formationsValidation = Formation::selectRaw('statut_validation, count(*) as total')
+            ->groupBy('statut_validation')
+            ->pluck('total', 'statut_validation');
+
+        $formationsParPermis = Formation::selectRaw('type_permis, count(*) as total')
+            ->groupBy('type_permis')
+            ->orderByDesc('total')
+            ->get();
+
+        $inscriptionsParStatut = InscriptionFormation::selectRaw('statut_eleve, count(*) as total')
+            ->groupBy('statut_eleve')
+            ->pluck('total', 'statut_eleve');
+
+        // Taux de réussite : parmi les élèves ayant passé l'examen, combien ont réussi
+        $totalExamens = InscriptionFormation::whereIn('statut_eleve', ['examen_passe', 'terminé'])->count();
+        $totalReussis = InscriptionFormation::where('reussite', true)->count();
+
+        return response()->json([
+            'success' => true,
+            'data'    => [
+                'users_par_role'          => $usersByRole,
+                'users_par_statut'        => $usersByStatut,
+                'inscriptions_par_mois'   => $inscriptionsParMois,
+                'vehicules_validation'    => $vehiculesValidation,
+                'vehicules_statut'        => $vehiculesStatut,
+                'transactions'            => $transactionsRaw,
+                'ca_ventes'               => (int) $caVentes,
+                'signalements_statut'     => $signalementsStatut,
+                'partenaires_par_type'    => $partenairesParType,
+                'formations_validation'   => $formationsValidation,
+                'formations_par_permis'   => $formationsParPermis,
+                'inscriptions_par_statut' => $inscriptionsParStatut,
+                'examens_total'           => $totalExamens,
+                'examens_reussis'         => $totalReussis,
+            ],
+        ]);
     }
 
     public function logs(Request $request): JsonResponse

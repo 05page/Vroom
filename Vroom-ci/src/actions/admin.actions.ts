@@ -135,3 +135,39 @@ export const traiterSignalement = (
  */
 export const getLogs = (params?: Record<string, string>) =>
   api.get<AdminLog[]>(`/admin/logs${buildQuery(params)}`)
+
+/** Récupère toutes les transactions conclues (admin). */
+export const getAdminTransactions = (params?: Record<string, string>) =>
+  api.get(`/admin/transactions${buildQuery(params)}`)
+
+/** Récupère les statistiques globales de la plateforme. */
+export const getAdminStats = () => api.get(`/admin/stats`)
+
+// ---------------------------------------------------------------------------
+// Formations
+// ---------------------------------------------------------------------------
+
+export interface AdminFormation {
+  id: string
+  auto_ecole_id: string
+  type_permis: "A" | "A2" | "B" | "B1" | "C" | "D"
+  prix: number
+  duree_heures: number
+  statut_validation: "en_attente" | "validé" | "rejeté"
+  inscriptions_count: number
+  created_at: string
+  auto_ecole?: { id: string; fullname: string; avatar?: string }
+  description?: { titre: string; texte: string }
+}
+
+/** Récupère toutes les formations avec filtre optionnel par statut_validation. */
+export const getAdminFormations = (params?: Record<string, string>) =>
+  api.get<import("@/src/types").PaginatedResponse<AdminFormation>>(`/admin/formations${buildQuery(params)}`)
+
+/** Valide une formation soumise par une auto-école. */
+export const validerFormation = (id: string) =>
+  api.post<void>(`/admin/formations/${id}/valider`, {})
+
+/** Rejette une formation avec un motif obligatoire. */
+export const rejeterFormation = (id: string, data: { motif: string }) =>
+  api.post<void>(`/admin/formations/${id}/rejeter`, data)

@@ -28,7 +28,8 @@ class VendeurStatsController extends Controller
                 'total_vehicule_location' => Vehicules::location()->where('created_by', $user->id)->count(),
                 'total_vues' => Vehicules::where('created_by', $user->id)->sum('views_count'),
                 'total_vues_mois' => Vehicules::where('created_by', $user->id)->whereMonth('created_at', Carbon::now()->month)->sum('views_count'),
-                'total_revenus' => Vehicules::vendu()->where('created_by', $user->id)->whereMonth('created_at', Carbon::now()->month)->sum('prix'),
+                // updated_at = date à laquelle le statut est passé à "vendu"
+                'total_revenus' => Vehicules::vendu()->where('created_by', $user->id)->whereMonth('updated_at', Carbon::now()->month)->whereYear('updated_at', Carbon::now()->year)->sum('prix'),
             ];
             $statsMensuel = [];
             for ($mois = 1; $mois <= 12; $mois++) {

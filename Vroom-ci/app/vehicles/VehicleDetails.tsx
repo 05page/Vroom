@@ -17,7 +17,6 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { api } from "@/src/lib/api"
-import { getOrCreateConversation } from "@/src/actions/conversations.actions"
 import { useUser } from "@/src/context/UserContext"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -53,7 +52,6 @@ const VehicleDetails = ({ isOpen, onClose, vehicule }: Props) => {
     const photos = vehicule.photos ?? []
     const [photoIndex, setPhotoIndex] = useState(0)
     const [rdvOpen, setRdvOpen] = useState(false)
-    const [msgLoading, setMsgLoading] = useState(false)
     const [rdvLoading, setRdvLoading] = useState(false)
     const [rdvForm, setRdvForm] = useState({
         date: "",
@@ -73,6 +71,7 @@ const VehicleDetails = ({ isOpen, onClose, vehicule }: Props) => {
     const [signalOpen, setSignalOpen] = useState(false)
     const [signalLoading, setSignalLoading] = useState(false)
     const [signalForm, setSignalForm] = useState({ motif: "", description: "" })
+    const [contactLoading, setContactLoading] = useState(false)
 
     // Avis du vendeur : note moyenne + liste des derniers avis
     const [avisData, setAvisData] = useState<{ avis: Avis[]; note_moyenne: number; total: number } | null>(null)
@@ -139,24 +138,33 @@ const VehicleDetails = ({ isOpen, onClose, vehicule }: Props) => {
 
     /**
      * Crée ou récupère la conversation avec le vendeur pour ce véhicule,
-     * puis redirige vers la page messages avec la conv pré-sélectionnée.
+     * puis redirige vers la page messages de l'utilisateur.
      */
     const handleContact = async () => {
         if (!requireAuth()) return
         if (!vehicule.creator?.id) return
-        setMsgLoading(true)
+        if (user?.id === vehicule.creator.id) {
+            toast.error("Vous ne pouvez pas vous contacter vous-même")
+            return
+        }
+        setContactLoading(true)
         try {
-            const res = await getOrCreateConversation({
+            const { findOrCreateConversation } = await import("@/src/actions/conversations.actions")
+            const res = await findOrCreateConversation({
+                vehicule_id:   vehicule.id,
                 other_user_id: vehicule.creator.id,
-                vehicule_id: vehicule.id,
             })
-            if (res.data) {
-                router.push(`/client/messages?conv=${res.data.id}`)
-            }
+            const convId = (res as unknown as { conversation: { id: string } })?.conversation?.id
+            if (!convId) throw new Error()
+
+            // Redirige vers la page messages du rôle courant
+            const base = user?.role === "vendeur" ? "/vendeur" : user?.role === "partenaire" ? "/partenaire" : "/client"
+            onClose()
+            router.push(`${base}/messages?conv=${convId}`)
         } catch {
-            toast.error("Impossible de contacter le vendeur")
+            toast.error("Impossible d'ouvrir la conversation")
         } finally {
-            setMsgLoading(false)
+            setContactLoading(false)
         }
     }
 
@@ -425,17 +433,20 @@ const VehicleDetails = ({ isOpen, onClose, vehicule }: Props) => {
                             <CalendarPlus className="h-4 w-4" />
                             Prendre RDV
                         </Button>
-                        {/* Contacter le vendeur — visible uniquement si le creator est connu */}
-                        {vehicule.creator && (
+                        {/* Bouton contacter le vendeur — masqué si l'user est le proprio */}
+                        {vehicule.creator && user?.id !== vehicule.creator.id && (
                             <Button
                                 variant="outline"
                                 size="icon"
                                 onClick={handleContact}
-                                disabled={msgLoading}
-                                className="rounded-xl border-zinc-200 text-zinc-600 hover:text-blue-600 hover:border-blue-300 cursor-pointer"
+                                disabled={contactLoading}
+                                className="rounded-xl border-zinc-200 text-zinc-600 hover:text-primary hover:border-primary/50 cursor-pointer"
                                 title="Contacter le vendeur"
                             >
-                                <MessageSquare className="h-4 w-4" />
+                                {contactLoading
+                                    ? <span className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                    : <MessageSquare className="h-4 w-4" />
+                                }
                             </Button>
                         )}
                         <Button

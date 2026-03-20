@@ -9,53 +9,36 @@ class Messages extends Model
 {
     use HasUuids;
 
+    protected $table = 'messages';
+
     protected $fillable = [
         'conversation_id',
         'sender_id',
         'receiver_id',
-        'vehicule_id',
-        'rdv_id',
-        'type',
         'content',
-        'audio_path',
-        'duration',
         'is_read',
         'read_at',
     ];
 
     protected $casts = [
-        'is_read' => 'boolean',
-        'read_at' => 'datetime',
+        'is_read'  => 'boolean',
+        'read_at'  => 'datetime',
     ];
 
-    public function sender()
-    {
-        return $this->belongsTo(User::class, 'sender_id');
-    }
-    public function receiver()
-    {
-        return $this->belongsTo(User::class, 'receiver_id');
-    }
-    public function vehicule()
-    {
-        return $this->belongsTo(Vehicules::class, 'vehicule_id');
-    }
-    public function rdv()
-    {
-        return $this->belongsTo(RendezVous::class, 'rdv_id');
-    }
+    // ── Relations ────────────────────────────────────────────
 
     public function conversation()
     {
         return $this->belongsTo(Conversation::class, 'conversation_id');
     }
 
-    public function scopeMessageRead($query)
+    public function sender()
     {
-        return $query->where('is_read', true);
+        return $this->belongsTo(User::class, 'sender_id');
     }
-    public function scopeMessageUnread($query)
+
+    public function receiver()
     {
-        return $query->where('is_read', false);
+        return $this->belongsTo(User::class, 'receiver_id');
     }
 }

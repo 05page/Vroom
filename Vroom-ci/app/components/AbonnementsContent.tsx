@@ -127,7 +127,7 @@ export default function AbonnementsContent() {
                                 <Badge className="bg-emerald-500 text-white">Actif</Badge>
                                 <AlertDialog>
                                     <AlertDialogTrigger asChild>
-                                        <Button variant="outline" size="sm" className="text-destructive border-destructive/30 hover:bg-destructive/10">
+                                        <Button variant="outline" size="sm" className="text-red-600 border-red-200 hover:bg-red-50">
                                             Résilier
                                         </Button>
                                     </AlertDialogTrigger>
@@ -143,7 +143,7 @@ export default function AbonnementsContent() {
                                             <AlertDialogAction
                                                 onClick={handleResilier}
                                                 disabled={resilierLoading}
-                                                className="bg-destructive hover:bg-destructive/90"
+                                                className="bg-red-600 hover:bg-red-700 text-white"
                                             >
                                                 {resilierLoading ? "En cours..." : "Confirmer la résiliation"}
                                             </AlertDialogAction>

@@ -1,11 +1,10 @@
-"use client"
-
-import { MessagesContent } from "@/app/components/MessagesContent"
+import { Suspense } from "react"
+import MessagesContent from "@/app/components/MessagesContent"
 
 export default function VendeurMessagesPage() {
     return (
-        <div className="fixed inset-0 pt-16 bg-background">
+        <Suspense>
             <MessagesContent />
-        </div>
+        </Suspense>
     )
 }

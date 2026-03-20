@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { cn } from "@/src/lib/utils"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -33,6 +34,7 @@ import {
     Users,
     GraduationCap,
     BarChart3,
+    RefreshCw,
 } from "lucide-react"
 import { StatsChart } from "./stats-chart"
 import { toast } from "sonner"
@@ -66,6 +68,7 @@ export default function StatsPage() {
     const [data,       setData]       = useState<VendeurStats | null>(null)
     const [formations, setFormations]  = useState<Formation[]>([])
     const [loading,    setLoading]    = useState(true)
+    const [refreshing, setRefreshing] = useState(false)
 
     // ── Filtres concessionnaire ───────────────────────────────────────────────
     const [filterMarque, setFilterMarque] = useState<string>("all")
@@ -89,10 +92,16 @@ export default function StatsPage() {
             toast.error("Impossible de charger les statistiques")
         } finally {
             setLoading(false)
+            setRefreshing(false)
         }
     }, [isAutoEcole])
 
     useEffect(() => { fetchStats() }, [fetchStats])
+
+    const handleRefresh = () => {
+        setRefreshing(true)
+        fetchStats()
+    }
 
     // ── KPIs concessionnaire ──────────────────────────────────────────────────
     const topVehicules: TopVehicle[] = data?.top_vehicule_vues?.my_top_vehicle_most_vues ?? []
@@ -144,13 +153,25 @@ export default function StatsPage() {
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold tracking-tight text-black">Mes Statistiques</h1>
-                <p className="text-sm text-black/60">
-                    {isAutoEcole
-                        ? "Vue d'ensemble des performances de votre auto-école."
-                        : "Vue d'ensemble des performances de votre garage."}
-                </p>
+            <div className="flex items-start justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight text-black">Mes Statistiques</h1>
+                    <p className="text-sm text-black/60">
+                        {isAutoEcole
+                            ? "Vue d'ensemble des performances de votre auto-école."
+                            : "Vue d'ensemble des performances de votre garage."}
+                    </p>
+                </div>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRefresh}
+                    disabled={refreshing}
+                    className="gap-2 cursor-pointer shrink-0"
+                >
+                    <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
+                    {refreshing ? "Chargement..." : "Rafraîchir"}
+                </Button>
             </div>
 
             {/* KPIs */}

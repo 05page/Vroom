@@ -24,7 +24,6 @@ import { api } from "@/src/lib/api";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/src/context/UserContext";
 import { useNotification } from "@/src/context/NotificationContext";
-import { useMessage } from "@/src/context/MessageContext";
 
 const Header = () => {
     const pathname = usePathname();
@@ -32,7 +31,6 @@ const Header = () => {
     const [mobileOpen, setMobileOpen] = useState(false);
     const [profileOpen, setProfileOpen] = useState(false);
     const { unreadCount } = useNotification()
-    const { unreadMessages } = useMessage()
     const router = useRouter();
 
     const isVendeur = user?.role === "vendeur";
@@ -120,14 +118,7 @@ const Header = () => {
                             href={isVendeur ? "/vendeur/messages" : "/client/messages"}
                             className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-all"
                         >
-                            <div className="relative">
-                                <MessageCircle className="h-4 w-4" />
-                                {unreadMessages > 0 && (
-                                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                                        {unreadMessages > 9 ? "9+" : unreadMessages}
-                                    </span>
-                                )}
-                            </div>
+                            <MessageCircle className="h-4 w-4" />
                         </Link>
                         <Link
                             href={isVendeur ? "/vendeur/notifications" : "/client/notifications"}
@@ -305,18 +296,8 @@ const Header = () => {
                             onClick={() => setMobileOpen(false)}
                             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50 transition-all"
                         >
-                            <div className="relative shrink-0">
-                                <MessageCircle className="h-4 w-4" />
-                                {unreadMessages > 0 && (
-                                    <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-                                        {unreadMessages > 9 ? "9+" : unreadMessages}
-                                    </span>
-                                )}
-                            </div>
+                            <MessageCircle className="h-4 w-4 shrink-0" />
                             Messages
-                            {unreadMessages > 0 && (
-                                <span className="ml-auto text-xs font-bold text-red-500">{unreadMessages}</span>
-                            )}
                         </Link>
 
                         <div className="h-px bg-zinc-100 my-2" />

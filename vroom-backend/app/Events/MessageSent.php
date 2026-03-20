@@ -9,23 +9,27 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
+/**
+ * Event broadcast en temps reel quand un message est envoye.
+ *
+ * Canal : private-conversation.{conversation_id}
+ * Nom :   message.sent
+ *
+ * Le frontend ecoute cet event via Reverb pour afficher
+ * le message instantanement chez le destinataire.
+ */
 class MessageSent implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    /**
-     * @param Messages $message Le message qui vient d'être envoyé
-     */
     public function __construct(public Messages $message)
     {
         //
     }
 
     /**
-     * Canal privé lié à la conversation.
-     * Seuls les participants de la conversation y sont abonnés côté frontend.
-     *
-     * @return array<int, \Illuminate\Broadcasting\Channel>
+     * Canal prive : seuls les participants de la conversation
+     * sont autorises (voir channels.php).
      */
     public function broadcastOn(): array
     {
@@ -35,26 +39,14 @@ class MessageSent implements ShouldBroadcastNow
     }
 
     /**
-     * Données envoyées au client via le WebSocket.
+     * Payload envoye au frontend via WebSocket.
+     * Inclut le sender (id, fullname, avatar, role) pour
+     * afficher le message sans appel API supplementaire.
      */
     public function broadcastWith(): array
     {
         return [
-            'message' => [
-                'id'              => $this->message->id,
-                'conversation_id' => $this->message->conversation_id,
-                'sender_id'       => $this->message->sender_id,
-                'receiver_id'     => $this->message->receiver_id,
-                'type'            => $this->message->type,
-                'content'         => $this->message->content,
-                'is_read'         => $this->message->is_read,
-                'created_at'      => $this->message->created_at->toISOString(),
-                'sender'          => [
-                    'id'       => $this->message->sender->id,
-                    'fullname' => $this->message->sender->fullname,
-                    'avatar'   => $this->message->sender->avatar,
-                ],
-            ],
+            'message' => $this->message->toArray(),
         ];
     }
 

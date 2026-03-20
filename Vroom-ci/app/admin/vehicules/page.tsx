@@ -347,6 +347,18 @@ export default function AdminVehiculesPage() {
                                             <Badge className={`${badgeStatut(v.status_validation)} text-xs`}>
                                                 {labelStatut(v.status_validation)}
                                             </Badge>
+                                            {/* Badge disponibilité */}
+                                            {v.statut !== "disponible" && (
+                                                <Badge className={
+                                                    v.statut === "vendu"
+                                                        ? "bg-zinc-900 text-white border-zinc-900 text-xs"
+                                                        : v.statut === "loué"
+                                                        ? "bg-blue-600 text-white border-blue-600 text-xs"
+                                                        : "bg-zinc-100 text-zinc-600 text-xs"
+                                                }>
+                                                    {v.statut === "vendu" ? "Vendu" : v.statut === "loué" ? "Loué" : v.statut}
+                                                </Badge>
+                                            )}
                                         </div>
 
                                         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
@@ -788,7 +800,7 @@ export default function AdminVehiculesPage() {
                         </Button>
                         <Button
                             disabled={!motif.trim() || rejecting}
-                            className="bg-destructive text-white hover:bg-destructive/90"
+                            className="bg-red-600 text-white hover:bg-red-700"
                             onClick={handleReject}
                         >
                             {rejecting ? "Rejet en cours..." : "Confirmer le rejet"}

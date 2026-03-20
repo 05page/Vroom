@@ -17,6 +17,13 @@ export const getMesFormations = () =>
 export const getInscrits = (formationId: string) =>
   api.get<InscriptionFormation[]>(`/formations/${formationId}/inscrits`)
 
+/**
+ * Auto-école — tous les inscrits de toutes ses formations.
+ * Chaque inscription inclut le client + la formation (type_permis + titre).
+ */
+export const getMesInscrits = () =>
+  api.get<InscriptionFormation[]>("/formations/mes-inscrits")
+
 /** Crée une nouvelle formation (auto-école). */
 export const createFormation = (data: {
   type_permis: string

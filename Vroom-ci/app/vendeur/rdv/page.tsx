@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useCallback } from "react"
 import { toast } from "sonner"
 import { cn } from "@/src/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -8,18 +8,23 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
     CalendarDays, Clock, Car, Phone,
     CheckCircle2, XCircle, CalendarIcon,
-    ChevronDown, ChevronUp, Check, X,
+    ChevronDown, ChevronUp, Check, X, ClipboardCheck,
+    RefreshCw,
 } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
 import { addDays } from "date-fns"
 import { type DateRange } from "react-day-picker"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
-import { RendezVous } from "@/src/types"
+import { RendezVous, TransactionConclue } from "@/src/types"
 import { getNosRdv, confirmerRdv, refuserRdv, annulerRdv, terminerRdv } from "@/src/actions/rdv.actions"
+import { getMesTransactions, confirmerVendeur } from "@/src/actions/transactions.actions"
 
 const CARD = "rounded-2xl md:rounded-3xl shadow-xl border border-border/40 overflow-hidden bg-card/50 backdrop-blur-sm"
 
@@ -35,30 +40,54 @@ const formatHeure = (dt: string) => format(new Date(dt), "HH:mm")
 
 export default function RdvPage() {
     const [isLoading, setIsLoading] = useState(true)
+    const [refreshing, setRefreshing] = useState(false)
     const [openCalendar, setOpenCalendar] = useState(false)
     const [rdvList, setRdvList] = useState<RendezVous[]>([])
     // Suivi de l'action en cours par rdv (confirmer/refuser/annuler/terminer)
     const [actionLoading, setActionLoading] = useState<string | null>(null)
+
+    // Transactions en attente de confirmation vendeur
+    const [transactions, setTransactions] = useState<TransactionConclue[]>([])
+
+    // Dialog "Finaliser la transaction"
+    const [finaliserOpen, setFinaliserOpen] = useState(false)
+    const [finaliserLoading, setFinaliserLoading] = useState(false)
+    const [finaliserTransaction, setFinaliserTransaction] = useState<TransactionConclue | null>(null)
+    const [finaliserForm, setFinaliserForm] = useState({
+        code: "", prix_final: "", date_debut: "", date_fin: "",
+    })
 
     const [dateRange, setDateRange] = React.useState<DateRange | undefined>({
         from: new Date(),
         to: addDays(new Date(), 30),
     })
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                setIsLoading(true)
-                const response = await getNosRdv()
-                setRdvList(response?.data ?? [])
-            } catch (error) {
-                toast.error(error instanceof Error ? error.message : "Erreur Serveur")
-            } finally {
-                setIsLoading(false)
-            }
+    const fetchData = useCallback(async () => {
+        try {
+            setIsLoading(true)
+            // Charge RDVs et transactions en parallèle
+            const [rdvRes, txRes] = await Promise.all([
+                getNosRdv(),
+                getMesTransactions(),
+            ])
+            setRdvList(rdvRes?.data ?? [])
+            setTransactions(txRes?.data ?? [])
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Erreur Serveur")
+        } finally {
+            setIsLoading(false)
+            setRefreshing(false)
         }
-        fetchData()
     }, [])
+
+    useEffect(() => {
+        fetchData()
+    }, [fetchData])
+
+    const handleRefresh = () => {
+        setRefreshing(true)
+        fetchData()
+    }
 
     // Met à jour le statut d'un RDV localement après une action
     const updateStatut = (id: string, statut: RendezVous["statut"]) => {
@@ -84,6 +113,64 @@ export default function RdvPage() {
             toast.error("Une erreur est survenue")
         } finally {
             setActionLoading(null)
+        }
+    }
+
+    /** Ouvre le dialog de finalisation pour le RDV terminé donné. */
+    const openFinaliser = (rdv: RendezVous) => {
+        const tx = transactions.find(
+            t => t.rendez_vous_id === rdv.id && t.statut === "en_attente"
+        )
+        if (!tx) {
+            toast.info("Aucune transaction en attente pour ce RDV")
+            return
+        }
+        setFinaliserTransaction(tx)
+        setFinaliserForm({ code: "", prix_final: "", date_debut: "", date_fin: "" })
+        setFinaliserOpen(true)
+    }
+
+    /** Soumet la confirmation vendeur avec les infos du deal. */
+    const handleFinaliser = async () => {
+        if (!finaliserTransaction) return
+        if (!finaliserForm.code || finaliserForm.code.length !== 6) {
+            toast.error("Le code doit contenir 6 chiffres")
+            return
+        }
+        if (!finaliserForm.prix_final) {
+            toast.error("Veuillez renseigner le prix final")
+            return
+        }
+        const isLocation = finaliserTransaction.type === "location"
+        if (isLocation && (!finaliserForm.date_debut || !finaliserForm.date_fin)) {
+            toast.error("Veuillez renseigner les dates de location")
+            return
+        }
+        setFinaliserLoading(true)
+        try {
+            await confirmerVendeur(finaliserTransaction.id, {
+                code: finaliserForm.code,
+                type: finaliserTransaction.type!,
+                prix_final: Number(finaliserForm.prix_final),
+                ...(isLocation && {
+                    date_debut_location: finaliserForm.date_debut,
+                    date_fin_location: finaliserForm.date_fin,
+                }),
+            })
+            toast.success("Transaction confirmée ! En attente de la confirmation du client.")
+            // Met à jour la transaction localement
+            setTransactions(prev =>
+                prev.map(t => t.id === finaliserTransaction.id
+                    ? { ...t, confirme_par_vendeur: true }
+                    : t
+                )
+            )
+            setFinaliserOpen(false)
+        } catch (err: unknown) {
+            const msg = (err as { data?: { message?: string } })?.data?.message
+            toast.error(msg ?? "Code incorrect ou transaction expirée")
+        } finally {
+            setFinaliserLoading(false)
         }
     }
 
@@ -115,7 +202,12 @@ export default function RdvPage() {
         )
     }
 
-    const RdvCard = ({ rdv }: { rdv: RendezVous }) => (
+    const RdvCard = ({ rdv }: { rdv: RendezVous }) => {
+        // Transaction en attente liée à ce RDV (non encore confirmée par le vendeur)
+        const txEnAttente = transactions.find(
+            t => t.rendez_vous_id === rdv.id && t.statut === "en_attente" && !t.confirme_par_vendeur
+        )
+        return (
         <Card className={cn(CARD, "hover:shadow-lg transition-all duration-300")}>
             <CardContent className="p-4">
                 <div className="flex flex-col md:flex-row gap-4">
@@ -220,11 +312,21 @@ export default function RdvPage() {
                                 </Button>
                             </>
                         )}
+                        {rdv.statut === "terminé" && txEnAttente && (
+                            <Button
+                                size="sm"
+                                onClick={() => openFinaliser(rdv)}
+                                className="gap-1 cursor-pointer rounded-lg text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                            >
+                                <ClipboardCheck className="h-3 w-3" /> Finaliser
+                            </Button>
+                        )}
                     </div>
                 </div>
             </CardContent>
         </Card>
-    )
+        )
+    }
 
     return (
         <div className="min-h-screen pt-20 px-4 md:px-6 pb-12">
@@ -232,14 +334,26 @@ export default function RdvPage() {
                 {/* Header */}
                 <Card className="rounded-2xl md:rounded-3xl shadow-sm border border-zinc-200 overflow-hidden animate-in fade-in slide-in-from-bottom duration-500 bg-white">
                     <CardContent className="p-4 md:p-6">
-                        <div className="flex items-center gap-3 md:gap-4">
-                            <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-zinc-100 flex items-center justify-center shrink-0">
-                                <CalendarIcon className="h-6 w-6 md:h-7 md:w-7 text-zinc-700" />
+                        <div className="flex items-center justify-between gap-3 md:gap-4">
+                            <div className="flex items-center gap-3 md:gap-4">
+                                <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-zinc-100 flex items-center justify-center shrink-0">
+                                    <CalendarIcon className="h-6 w-6 md:h-7 md:w-7 text-zinc-700" />
+                                </div>
+                                <div>
+                                    <h1 className="text-2xl md:text-3xl font-bold">Rendez-vous</h1>
+                                    <p className="text-muted-foreground text-sm">Gérez vos rendez-vous avec les clients</p>
+                                </div>
                             </div>
-                            <div>
-                                <h1 className="text-2xl md:text-3xl font-bold">Rendez-vous</h1>
-                                <p className="text-muted-foreground text-sm">Gérez vos rendez-vous avec les clients</p>
-                            </div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleRefresh}
+                                disabled={refreshing}
+                                className="gap-2 cursor-pointer shrink-0"
+                            >
+                                <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
+                                {refreshing ? "Chargement..." : "Rafraîchir"}
+                            </Button>
                         </div>
                     </CardContent>
                 </Card>
@@ -301,6 +415,74 @@ export default function RdvPage() {
                         </div>
                     )}
                 </Card>
+
+                {/* Dialog finalisation transaction */}
+                <Dialog open={finaliserOpen} onOpenChange={open => { if (!open) setFinaliserOpen(false) }}>
+                    <DialogContent className="sm:max-w-md rounded-2xl">
+                        <DialogHeader>
+                            <DialogTitle className="font-black text-zinc-900">Finaliser la transaction</DialogTitle>
+                            <p className="text-sm text-zinc-500">
+                                Saisissez le code reçu par notification et les détails du deal.
+                            </p>
+                        </DialogHeader>
+                        <div className="space-y-3 py-2">
+                            <div className="space-y-1">
+                                <Label className="text-xs text-zinc-500">Code de confirmation (6 chiffres)</Label>
+                                <Input
+                                    placeholder="Ex : 814543"
+                                    maxLength={6}
+                                    value={finaliserForm.code}
+                                    onChange={e => setFinaliserForm(f => ({ ...f, code: e.target.value.replace(/\D/g, "") }))}
+                                    className="rounded-lg text-sm font-mono tracking-widest"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <Label className="text-xs text-zinc-500">Prix final (FCFA)</Label>
+                                <Input
+                                    type="number"
+                                    placeholder="Ex : 3500000"
+                                    value={finaliserForm.prix_final}
+                                    onChange={e => setFinaliserForm(f => ({ ...f, prix_final: e.target.value }))}
+                                    className="rounded-lg text-sm"
+                                />
+                            </div>
+                            {finaliserTransaction?.type === "location" && (
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <Label className="text-xs text-zinc-500">Date début</Label>
+                                        <Input
+                                            type="date"
+                                            value={finaliserForm.date_debut}
+                                            onChange={e => setFinaliserForm(f => ({ ...f, date_debut: e.target.value }))}
+                                            className="rounded-lg text-sm"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label className="text-xs text-zinc-500">Date fin</Label>
+                                        <Input
+                                            type="date"
+                                            value={finaliserForm.date_fin}
+                                            onChange={e => setFinaliserForm(f => ({ ...f, date_fin: e.target.value }))}
+                                            className="rounded-lg text-sm"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        <DialogFooter className="gap-2">
+                            <Button variant="outline" onClick={() => setFinaliserOpen(false)} className="rounded-xl cursor-pointer">
+                                Annuler
+                            </Button>
+                            <Button
+                                disabled={finaliserLoading}
+                                onClick={handleFinaliser}
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl cursor-pointer"
+                            >
+                                {finaliserLoading ? "Envoi..." : "Confirmer le deal"}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
 
                 {/* Tabs + liste */}
                 <Tabs defaultValue="a_venir" className="animate-in fade-in slide-in-from-bottom duration-500 delay-200">

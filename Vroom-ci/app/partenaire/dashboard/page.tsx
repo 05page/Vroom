@@ -1,9 +1,11 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
+import { cn } from "@/src/lib/utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { BarChart3, BookOpen, Car, GraduationCap, TrendingUp, CalendarCheck, Users } from "lucide-react"
+import { BarChart3, BookOpen, Car, GraduationCap, TrendingUp, CalendarCheck, Users, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 import { getMesStats } from "@/src/actions/stats.actions"
 import { getMesFormations } from "@/src/actions/formations.actions"
@@ -17,6 +19,7 @@ export default function PartenaireDashboard() {
     const [data, setData]             = useState<VendeurStats | null>(null)
     const [formations, setFormations]  = useState<Formation[]>([])
     const [loading, setLoading]        = useState(true)
+    const [refreshing, setRefreshing]  = useState(false)
 
     const fetchStats = useCallback(async () => {
         setLoading(true)
@@ -34,10 +37,16 @@ export default function PartenaireDashboard() {
             toast.error("Impossible de charger les statistiques")
         } finally {
             setLoading(false)
+            setRefreshing(false)
         }
     }, [isAutoEcole])
 
     useEffect(() => { fetchStats() }, [fetchStats])
+
+    const handleRefresh = () => {
+        setRefreshing(true)
+        fetchStats()
+    }
 
     // ── KPIs Concessionnaire ──────────────────────────────────────────────────
     const totalVehicules = data
@@ -67,13 +76,25 @@ export default function PartenaireDashboard() {
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-                <p className="text-muted-foreground">
-                    {isAutoEcole
-                        ? "Bienvenue sur votre espace auto-école."
-                        : "Bienvenue sur votre espace concessionnaire."}
-                </p>
+            <div className="flex items-start justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+                    <p className="text-muted-foreground">
+                        {isAutoEcole
+                            ? "Bienvenue sur votre espace auto-école."
+                            : "Bienvenue sur votre espace concessionnaire."}
+                    </p>
+                </div>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRefresh}
+                    disabled={refreshing}
+                    className="gap-2 cursor-pointer shrink-0"
+                >
+                    <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
+                    {refreshing ? "Chargement..." : "Rafraîchir"}
+                </Button>
             </div>
 
             {/* KPIs */}

@@ -23,10 +23,16 @@ import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
 import {
+    Tabs, TabsContent, TabsList, TabsTrigger,
+} from "@/components/ui/tabs"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
     BookOpen, Plus, Users, Clock, CircleDollarSign, Trash2, Eye, CheckCircle2,
 } from "lucide-react"
-import { Formation } from "@/src/types"
-import { getMesFormations, createFormation, deleteFormation } from "@/src/actions/formations.actions"
+import { Formation, InscriptionFormation } from "@/src/types"
+import { getMesFormations, createFormation, deleteFormation, getMesInscrits } from "@/src/actions/formations.actions"
+import { useUser } from "@/src/context/UserContext"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 
 const PERMIS = ['A', 'A2', 'B', 'B1', 'C', 'D'] as const
@@ -62,20 +68,42 @@ function PageSkeleton() {
 }
 
 export default function FormationsAutoEcolePage() {
-    const [formations, setFormations] = useState<Formation[]>([])
-    const [loading, setLoading]       = useState(true)
-    const [sheetOpen, setSheetOpen]   = useState(false)
+    const { user } = useUser()
+    const router   = useRouter()
+    const [formations, setFormations]   = useState<Formation[]>([])
+    const [inscrits, setInscrits]       = useState<InscriptionFormation[]>([])
+    const [loading, setLoading]         = useState(true)
+    const [loadingInscrits, setLoadingInscrits] = useState(false)
+    const [sheetOpen, setSheetOpen]     = useState(false)
     const [submitting, setSubmitting] = useState(false)
     const [form, setForm] = useState({
         type_permis: "", prix: "", duree_heures: "", titre: "", texte: "",
     })
 
+    // Garde : seule une auto-école peut accéder à cette page
     useEffect(() => {
+        if (user && user.role !== "auto_ecole") {
+            router.replace("/partenaire/dashboard")
+        }
+    }, [user, router])
+
+    useEffect(() => {
+        if (!user || user.role !== "auto_ecole") return
         getMesFormations()
             .then(res => setFormations(res?.data ?? []))
             .catch(() => toast.error("Erreur de chargement"))
             .finally(() => setLoading(false))
-    }, [])
+    }, [user])
+
+    // Chargement des inscrits quand on bascule sur l'onglet
+    const handleTabInscrits = () => {
+        if (inscrits.length > 0) return // déjà chargé
+        setLoadingInscrits(true)
+        getMesInscrits()
+            .then(res => setInscrits(res?.data ?? []))
+            .catch(() => toast.error("Erreur de chargement des inscrits"))
+            .finally(() => setLoadingInscrits(false))
+    }
 
     // --- KPIs ---
     const kpis = useMemo(() => {
@@ -213,6 +241,20 @@ export default function FormationsAutoEcolePage() {
                 </Sheet>
             </div>
 
+            <Tabs defaultValue="formations" onValueChange={v => v === "inscrits" && handleTabInscrits()}>
+            <TabsList>
+                <TabsTrigger value="formations">Mes formations</TabsTrigger>
+                <TabsTrigger value="inscrits">
+                    Mes inscrits
+                    {inscrits.length > 0 && (
+                        <span className="ml-1.5 text-xs bg-primary/15 text-primary px-1.5 py-0.5 rounded-full">
+                            {inscrits.length}
+                        </span>
+                    )}
+                </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="formations" className="mt-4 space-y-6">
             {/* --- KPI cards --- */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <Card>
@@ -345,7 +387,7 @@ export default function FormationsAutoEcolePage() {
                                                             <AlertDialogCancel>Annuler</AlertDialogCancel>
                                                             <AlertDialogAction
                                                                 onClick={() => handleDelete(f.id)}
-                                                                className="bg-destructive hover:bg-destructive/90"
+                                                                className="bg-red-600 hover:bg-red-700 text-white"
                                                             >
                                                                 Supprimer
                                                             </AlertDialogAction>
@@ -364,6 +406,100 @@ export default function FormationsAutoEcolePage() {
                     </div>
                 </Card>
             )}
+            </TabsContent>
+
+            {/* ── Onglet Inscrits ── */}
+            <TabsContent value="inscrits" className="mt-4">
+                {loadingInscrits ? (
+                    <div className="space-y-3">
+                        {[1, 2, 3].map(i => <Skeleton key={i} className="h-14 rounded-xl" />)}
+                    </div>
+                ) : inscrits.length === 0 ? (
+                    <div className="flex flex-col items-center py-20 gap-3 text-muted-foreground border rounded-xl">
+                        <Users className="h-12 w-12 opacity-15" />
+                        <p className="font-medium">Aucun inscrit pour le moment</p>
+                    </div>
+                ) : (
+                    <Card className="overflow-hidden">
+                        <Table>
+                            <TableHeader>
+                                <TableRow className="bg-zinc-50/50 hover:bg-zinc-50/50">
+                                    <TableHead className="pl-4">Étudiant</TableHead>
+                                    <TableHead>Formation choisie</TableHead>
+                                    <TableHead>Permis</TableHead>
+                                    <TableHead>Statut</TableHead>
+                                    <TableHead className="text-right pr-4">Inscrit le</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {inscrits.map(inscription => {
+                                    const statutInfo = {
+                                        inscrit:      { label: "Inscrit",       cls: "bg-blue-100 text-blue-700 border-blue-200" },
+                                        en_cours:     { label: "En cours",      cls: "bg-amber-100 text-amber-700 border-amber-200" },
+                                        examen_passe: { label: "Examen passé",  cls: "bg-purple-100 text-purple-700 border-purple-200" },
+                                        terminé:      { label: "Terminé",       cls: "bg-emerald-100 text-emerald-700 border-emerald-200" },
+                                        abandonné:    { label: "Abandonné",     cls: "bg-zinc-100 text-zinc-500 border-zinc-200" },
+                                    }[inscription.statut_eleve]
+                                    const permisCls = permisBadgeColor[inscription.formation?.type_permis ?? ""] ?? "bg-zinc-100 text-zinc-700"
+
+                                    return (
+                                        <TableRow key={inscription.id} className="hover:bg-zinc-50/60 transition-colors">
+                                            {/* Étudiant */}
+                                            <TableCell className="pl-4">
+                                                <div className="flex items-center gap-2.5">
+                                                    <Avatar className="h-8 w-8 shrink-0">
+                                                        <AvatarImage
+                                                            src={inscription.client?.avatar
+                                                                ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/storage/${inscription.client.avatar}`
+                                                                : undefined}
+                                                        />
+                                                        <AvatarFallback className="text-xs">
+                                                            {inscription.client?.fullname?.charAt(0) ?? "?"}
+                                                        </AvatarFallback>
+                                                    </Avatar>
+                                                    <div>
+                                                        <p className="text-sm font-medium">{inscription.client?.fullname}</p>
+                                                        <p className="text-xs text-muted-foreground">{inscription.client?.email}</p>
+                                                    </div>
+                                                </div>
+                                            </TableCell>
+
+                                            {/* Titre formation */}
+                                            <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">
+                                                {inscription.formation?.description?.titre ?? "—"}
+                                            </TableCell>
+
+                                            {/* Permis */}
+                                            <TableCell>
+                                                <Badge className={`border text-xs shrink-0 ${permisCls}`}>
+                                                    Permis {inscription.formation?.type_permis ?? "—"}
+                                                </Badge>
+                                            </TableCell>
+
+                                            {/* Statut élève */}
+                                            <TableCell>
+                                                <Badge className={`border text-xs ${statutInfo?.cls ?? ""}`}>
+                                                    {statutInfo?.label ?? inscription.statut_eleve}
+                                                </Badge>
+                                            </TableCell>
+
+                                            {/* Date */}
+                                            <TableCell className="text-right pr-4 text-xs text-muted-foreground">
+                                                {new Date(inscription.date_inscription).toLocaleDateString("fr-FR")}
+                                            </TableCell>
+                                        </TableRow>
+                                    )
+                                })}
+                            </TableBody>
+                        </Table>
+                        <div className="px-4 py-2.5 border-t bg-zinc-50/30">
+                            <p className="text-xs text-muted-foreground">{inscrits.length} inscrit{inscrits.length > 1 ? "s" : ""}</p>
+                        </div>
+                    </Card>
+                )}
+            </TabsContent>
+
+            </Tabs>
         </div>
     )
 }

@@ -227,7 +227,7 @@ export default function TransactionsClientPage() {
                                                             <AlertDialogCancel>Annuler</AlertDialogCancel>
                                                             <AlertDialogAction
                                                                 onClick={() => handleRefuser(t.id)}
-                                                                className="bg-destructive hover:bg-destructive/90"
+                                                                className="bg-red-600 hover:bg-red-700 text-white"
                                                             >
                                                                 Confirmer le refus
                                                             </AlertDialogAction>

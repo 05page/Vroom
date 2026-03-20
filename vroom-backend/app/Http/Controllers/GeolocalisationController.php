@@ -37,31 +37,43 @@ class GeolocalisationController extends Controller
             : ['vendeur', 'concessionnaire', 'auto_ecole'];
 
         /*
-         * Formule Haversine en SQL :
-         * distance = 6371 * acos(
-         *   cos(radians(lat_centre)) * cos(radians(latitude))
-         *   * cos(radians(longitude) - radians(lng_centre))
-         *   + sin(radians(lat_centre)) * sin(radians(latitude))
-         * )
-         * Retourne la distance en kilomètres.
+         * Formule Haversine en SQL — compatibilité PostgreSQL.
+         *
+         * PostgreSQL n'accepte pas les alias SELECT dans HAVING/ORDER BY
+         * (contrairement à MySQL). On enveloppe donc la requête dans une
+         * sous-requête pour pouvoir filtrer sur l'alias "distance".
+         *
+         * LEAST/GREATEST protège acos() des erreurs d'arrondi flottant
+         * (argument légèrement > 1 ou < -1 → NaN/erreur sans ce garde-fou).
          */
-        $results = User::selectRaw("
+        $haversine = "
+            6371 * acos(
+                LEAST(1, GREATEST(-1,
+                    cos(radians(?)) * cos(radians(latitude))
+                    * cos(radians(longitude) - radians(?))
+                    + sin(radians(?)) * sin(radians(latitude))
+                ))
+            )
+        ";
+
+        // Sous-requête : calcule la distance pour chaque user éligible
+        $inner = User::selectRaw("
                 id, fullname, role, adresse, avatar,
                 note_moyenne, raison_sociale,
                 latitude, longitude, statut,
-                (
-                    6371 * acos(
-                        cos(radians(?)) * cos(radians(latitude))
-                        * cos(radians(longitude) - radians(?))
-                        + sin(radians(?)) * sin(radians(latitude))
-                    )
-                ) AS distance
+                ({$haversine}) AS distance
             ", [$lat, $lng, $lat])
             ->whereIn('role', $roles)
             ->where('statut', User::ACTIF)
             ->whereNotNull('latitude')
-            ->whereNotNull('longitude')
-            ->having('distance', '<=', $rayon)
+            ->whereNotNull('longitude');
+
+        // Requête externe : filtre sur l'alias "distance" (valide en PostgreSQL)
+        $results = \Illuminate\Support\Facades\DB::table(
+                \Illuminate\Support\Facades\DB::raw("({$inner->toSql()}) as u")
+            )
+            ->mergeBindings($inner->getQuery())
+            ->where('distance', '<=', $rayon)
             ->orderBy('distance')
             ->limit(50)
             ->get();

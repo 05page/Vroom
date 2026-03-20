@@ -38,7 +38,6 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { api } from "@/src/lib/api"
 import { useUser } from "@/src/context/UserContext"
-import { useMessage } from "@/src/context/MessageContext"
 
 // Tous les items de nav avec leur restriction éventuelle par rôle
 const ALL_NAV_ITEMS = [
@@ -67,8 +66,6 @@ export default function PartenaireLayout({
 
     const isAutoEcole      = user?.role === "auto_ecole"
     const roleLabel        = isAutoEcole ? "Auto-école" : "Concessionnaire"
-    const { unreadMessages } = useMessage()
-
     const router = useRouter()
     const handleLogout = async () => {
         await api.logout()
@@ -171,11 +168,6 @@ export default function PartenaireLayout({
                     <div className="ml-auto flex items-center gap-4">
                         <Link href="/partenaire/messages" className="relative text-muted-foreground hover:text-foreground transition-colors">
                             <MessageSquare className="h-5 w-5" />
-                            {unreadMessages > 0 && (
-                                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                                    {unreadMessages > 9 ? "9+" : unreadMessages}
-                                </span>
-                            )}
                         </Link>
                         <Link href="/partenaire/notifications" className="relative text-muted-foreground hover:text-foreground transition-colors">
                             <Bell className="h-5 w-5" />

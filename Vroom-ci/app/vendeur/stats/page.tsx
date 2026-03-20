@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { toast } from "sonner"
 import { cn } from "@/src/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
@@ -12,6 +13,7 @@ import {
     BarChart3, TrendingUp, Eye, Heart, MessageCircle,
     Wallet, Car, Tag, Key, Users, Star, ArrowUp,
     Calendar, Target, Clock, CheckCircle2, ShoppingCart,
+    RefreshCw,
 } from "lucide-react"
 
 interface MonthlyStat {
@@ -55,16 +57,27 @@ const vehiculesPerf: VehiculePerf[] = [
 
 export default function StatsPage() {
     const [isLoading, setIsLoading] = useState(true)
+    const [refreshing, setRefreshing] = useState(false)
 
-    useEffect(() => {
+    const fetchData = useCallback(async () => {
         const toastId = toast.loading("Chargement des statistiques...")
-        const load = async () => {
+        try {
             await new Promise(r => setTimeout(r, 1500))
             setIsLoading(false)
+        } finally {
+            setRefreshing(false)
             toast.dismiss(toastId)
         }
-        load()
     }, [])
+
+    useEffect(() => {
+        fetchData()
+    }, [fetchData])
+
+    const handleRefresh = () => {
+        setRefreshing(true)
+        fetchData()
+    }
 
     const formatMontant = (n: number) => {
         if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`
@@ -129,9 +142,21 @@ export default function StatsPage() {
                             <p className="text-muted-foreground text-sm">Analyse de vos performances</p>
                         </div>
                     </div>
-                    <Badge variant="outline" className="rounded-full self-start md:self-auto">
-                        <Calendar className="h-3 w-3 mr-1" /> 6 derniers mois
-                    </Badge>
+                    <div className="flex items-center gap-2 self-start md:self-auto">
+                        <Badge variant="outline" className="rounded-full">
+                            <Calendar className="h-3 w-3 mr-1" /> 6 derniers mois
+                        </Badge>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleRefresh}
+                            disabled={refreshing}
+                            className="gap-2 cursor-pointer"
+                        >
+                            <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
+                            {refreshing ? "Chargement..." : "Rafraîchir"}
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Stats Cards */}

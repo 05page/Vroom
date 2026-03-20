@@ -6,8 +6,10 @@ import {
     Bell,
     Car,
     CheckCheck,
+    GraduationCap,
     LayoutDashboard,
     LogOut,
+    ArrowLeftRight,
     BarChart3,
     ScrollText,
     Settings,
@@ -52,9 +54,11 @@ const navItems = [
     { href: "/admin/dashboard",    label: "Vue d'ensemble",       icon: LayoutDashboard },
     { href: "/admin/users",        label: "Utilisateurs",         icon: Users },
     { href: "/admin/admins",       label: "Administrateurs",      icon: UserCog },
-    { href: "/admin/vehicules",    label: "Modération véhicules", icon: Car },
-    { href: "/admin/signalements", label: "Signalements",         icon: ShieldAlert },
-    { href: "/admin/stats",        label: "Statistiques",         icon: BarChart3 },
+    { href: "/admin/vehicules",    label: "Modération véhicules",  icon: Car },
+    { href: "/admin/formations",   label: "Modération formations", icon: GraduationCap },
+    { href: "/admin/signalements",  label: "Signalements",          icon: ShieldAlert },
+    { href: "/admin/transactions",  label: "Transactions",         icon: ArrowLeftRight },
+    { href: "/admin/stats",         label: "Statistiques",         icon: BarChart3 },
     { href: "/admin/logs",         label: "Journal",              icon: ScrollText },
     { href: "/admin/settings",     label: "Paramètres",           icon: Settings },
 ]
@@ -135,7 +139,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                             <SidebarMenuItem>
                                 <SidebarMenuButton
                                     onClick={handleLogout}
-                                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    className="text-red-600 hover:text-red-600 hover:bg-red-50"
                                 >
                                     <LogOut />
                                     <span>Déconnexion</span>

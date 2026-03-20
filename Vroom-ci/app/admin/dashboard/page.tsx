@@ -1,8 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
+import { cn } from "@/src/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Separator } from "@/components/ui/separator"
 import {
@@ -14,6 +16,7 @@ import {
     Clock,
     Activity,
     UserCheck,
+    RefreshCw,
 } from "lucide-react"
 import { getUsersPaginated, getVehiculesEnAttente, getSignalements, getLogs } from "@/src/actions/admin.actions"
 import { PaginatedResponse } from "@/src/types"
@@ -74,6 +77,7 @@ export default function AdminDashboard() {
     const [loadingVehicules, setLoadingVehicules] = useState(true)
     const [loadingSignal, setLoadingSignal]       = useState(true)
     const [loadingLogs, setLoadingLogs]           = useState(true)
+    const [refreshing, setRefreshing]             = useState(false)
 
     const [totalUsers, setTotalUsers]                 = useState(0)
     const [pendingVehicules, setPendingVehicules]     = useState(0)
@@ -81,7 +85,16 @@ export default function AdminDashboard() {
     const [pendingPartenaires, setPendingPartenaires] = useState(0)
     const [recentLogs, setRecentLogs]                 = useState<LogEntry[]>([])
 
-    useEffect(() => {
+    /**
+     * Charge toutes les données du tableau de bord admin en parallèle.
+     * Réinitialisé les états de chargement à chaque appel pour permettre le rafraîchissement manuel.
+     */
+    const fetchAll = useCallback(() => {
+        setLoadingUsers(true)
+        setLoadingVehicules(true)
+        setLoadingSignal(true)
+        setLoadingLogs(true)
+
         getUsersPaginated({ page: "1" })
             .then(r => { if (r.data) setTotalUsers(r.data.total) })
             .finally(() => setLoadingUsers(false))
@@ -99,11 +112,24 @@ export default function AdminDashboard() {
             .then(r => { if (r.data) setPendingSignal(r.data.length) })
             .finally(() => setLoadingSignal(false))
 
-        // getLogs() retourne AdminLog[] — on prend les 5 premiers
+        // getLogs() retourne une réponse paginée — les logs sont dans r.data.data
         getLogs()
-            .then(r => { if (r.data) setRecentLogs(r.data.slice(0, 5) as unknown as LogEntry[]) })
-            .finally(() => setLoadingLogs(false))
+            .then(r => {
+                const logs = (r.data as unknown as { data: LogEntry[] })?.data ?? (r.data as unknown as LogEntry[])
+                if (Array.isArray(logs)) setRecentLogs(logs.slice(0, 5))
+            })
+            .finally(() => {
+                setLoadingLogs(false)
+                setRefreshing(false)
+            })
     }, [])
+
+    useEffect(() => { fetchAll() }, [fetchAll])
+
+    const handleRefresh = () => {
+        setRefreshing(true)
+        fetchAll()
+    }
 
     const stats = [
         {
@@ -154,11 +180,23 @@ export default function AdminDashboard() {
     return (
         <div className="space-y-6">
             {/* En-tête */}
-            <div>
-                <h1 className="text-2xl font-bold tracking-tight">Vue d&apos;ensemble</h1>
-                <p className="text-muted-foreground text-sm mt-1">
-                    Tableau de bord de modération — Vroom CI
-                </p>
+            <div className="flex items-start justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight">Vue d&apos;ensemble</h1>
+                    <p className="text-muted-foreground text-sm mt-1">
+                        Tableau de bord de modération — Vroom CI
+                    </p>
+                </div>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRefresh}
+                    disabled={refreshing}
+                    className="gap-2 cursor-pointer shrink-0"
+                >
+                    <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
+                    {refreshing ? "Chargement..." : "Rafraîchir"}
+                </Button>
             </div>
 
             {/* Cartes de statistiques */}

@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
+import { cn } from "@/src/lib/utils"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -26,6 +27,7 @@ import {
     User,
     MapPin,
     FileText,
+    RefreshCw,
 } from "lucide-react"
 import { toast } from "sonner"
 import { getNosRdv, confirmerRdv, refuserRdv, annulerRdv, terminerRdv } from "@/src/actions/rdv.actions"
@@ -64,9 +66,10 @@ function labelType(type: string) {
 }
 
 export default function NosRdvPage() {
-    const [rdvs, setRdvs]       = useState<RendezVous[]>([])
-    const [loading, setLoading] = useState(true)
-    const [filtre, setFiltre]   = useState<FiltreValue>("tous")
+    const [rdvs, setRdvs]           = useState<RendezVous[]>([])
+    const [loading, setLoading]     = useState(true)
+    const [refreshing, setRefreshing] = useState(false)
+    const [filtre, setFiltre]       = useState<FiltreValue>("tous")
 
     // State pour les dialogs de confirmation d'action
     const [actionRdv, setActionRdv]   = useState<{ rdv: RendezVous; action: "confirmer" | "refuser" | "terminer" | "annuler" } | null>(null)
@@ -81,10 +84,16 @@ export default function NosRdvPage() {
             toast.error("Impossible de charger les rendez-vous")
         } finally {
             setLoading(false)
+            setRefreshing(false)
         }
     }, [])
 
     useEffect(() => { fetchRdvs() }, [fetchRdvs])
+
+    const handleRefresh = () => {
+        setRefreshing(true)
+        fetchRdvs()
+    }
 
     const rdvsFiltres = filtre === "tous"
         ? rdvs
@@ -130,9 +139,21 @@ export default function NosRdvPage() {
                         Gérez les demandes de vos clients.
                     </p>
                 </div>
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10">
-                    <CalendarCheck className="h-4 w-4 text-primary" />
-                    <span className="text-sm font-semibold text-primary">{rdvs.length}</span>
+                <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10">
+                        <CalendarCheck className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-semibold text-primary">{rdvs.length}</span>
+                    </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleRefresh}
+                        disabled={refreshing}
+                        className="gap-2 cursor-pointer"
+                    >
+                        <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
+                        {refreshing ? "Chargement..." : "Rafraîchir"}
+                    </Button>
                 </div>
             </div>
 
@@ -322,7 +343,7 @@ export default function NosRdvPage() {
                             className={
                                 actionRdv?.action === "confirmer" ? "bg-green-600 hover:bg-green-700" :
                                 actionRdv?.action === "terminer"  ? "bg-blue-600 hover:bg-blue-700"  :
-                                "bg-destructive hover:bg-destructive/90"
+                                "bg-red-600 hover:bg-red-700"
                             }
                         >
                             {submitting ? "En cours..." : "Confirmer"}

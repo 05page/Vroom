@@ -2,12 +2,12 @@
 
 use App\Http\Controllers\AbonnementController;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\CrmController;
 use App\Http\Controllers\GeolocalisationController;
 use App\Http\Controllers\FormationController;
 use App\Http\Controllers\InscriptionFormationController;
 use App\Http\Controllers\TransactionConclueController;
-use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\AlerteController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AvisController;
@@ -121,18 +121,18 @@ Route::middleware('auth:sanctum')->group(function () {
     //     Route::post('/{id}/confirmer',   [TransactionController::class, 'confirmer']);
     // });
 
-    // Conversations / Messagerie
-    Route::prefix('conversations')->group(function () {
-        Route::get('/',               [ConversationController::class, 'index']);
-        Route::post('/',              [ConversationController::class, 'findOrCreate']);
-        Route::get('/{id}/messages',  [ConversationController::class, 'messages']);
-        Route::post('/{id}/messages', [ConversationController::class, 'sendMessage']);
-        Route::put('/{conversationId}/messages/{messageId}', [ConversationController::class, 'updateMessage']);
-        Route::post('/{id}/read',     [ConversationController::class, 'markAsRead']);
-    });
-
     // Avis (écriture — authentifié)
     Route::post('/avis', [AvisController::class, 'store']);
+
+    // ── Messagerie ─────────────────────────────────────────────────────────────
+    Route::prefix('conversations')->group(function () {
+        Route::get('/',                   [ConversationController::class, 'index']);
+        Route::post('/',                  [ConversationController::class, 'findOrCreate']);
+        Route::get('/{id}/messages',      [ConversationController::class, 'messages']);
+        Route::post('/{id}/messages',     [ConversationController::class, 'send']);
+        Route::post('/{id}/read',         [ConversationController::class, 'markAsRead']);
+        Route::delete('/{id}/messages/{messageId}', [ConversationController::class, 'destroyMessage']);
+    });
 
     // ── Routes à activer une fois les contrôleurs créés ──
 
@@ -143,6 +143,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Routes statiques avant /{id} pour éviter que Laravel capture "mes-formations" comme UUID
         Route::middleware('role:auto_ecole')->group(function () {
             Route::get('/mes-formations',  [FormationController::class, 'mesFormations']);
+            Route::get('/mes-inscrits',    [FormationController::class, 'mesInscrits']);
             Route::post('/',               [FormationController::class, 'store']);
             Route::put('/{id}',            [FormationController::class, 'update']);
             Route::delete('/{id}',         [FormationController::class, 'destroy']);
@@ -198,6 +199,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/vehicules/{id}/rejeter',    [AdminController::class, 'rejeterVehicule']);
         Route::get('/signalements',               [AdminController::class, 'signalements']);
         Route::post('/signalements/{id}/traiter', [AdminController::class, 'traiterSignalement']);
+        Route::get('/stats',                      [AdminController::class, 'stats']);
         Route::get('/logs',                       [AdminController::class, 'logs']);
+        Route::get('/transactions',               [AdminController::class, 'transactions']);
+        Route::get('/formations',                 [AdminController::class, 'formations']);
+        Route::post('/formations/{id}/valider',   [AdminController::class, 'validerFormation']);
+        Route::post('/formations/{id}/rejeter',   [AdminController::class, 'rejeterFormation']);
     });
 });

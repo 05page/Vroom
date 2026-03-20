@@ -308,7 +308,7 @@ export default function VehiclesPage() {
             >
                 <AlertDialogContent size="sm">
                     <AlertDialogHeader>
-                        <AlertDialogMedia className="bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive">
+                        <AlertDialogMedia className="bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">
                             <Trash2Icon />
                         </AlertDialogMedia>
                         <AlertDialogTitle>Supprimer le véhicule ?</AlertDialogTitle>

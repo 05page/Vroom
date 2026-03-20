@@ -1,5 +1,6 @@
 "use client"
 
+import { cn } from "@/src/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -41,8 +42,9 @@ import {
     Bell,
     ChevronRight,
     Sparkles,
+    RefreshCw,
 } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { toast } from "sonner"
 import Link from "next/link"
 
@@ -55,6 +57,7 @@ import { useUser } from "@/src/context/UserContext"
 
 const VendeurDashboard = () => {
     const [isLoading, setIsLoading] = useState(true)
+    const [refreshing, setRefreshing] = useState(false)
     const [stats, setStats] = useState<VendeurStats | null>(null);
     const { user, setUser } = useUser()
 
@@ -78,22 +81,29 @@ const VendeurDashboard = () => {
             .catch(() => {}) // silencieux si pas d'avis
     }, [user?.id])
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                setIsLoading(true);
-                const [statsRes] = await Promise.all([
-                    getMesStats()
-                ]);
-                setStats(statsRes?.data ?? null);
-            } catch (error) {
-                toast.error(error instanceof Error ? error.message : "Erreur serveur")
-            } finally {
-                setIsLoading(false)
-            }
+    const fetchData = useCallback(async () => {
+        try {
+            setIsLoading(true);
+            const [statsRes] = await Promise.all([
+                getMesStats()
+            ]);
+            setStats(statsRes?.data ?? null);
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Erreur serveur")
+        } finally {
+            setIsLoading(false)
+            setRefreshing(false)
         }
-        fetchData()
     }, [])
+
+    useEffect(() => {
+        fetchData()
+    }, [fetchData])
+
+    const handleRefresh = () => {
+        setRefreshing(true)
+        fetchData()
+    }
 
     // Pré-remplit le form avec les données actuelles de l'user
     const openEdit = () => {
@@ -290,6 +300,16 @@ const VendeurDashboard = () => {
                             </div>
                         </div>
                         <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleRefresh}
+                                disabled={refreshing}
+                                className="gap-2 cursor-pointer"
+                            >
+                                <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
+                                {refreshing ? "Chargement..." : "Rafraîchir"}
+                            </Button>
                             <Button
                                 variant="outline"
                                 size="sm"
