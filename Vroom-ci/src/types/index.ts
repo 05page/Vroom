@@ -32,8 +32,17 @@ export interface PaginatedResponse<T> {
   last_page: number;
 }
 
+export interface StatsMensuel {
+  mois: number
+  nom_mois: string
+  vues: number
+  ventes: number
+  locations: number
+}
+
 export interface VendeurStats {
   stats: VendeurStatsGlobal;
+  stats_mensuel: StatsMensuel[];
   top_vehicule_vues: TopVehiculesVues;
   vehicule: vehicule
   rdv: VendeurRdv;

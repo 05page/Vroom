@@ -204,8 +204,8 @@ export default function StatsPage() {
                 ))}
             </div>
 
-            {/* Graphique concessionnaire (données mockées) */}
-            {!isAutoEcole && <StatsChart />}
+            {/* Graphique concessionnaire — données réelles du backend */}
+            {!isAutoEcole && <StatsChart data={data?.stats_mensuel ?? []} />}
 
             {/* Répartition des élèves — données réelles backend (auto-école uniquement) */}
             {isAutoEcole && (

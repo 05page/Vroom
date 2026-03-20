@@ -12,41 +12,39 @@ import {
     type ChartConfig,
 } from "@/components/ui/chart"
 import { Button } from "@/components/ui/button"
-
-const chartData = [
-    { mois: "Jan", vues: 1200, conversion: 3.2, rdv: 2 },
-    { mois: "Fév", vues: 1450, conversion: 3.5, rdv: 6},
-    { mois: "Mar", vues: 1380, conversion: 3.1, rdv: 2},
-    { mois: "Avr", vues: 1620, conversion: 4.0, rdv: 4},
-    { mois: "Mai", vues: 1890, conversion: 4.3, rdv: 5},
-    { mois: "Juin", vues: 2100, conversion: 4.8, rdv: 2},
-    { mois: "Juil", vues: 2450, conversion: 5.1, rdv: 7},
-    { mois: "Août", vues: 2200, conversion: 4.6, rdv: 3},
-    { mois: "Sep", vues: 1950, conversion: 4.2, rdv: 8},
-    { mois: "Oct", vues: 2300, conversion: 4.7, rdv: 1},
-    { mois: "Nov", vues: 2680, conversion: 5.0, rdv: 2},
-    { mois: "Déc", vues: 3956, conversion: 4.2, rdv: 0},
-]
+import { StatsMensuel } from "@/src/types"
 
 const chartConfig = {
     vues: {
         label: "Vues",
         color: "#3b82f6",
     },
-    conversion: {
-        label: "Taux de conversion (%)",
-        color: "#14b8a6",
+    ventes: {
+        label: "Ventes",
+        color: "#10b981",
     },
-    rdv: {
-        label:"Rendez-Vous",
-        color: "red"
-    }
+    locations: {
+        label: "Locations",
+        color: "#f59e0b",
+    },
 } satisfies ChartConfig
 
-type ChartMode = "vues" | "conversion" | "rdv" | "les-trois"
+type ChartMode = "vues" | "ventes" | "locations" | "tous"
 
-export function StatsChart() {
-    const [mode, setMode] = useState<ChartMode>("les-trois")
+interface StatsChartProps {
+    data: StatsMensuel[]
+}
+
+export function StatsChart({ data }: StatsChartProps) {
+    const [mode, setMode] = useState<ChartMode>("tous")
+
+    // Formate les données pour Recharts : utilise nom_mois abrégé (3 lettres)
+    const chartData = data.map(d => ({
+        mois:      d.nom_mois.charAt(0).toUpperCase() + d.nom_mois.slice(1, 3),
+        vues:      d.vues,
+        ventes:    d.ventes,
+        locations: d.locations,
+    }))
 
     return (
         <Card className="rounded-2xl shadow-sm border border-border/40">
@@ -62,10 +60,10 @@ export function StatsChart() {
                     </div>
                     <div className="flex items-center gap-1 rounded-lg border border-border p-0.5">
                         {([
-                            { value: "vues", label: "Vues" },
-                            { value: "conversion", label: "Conversion" },
-                            { value: "rdv", label: "Rendez-Vous" },
-                            { value: "les-trois", label: "Les trois" },
+                            { value: "vues",      label: "Vues" },
+                            { value: "ventes",    label: "Ventes" },
+                            { value: "locations", label: "Locations" },
+                            { value: "tous",      label: "Tout" },
                         ] as const).map((item) => (
                             <Button
                                 key={item.value}
@@ -99,7 +97,7 @@ export function StatsChart() {
                             tickMargin={8}
                             tick={{ fontSize: 12 }}
                         />
-                        {(mode === "vues" || mode === "les-trois") && (
+                        {(mode === "vues" || mode === "tous") && (
                             <YAxis
                                 yAxisId="vues"
                                 tickLine={false}
@@ -109,67 +107,48 @@ export function StatsChart() {
                                 width={45}
                             />
                         )}
-                        {(mode === "conversion" || mode === "les-trois") && (
+                        {(mode === "ventes" || mode === "locations" || mode === "tous") && (
                             <YAxis
-                                yAxisId="conversion"
+                                yAxisId="transactions"
                                 orientation="right"
                                 tickLine={false}
                                 axisLine={false}
                                 tickMargin={4}
                                 tick={{ fontSize: 11 }}
-                                tickFormatter={(v) => `${v}%`}
-                                width={45}
+                                width={35}
                             />
                         )}
-                        {(mode === "rdv" || mode === "les-trois") && (
-                            <YAxis
-                                yAxisId="rdv"
-                                tickLine={false}
-                                axisLine={false}
-                                tickMargin={4}
-                                tick={{ fontSize: 11 }}
-                                width={45}
-                            />
-                        )}
-                        <ChartTooltip
-                            content={
-                                <ChartTooltipContent
-                                    formatter={(value, name) => {
-                                        if (name === "conversion") return `${value}%`
-                                        return value.toLocaleString()
-                                    }}
-                                />
-                            }
-                        />
+                        <ChartTooltip content={<ChartTooltipContent />} />
                         <ChartLegend content={<ChartLegendContent />} />
-                        {(mode === "vues" || mode === "les-trois") && (
+
+                        {(mode === "vues" || mode === "tous") && (
                             <Bar
                                 yAxisId="vues"
                                 dataKey="vues"
                                 fill="var(--color-vues)"
                                 radius={[6, 6, 0, 0]}
-                                barSize={32}
+                                barSize={28}
                             />
                         )}
-                        {(mode === "conversion" || mode === "les-trois") && (
+                        {(mode === "ventes" || mode === "tous") && (
                             <Line
-                                yAxisId="conversion"
+                                yAxisId="transactions"
                                 type="monotone"
-                                dataKey="conversion"
-                                stroke="var(--color-conversion)"
+                                dataKey="ventes"
+                                stroke="var(--color-ventes)"
                                 strokeWidth={2.5}
-                                dot={{ r: 4, fill: "var(--color-conversion)", strokeWidth: 0 }}
+                                dot={{ r: 4, fill: "var(--color-ventes)", strokeWidth: 0 }}
                                 activeDot={{ r: 6 }}
                             />
                         )}
-                        {(mode === "rdv" || mode === "les-trois") && (
+                        {(mode === "locations" || mode === "tous") && (
                             <Line
-                                yAxisId="rdv"
+                                yAxisId="transactions"
                                 type="monotone"
-                                dataKey="rdv"
-                                stroke="var(--color-conversion)"
+                                dataKey="locations"
+                                stroke="var(--color-locations)"
                                 strokeWidth={2.5}
-                                dot={{ r: 4, fill: "var(--color-conversion)", strokeWidth: 0 }}
+                                dot={{ r: 4, fill: "var(--color-locations)", strokeWidth: 0 }}
                                 activeDot={{ r: 6 }}
                             />
                         )}
