@@ -33,13 +33,12 @@ import {
     BookOpen,
     Users,
     GraduationCap,
-    BarChart3,
     RefreshCw,
 } from "lucide-react"
 import { StatsChart } from "./stats-chart"
 import { toast } from "sonner"
 import { api } from "@/src/lib/api"
-import { getMesFormations } from "@/src/actions/formations.actions"
+import { getMesFormations, getMesStats } from "@/src/actions/formations.actions"
 import { VendeurStats, TopVehicle, Formation } from "@/src/types"
 import { useUser } from "@/src/context/UserContext"
 
@@ -63,12 +62,24 @@ const getValidationConfig = (statut: string) => {
 
 export default function StatsPage() {
     const { user } = useUser()
-    const isAutoEcole = user?.role === "auto_ecole"
+    // partenaire_type vaut "auto_ecole" ou "concessionnaire" — role vaut toujours "partenaire"
+    const isAutoEcole = user?.partenaire_type === "auto_ecole"
 
     const [data,       setData]       = useState<VendeurStats | null>(null)
     const [formations, setFormations]  = useState<Formation[]>([])
     const [loading,    setLoading]    = useState(true)
     const [refreshing, setRefreshing] = useState(false)
+
+    // Stats globales renvoyées par le backend pour l'auto-école (agrégat de toutes les formations)
+    const [autoEcoleStats, setAutoEcoleStats] = useState<{
+        nb_formations:  number
+        total_inscrits: number
+        en_cours:       number
+        termines:       number
+        reussis:        number
+        abandonnes:     number
+        taux_reussite:  number | null
+    } | null>(null)
 
     // ── Filtres concessionnaire ───────────────────────────────────────────────
     const [filterMarque, setFilterMarque] = useState<string>("all")
@@ -82,8 +93,10 @@ export default function StatsPage() {
         setLoading(true)
         try {
             if (isAutoEcole) {
-                const res = await getMesFormations()
-                setFormations((res.data as unknown as Formation[]) ?? [])
+                // Les deux appels sont indépendants — on les lance en parallèle pour gagner du temps
+                const [formRes, statsRes] = await Promise.all([getMesFormations(), getMesStats()])
+                setFormations((formRes.data as unknown as Formation[]) ?? [])
+                setAutoEcoleStats(statsRes.data ?? null)
             } else {
                 const res = await api.get<VendeurStats>("/stats/mes-stats")
                 if (res.data) setData(res.data)
@@ -126,9 +139,6 @@ export default function StatsPage() {
 
     // ── KPIs auto-école ───────────────────────────────────────────────────────
     const formationsActives    = formations.filter(f => f.statut_validation === "validé").length
-    const totalInscriptions    = formations.reduce((sum, f) => sum + (f.inscriptions_count ?? 0), 0)
-    const permisUniques        = new Set(formations.map(f => f.type_permis)).size
-    const totalRevenus         = formations.reduce((sum, f) => sum + (f.prix ?? 0) * (f.inscriptions_count ?? 0), 0)
 
     const filteredFormations = useMemo(() => {
         return formations.filter(f =>
@@ -140,10 +150,10 @@ export default function StatsPage() {
 
     // ── Cartes KPI selon le rôle ──────────────────────────────────────────────
     const statsCards = isAutoEcole ? [
-        { label: "Formations actives",   value: loading ? "—" : formationsActives.toString(),                         icon: BookOpen,      iconColor: "text-blue-500",    bgColor: "bg-blue-50" },
-        { label: "Inscriptions totales", value: loading ? "—" : totalInscriptions.toLocaleString("fr-FR"),            icon: Users,         iconColor: "text-emerald-500", bgColor: "bg-emerald-50" },
-        { label: "Permis proposés",      value: loading ? "—" : permisUniques.toString(),                             icon: GraduationCap, iconColor: "text-violet-500",  bgColor: "bg-violet-50" },
-        { label: "Revenus estimés",      value: loading ? "—" : totalRevenus.toLocaleString("fr-FR") + " FCFA",       icon: BarChart3,     iconColor: "text-teal-500",    bgColor: "bg-teal-50" },
+        { label: "Formations actives", value: loading ? "—" : formationsActives.toString(),                                                                  icon: BookOpen,      iconColor: "text-blue-500",    bgColor: "bg-blue-50" },
+        { label: "Élèves en cours",    value: loading ? "—" : (autoEcoleStats?.en_cours ?? 0).toString(),                                                   icon: Users,         iconColor: "text-amber-500",   bgColor: "bg-amber-50" },
+        { label: "Examens réussis",    value: loading ? "—" : (autoEcoleStats?.reussis ?? 0).toString(),                                                     icon: GraduationCap, iconColor: "text-emerald-500", bgColor: "bg-emerald-50" },
+        { label: "Taux de réussite",   value: loading ? "—" : (autoEcoleStats?.taux_reussite != null ? autoEcoleStats.taux_reussite + "%" : "—"),            icon: TrendingUp,    iconColor: "text-violet-500",  bgColor: "bg-violet-50" },
     ] : [
         { label: "Vues totales",         value: loading ? "—" : (data?.stats?.total_vues ?? 0).toLocaleString("fr-FR"),       icon: Eye,         iconColor: "text-blue-500",    bgColor: "bg-blue-50" },
         { label: "Rendez-vous",          value: loading ? "—" : (data?.rdv?.total_rdv ?? 0).toLocaleString("fr-FR"),          icon: CalendarCheck, iconColor: "text-emerald-500", bgColor: "bg-emerald-50" },
@@ -194,8 +204,41 @@ export default function StatsPage() {
                 ))}
             </div>
 
-            {/* Graphique commun (données mockées pour les deux rôles) */}
-            <StatsChart />
+            {/* Graphique concessionnaire (données mockées) */}
+            {!isAutoEcole && <StatsChart />}
+
+            {/* Répartition des élèves — données réelles backend (auto-école uniquement) */}
+            {isAutoEcole && (
+                <div className="space-y-3">
+                    <div>
+                        <h2 className="text-lg font-semibold text-black">Répartition des élèves</h2>
+                        <p className="text-xs text-black/60">Agrégat de toutes vos formations.</p>
+                    </div>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+                        {[
+                            { label: "En cours",   value: autoEcoleStats?.en_cours,   iconColor: "text-blue-500",    bgColor: "bg-blue-50",    icon: Users },
+                            { label: "Terminés",   value: autoEcoleStats?.termines,   iconColor: "text-zinc-500",    bgColor: "bg-zinc-100",   icon: GraduationCap },
+                            { label: "Réussis",    value: autoEcoleStats?.reussis,    iconColor: "text-emerald-500", bgColor: "bg-emerald-50", icon: TrendingUp },
+                            { label: "Abandonnés", value: autoEcoleStats?.abandonnes, iconColor: "text-red-500",     bgColor: "bg-red-50",     icon: BookOpen },
+                        ].map((item) => (
+                            <Card key={item.label} className="rounded-2xl shadow-sm border border-border/40">
+                                <CardContent className="p-4 flex flex-col items-center gap-3">
+                                    <div className={`${item.bgColor} rounded-xl p-2.5`}>
+                                        <item.icon className={`h-5 w-5 ${item.iconColor}`} />
+                                    </div>
+                                    <div className="text-center">
+                                        {loading || autoEcoleStats === null
+                                            ? <Skeleton className="h-7 w-12 mx-auto mb-1" />
+                                            : <p className="text-2xl font-bold text-black">{item.value ?? 0}</p>
+                                        }
+                                        <p className="text-xs font-medium text-black/70 mt-0.5">{item.label}</p>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* ── TABLE CONCESSIONNAIRE ── */}
             {!isAutoEcole && (
