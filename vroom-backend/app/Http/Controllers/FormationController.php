@@ -235,8 +235,8 @@ class FormationController extends Controller
         // Notifie le client de l'avancement
         $messages = [
             InscriptionFormation::STATUT_EN_COURS     => 'Votre formation a démarré. Bonne chance !',
-            InscriptionFormation::STATUT_EXAMEN_PASSE => 'Votre examen est enregistré.' . ($validated['date_examen'] ? ' Date : ' . $validated['date_examen'] : ''),
-            InscriptionFormation::STATUT_TERMINE      => $validated['reussite']
+            InscriptionFormation::STATUT_EXAMEN_PASSE => 'Votre examen est enregistré.' . (($validated['date_examen'] ?? null) ? ' Date : ' . $validated['date_examen'] : ''),
+            InscriptionFormation::STATUT_TERMINE      => ($validated['reussite'] ?? false)
                 ? 'Félicitations ! Vous avez réussi votre formation.'
                 : 'Votre formation est terminée.',
         ];
