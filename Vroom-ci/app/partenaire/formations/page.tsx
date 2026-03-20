@@ -26,6 +26,7 @@ import {
     Tabs, TabsContent, TabsList, TabsTrigger,
 } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
     BookOpen, Plus, Users, Clock, CircleDollarSign, Trash2, Eye, CheckCircle2, TrendingUp, Pencil,
 } from "lucide-react"
@@ -81,11 +82,16 @@ export default function FormationsAutoEcolePage() {
         type_permis: "", prix: "", duree_heures: "", titre: "", texte: "",
     })
 
-    // État pour le drawer de mise à jour du statut d'un élève
+    // État pour le drawer de mise à jour individuelle
     const [editOpen, setEditOpen]         = useState(false)
     const [editInscrit, setEditInscrit]   = useState<InscriptionFormation | null>(null)
     const [editForm, setEditForm]         = useState({ statut_eleve: "", date_examen: "", reussite: "" })
     const [updating, setUpdating]         = useState(false)
+
+    // État pour la sélection multiple + action groupée
+    const [selectedIds, setSelectedIds]   = useState<Set<string>>(new Set())
+    const [bulkStatut, setBulkStatut]     = useState("")
+    const [bulkUpdating, setBulkUpdating] = useState(false)
 
     // Garde : seule une auto-école peut accéder à cette page
     useEffect(() => {
@@ -204,6 +210,57 @@ export default function FormationsAutoEcolePage() {
             toast.error("Erreur lors de la mise à jour")
         } finally {
             setUpdating(false)
+        }
+    }
+
+    // Coche / décoche une ligne
+    const toggleSelect = (id: string) =>
+        setSelectedIds(prev => {
+            const next = new Set(prev)
+            next.has(id) ? next.delete(id) : next.add(id)
+            return next
+        })
+
+    // Tout sélectionner / désélectionner
+    const toggleAll = () =>
+        setSelectedIds(
+            selectedIds.size === inscrits.length
+                ? new Set()
+                : new Set(inscrits.map(i => i.id))
+        )
+
+    // Applique le même statut à tous les élèves sélectionnés (appels parallèles)
+    const handleBulkUpdate = async () => {
+        if (!bulkStatut || selectedIds.size === 0) return
+        setBulkUpdating(true)
+        try {
+            // Promise.allSettled : on envoie toutes les requêtes en parallèle
+            // et on continue même si certaines échouent
+            const results = await Promise.allSettled(
+                inscrits
+                    .filter(i => selectedIds.has(i.id))
+                    .map(i => updateInscrit(i.formation_id, i.id, { statut_eleve: bulkStatut }))
+            )
+
+            const ok      = results.filter(r => r.status === "fulfilled").length
+            const erreurs = results.filter(r => r.status === "rejected").length
+
+            // Met à jour localement les inscriptions qui ont réussi
+            setInscrits(prev => prev.map(i =>
+                selectedIds.has(i.id)
+                    ? { ...i, statut_eleve: bulkStatut as InscriptionFormation["statut_eleve"] }
+                    : i
+            ))
+
+            setSelectedIds(new Set())
+            setBulkStatut("")
+
+            if (erreurs > 0) toast.warning(`${ok} mis à jour, ${erreurs} erreur(s)`)
+            else toast.success(`${ok} élève${ok > 1 ? "s" : ""} mis à jour`)
+        } catch {
+            toast.error("Erreur lors de la mise à jour groupée")
+        } finally {
+            setBulkUpdating(false)
         }
     }
 
@@ -499,11 +556,53 @@ export default function FormationsAutoEcolePage() {
                         <p className="font-medium">Aucun inscrit pour le moment</p>
                     </div>
                 ) : (
+                    <>
+                    {/* Barre d'action groupée — visible uniquement quand des lignes sont sélectionnées */}
+                    {selectedIds.size > 0 && (
+                        <div className="flex items-center gap-3 mb-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
+                            <span className="text-sm font-medium text-primary shrink-0">
+                                {selectedIds.size} sélectionné{selectedIds.size > 1 ? "s" : ""}
+                            </span>
+                            <Select value={bulkStatut} onValueChange={setBulkStatut}>
+                                <SelectTrigger className="h-8 w-48 text-sm">
+                                    <SelectValue placeholder="Choisir un statut…" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="inscrit">Inscrit</SelectItem>
+                                    <SelectItem value="en_cours">En cours</SelectItem>
+                                    <SelectItem value="examen_passe">Examen passé</SelectItem>
+                                    <SelectItem value="terminé">Terminé</SelectItem>
+                                    <SelectItem value="abandonné">Abandonné</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Button
+                                size="sm" className="h-8"
+                                disabled={!bulkStatut || bulkUpdating}
+                                onClick={handleBulkUpdate}
+                            >
+                                {bulkUpdating ? "En cours…" : "Appliquer"}
+                            </Button>
+                            <Button
+                                size="sm" variant="ghost" className="h-8 ml-auto text-muted-foreground"
+                                onClick={() => setSelectedIds(new Set())}
+                            >
+                                Annuler
+                            </Button>
+                        </div>
+                    )}
+
                     <Card className="overflow-hidden">
                         <Table>
                             <TableHeader>
                                 <TableRow className="bg-zinc-50/50 hover:bg-zinc-50/50">
-                                    <TableHead className="pl-4">Étudiant</TableHead>
+                                    {/* Checkbox "tout sélectionner" */}
+                                    <TableHead className="w-10 pl-4">
+                                        <Checkbox
+                                            checked={inscrits.length > 0 && selectedIds.size === inscrits.length}
+                                            onCheckedChange={toggleAll}
+                                        />
+                                    </TableHead>
+                                    <TableHead>Étudiant</TableHead>
                                     <TableHead>Formation choisie</TableHead>
                                     <TableHead>Permis</TableHead>
                                     <TableHead>Statut</TableHead>
@@ -523,9 +622,19 @@ export default function FormationsAutoEcolePage() {
                                     const permisCls = permisBadgeColor[inscription.formation?.type_permis ?? ""] ?? "bg-zinc-100 text-zinc-700"
 
                                     return (
-                                        <TableRow key={inscription.id} className="hover:bg-zinc-50/60 transition-colors">
+                                        <TableRow
+                                            key={inscription.id}
+                                            className={`hover:bg-zinc-50/60 transition-colors ${selectedIds.has(inscription.id) ? "bg-primary/5" : ""}`}
+                                        >
+                                            {/* Checkbox sélection */}
+                                            <TableCell className="w-10 pl-4">
+                                                <Checkbox
+                                                    checked={selectedIds.has(inscription.id)}
+                                                    onCheckedChange={() => toggleSelect(inscription.id)}
+                                                />
+                                            </TableCell>
                                             {/* Étudiant */}
-                                            <TableCell className="pl-4">
+                                            <TableCell>
                                                 <div className="flex items-center gap-2.5">
                                                     <Avatar className="h-8 w-8 shrink-0">
                                                         <AvatarImage
@@ -587,6 +696,7 @@ export default function FormationsAutoEcolePage() {
                             <p className="text-xs text-muted-foreground">{inscrits.length} inscrit{inscrits.length > 1 ? "s" : ""}</p>
                         </div>
                     </Card>
+                    </>
                 )}
             </TabsContent>
 
