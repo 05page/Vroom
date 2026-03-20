@@ -38,7 +38,17 @@ import {
 import { StatsChart } from "./stats-chart"
 import { toast } from "sonner"
 import { api } from "@/src/lib/api"
-import { getMesFormations, getMesStats } from "@/src/actions/formations.actions"
+import {
+    BarChart,
+    Bar,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    ResponsiveContainer,
+} from "recharts"
+import { CardHeader, CardTitle } from "@/components/ui/card"
+import { getMesFormations, getMesStats, getFormationStats } from "@/src/actions/formations.actions"
 import { VendeurStats, TopVehicle, Formation } from "@/src/types"
 import { useUser } from "@/src/context/UserContext"
 
@@ -81,6 +91,11 @@ export default function StatsPage() {
         taux_reussite:  number | null
     } | null>(null)
 
+    // Stats par formation individuelle (colonne Réussis + Taux réussite dans la table)
+    const [formationStats, setFormationStats] = useState<Record<string, {
+        total: number; reussis: number; taux_reussite: number | null
+    }>>({})
+
     // ── Filtres concessionnaire ───────────────────────────────────────────────
     const [filterMarque, setFilterMarque] = useState<string>("all")
     const [filterAnnee,  setFilterAnnee]  = useState<string>("all")
@@ -93,10 +108,24 @@ export default function StatsPage() {
         setLoading(true)
         try {
             if (isAutoEcole) {
-                // Les deux appels sont indépendants — on les lance en parallèle pour gagner du temps
+                // Les deux appels principaux sont indépendants — on les lance en parallèle
                 const [formRes, statsRes] = await Promise.all([getMesFormations(), getMesStats()])
-                setFormations((formRes.data as unknown as Formation[]) ?? [])
+                const formationsData = (formRes.data as unknown as Formation[]) ?? []
+                setFormations(formationsData)
                 setAutoEcoleStats(statsRes.data ?? null)
+
+                // Stats par formation : on lance tous les appels en parallèle (Promise.allSettled
+                // pour ne pas tout bloquer si une seule formation échoue)
+                const statsResults = await Promise.allSettled(
+                    formationsData.map(f =>
+                        getFormationStats(f.id).then(res => ({ id: f.id, data: res.data }))
+                    )
+                )
+                const statsMap: Record<string, { total: number; reussis: number; taux_reussite: number | null }> = {}
+                statsResults.forEach(r => {
+                    if (r.status === "fulfilled" && r.value.data) statsMap[r.value.id] = r.value.data
+                })
+                setFormationStats(statsMap)
             } else {
                 const res = await api.get<VendeurStats>("/stats/mes-stats")
                 if (res.data) setData(res.data)
@@ -150,10 +179,10 @@ export default function StatsPage() {
 
     // ── Cartes KPI selon le rôle ──────────────────────────────────────────────
     const statsCards = isAutoEcole ? [
-        { label: "Formations actives", value: loading ? "—" : formationsActives.toString(),                                                                  icon: BookOpen,      iconColor: "text-blue-500",    bgColor: "bg-blue-50" },
-        { label: "Élèves en cours",    value: loading ? "—" : (autoEcoleStats?.en_cours ?? 0).toString(),                                                   icon: Users,         iconColor: "text-amber-500",   bgColor: "bg-amber-50" },
-        { label: "Examens réussis",    value: loading ? "—" : (autoEcoleStats?.reussis ?? 0).toString(),                                                     icon: GraduationCap, iconColor: "text-emerald-500", bgColor: "bg-emerald-50" },
-        { label: "Taux de réussite",   value: loading ? "—" : (autoEcoleStats?.taux_reussite != null ? autoEcoleStats.taux_reussite + "%" : "—"),            icon: TrendingUp,    iconColor: "text-violet-500",  bgColor: "bg-violet-50" },
+        { label: "Formations publiées", value: loading ? "—" : formationsActives.toString(),                                                                  icon: BookOpen,      iconColor: "text-blue-500",    bgColor: "bg-blue-50" },
+        { label: "Total élèves",        value: loading ? "—" : (autoEcoleStats?.total_inscrits ?? 0).toString(),                                              icon: Users,         iconColor: "text-amber-500",   bgColor: "bg-amber-50" },
+        { label: "Élèves en cours",     value: loading ? "—" : (autoEcoleStats?.en_cours ?? 0).toString(),                                                   icon: GraduationCap, iconColor: "text-emerald-500", bgColor: "bg-emerald-50" },
+        { label: "Taux de réussite",    value: loading ? "—" : (autoEcoleStats?.taux_reussite != null ? autoEcoleStats.taux_reussite + "%" : "—"),            icon: TrendingUp,    iconColor: "text-violet-500",  bgColor: "bg-violet-50" },
     ] : [
         { label: "Vues totales",         value: loading ? "—" : (data?.stats?.total_vues ?? 0).toLocaleString("fr-FR"),       icon: Eye,         iconColor: "text-blue-500",    bgColor: "bg-blue-50" },
         { label: "Rendez-vous",          value: loading ? "—" : (data?.rdv?.total_rdv ?? 0).toLocaleString("fr-FR"),          icon: CalendarCheck, iconColor: "text-emerald-500", bgColor: "bg-emerald-50" },
@@ -207,37 +236,64 @@ export default function StatsPage() {
             {/* Graphique concessionnaire — données réelles du backend */}
             {!isAutoEcole && <StatsChart data={data?.stats_mensuel ?? []} />}
 
-            {/* Répartition des élèves — données réelles backend (auto-école uniquement) */}
+            {/* BarChart "Formations les plus populaires" — auto-école uniquement */}
             {isAutoEcole && (
-                <div className="space-y-3">
-                    <div>
-                        <h2 className="text-lg font-semibold text-black">Répartition des élèves</h2>
-                        <p className="text-xs text-black/60">Agrégat de toutes vos formations.</p>
-                    </div>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-                        {[
-                            { label: "En cours",   value: autoEcoleStats?.en_cours,   iconColor: "text-blue-500",    bgColor: "bg-blue-50",    icon: Users },
-                            { label: "Terminés",   value: autoEcoleStats?.termines,   iconColor: "text-zinc-500",    bgColor: "bg-zinc-100",   icon: GraduationCap },
-                            { label: "Réussis",    value: autoEcoleStats?.reussis,    iconColor: "text-emerald-500", bgColor: "bg-emerald-50", icon: TrendingUp },
-                            { label: "Abandonnés", value: autoEcoleStats?.abandonnes, iconColor: "text-red-500",     bgColor: "bg-red-50",     icon: BookOpen },
-                        ].map((item) => (
-                            <Card key={item.label} className="rounded-2xl shadow-sm border border-border/40">
-                                <CardContent className="p-4 flex flex-col items-center gap-3">
-                                    <div className={`${item.bgColor} rounded-xl p-2.5`}>
-                                        <item.icon className={`h-5 w-5 ${item.iconColor}`} />
-                                    </div>
-                                    <div className="text-center">
-                                        {loading || autoEcoleStats === null
-                                            ? <Skeleton className="h-7 w-12 mx-auto mb-1" />
-                                            : <p className="text-2xl font-bold text-black">{item.value ?? 0}</p>
-                                        }
-                                        <p className="text-xs font-medium text-black/70 mt-0.5">{item.label}</p>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
-                </div>
+                <Card className="rounded-2xl shadow-sm border border-border/40">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-base font-semibold text-black">
+                            Formations les plus populaires
+                        </CardTitle>
+                        <p className="text-xs text-black/60">Nombre d&apos;inscrits par formation (top 8).</p>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                        {loading ? (
+                            <Skeleton className="h-56 w-full rounded-xl" />
+                        ) : formations.length === 0 ? (
+                            <div className="flex h-56 items-center justify-center text-black/40">
+                                <p className="text-sm">Aucune formation publiée</p>
+                            </div>
+                        ) : (
+                            <ResponsiveContainer width="100%" height={220}>
+                                <BarChart
+                                    // Top 8 formations triées par inscrits décroissant
+                                    data={[...formations]
+                                        .sort((a, b) => (b.inscriptions_count ?? 0) - (a.inscriptions_count ?? 0))
+                                        .slice(0, 8)
+                                        .map(f => ({
+                                            // Étiquette : type permis + titre tronqué (12 chars max)
+                                            name: `Permis ${f.type_permis} · ${(f.description?.titre ?? "Formation").slice(0, 12)}`,
+                                            inscrits: f.inscriptions_count ?? 0,
+                                        }))}
+                                    margin={{ top: 4, right: 8, left: -16, bottom: 4 }}
+                                >
+                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" vertical={false} />
+                                    <XAxis
+                                        dataKey="name"
+                                        tick={{ fontSize: 11, fill: "rgba(0,0,0,0.5)" }}
+                                        axisLine={false}
+                                        tickLine={false}
+                                    />
+                                    <YAxis
+                                        tick={{ fontSize: 11, fill: "rgba(0,0,0,0.5)" }}
+                                        axisLine={false}
+                                        tickLine={false}
+                                        allowDecimals={false}
+                                    />
+                                    <Tooltip
+                                        cursor={{ fill: "rgba(139,92,246,0.06)" }}
+                                        contentStyle={{
+                                            borderRadius: "0.75rem",
+                                            border: "1px solid rgba(0,0,0,0.08)",
+                                            fontSize: 12,
+                                        }}
+                                        formatter={(value: number) => [value, "Inscrits"]}
+                                    />
+                                    <Bar dataKey="inscrits" fill="#8b5cf6" radius={[6, 6, 0, 0]} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        )}
+                    </CardContent>
+                </Card>
             )}
 
             {/* ── TABLE CONCESSIONNAIRE ── */}
@@ -406,6 +462,8 @@ export default function StatsPage() {
                                     <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Formation</TableHead>
                                     <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Statut</TableHead>
                                     <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">Inscrits</TableHead>
+                                    <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">Réussis</TableHead>
+                                    <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">Taux réussite</TableHead>
                                     <TableHead className="text-xs font-semibold uppercase tracking-wider text-muted-foreground text-right">Prix</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -417,12 +475,18 @@ export default function StatsPage() {
                                             <TableCell><Skeleton className="h-10 w-48" /></TableCell>
                                             <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                                             <TableCell><Skeleton className="h-5 w-12 mx-auto" /></TableCell>
+                                            <TableCell><Skeleton className="h-5 w-12 mx-auto" /></TableCell>
+                                            <TableCell><Skeleton className="h-5 w-16 mx-auto" /></TableCell>
                                             <TableCell><Skeleton className="h-5 w-24 ml-auto" /></TableCell>
                                         </TableRow>
                                     ))
                                 ) : filteredFormations.length > 0 ? (
-                                    filteredFormations.map((f, index) => {
+                                    // Tri par inscrits décroissant — même ordre que le BarChart
+                                    [...filteredFormations]
+                                        .sort((a, b) => (b.inscriptions_count ?? 0) - (a.inscriptions_count ?? 0))
+                                        .map((f, index) => {
                                         const cfg = getValidationConfig(f.statut_validation)
+                                        const fStats = formationStats[f.id]
                                         return (
                                             <TableRow key={f.id}>
                                                 <TableCell className="py-3">
@@ -454,6 +518,22 @@ export default function StatsPage() {
                                                         <span className="font-semibold text-sm text-black">{f.inscriptions_count ?? 0}</span>
                                                     </div>
                                                 </TableCell>
+                                                {/* Réussis — issu de getFormationStats() par formation */}
+                                                <TableCell className="py-3 text-center">
+                                                    <span className="font-semibold text-sm text-black">
+                                                        {fStats != null ? fStats.reussis : "—"}
+                                                    </span>
+                                                </TableCell>
+                                                {/* Taux de réussite — null si aucun examen passé */}
+                                                <TableCell className="py-3 text-center">
+                                                    {fStats?.taux_reussite != null ? (
+                                                        <Badge variant="outline" className="text-xs font-medium bg-emerald-50 text-emerald-700 border-emerald-200">
+                                                            {fStats.taux_reussite}%
+                                                        </Badge>
+                                                    ) : (
+                                                        <span className="text-sm text-black/40">—</span>
+                                                    )}
+                                                </TableCell>
                                                 <TableCell className="py-3 text-right">
                                                     <span className="font-bold text-sm text-black">{Number(f.prix).toLocaleString("fr-FR")}</span>
                                                     <span className="text-xs text-black/50 ml-1">FCFA</span>
@@ -463,7 +543,7 @@ export default function StatsPage() {
                                     })
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={5} className="h-32 text-center">
+                                        <TableCell colSpan={7} className="h-32 text-center">
                                             <div className="flex flex-col items-center gap-2 text-black/40">
                                                 <BookOpen className="h-8 w-8" />
                                                 <p className="text-sm font-medium">Aucune formation trouvée</p>
