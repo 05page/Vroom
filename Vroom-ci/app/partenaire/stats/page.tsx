@@ -72,8 +72,8 @@ const getValidationConfig = (statut: string) => {
 
 export default function StatsPage() {
     const { user } = useUser()
-    // partenaire_type vaut "auto_ecole" ou "concessionnaire" — role vaut toujours "partenaire"
-    const isAutoEcole = user?.partenaire_type === "auto_ecole"
+    // Le role est stocké directement : "auto_ecole" | "concessionnaire" | "vendeur" | "client" | "admin"
+    const isAutoEcole = user?.role === "auto_ecole"
 
     const [data,       setData]       = useState<VendeurStats | null>(null)
     const [formations, setFormations]  = useState<Formation[]>([])
