@@ -2,267 +2,261 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\MessageDeleted;
 use App\Events\MessageSent;
+use App\Http\Requests\FindOrCreateConversationRequest;
+use App\Http\Requests\SendMessageRequest;
 use App\Models\Conversation;
 use App\Models\Messages;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 
 class ConversationController extends Controller
 {
+    // ── Helpers prives ───────────────────────────────────────
+
+    /**
+     * Recupere une conversation en verifiant que l'user en est participant.
+     *
+     * Utilise le scope forUser() du modele Conversation pour garantir
+     * qu'on ne peut acceder qu'a ses propres conversations.
+     * Lance une 404 (findOrFail) si la conversation n'existe pas
+     * ou si l'user n'est pas participant.
+     */
+    private function getConversationForUser(string $id, string $userId): Conversation
+    {
+        return Conversation::forUser($userId)->findOrFail($id);
+    }
+
+    /**
+     * Determine l'ID de l'autre participant dans une conversation.
+     *
+     * Compare participant_1_id avec l'userId passe :
+     * si c'est le meme, retourne participant_2_id, et inversement.
+     */
+    private function getOtherParticipantId(Conversation $conversation, string $userId): string
+    {
+        return $conversation->participant_1_id === $userId
+            ? $conversation->participant_2_id
+            : $conversation->participant_1_id;
+    }
+
+    // ── Endpoints ────────────────────────────────────────────
+
     /**
      * GET /conversations
      *
-     * Liste toutes les conversations de l'utilisateur connecté,
-     * triées par dernier message (plus récent en premier).
-     * Chaque conversation inclut : dernier message, véhicule, l'autre participant,
-     * et le nombre de messages non lus.
+     * Liste toutes les conversations de l'user authentifie.
+     * Pour chaque conversation on retourne :
+     * - le vehicule concerne (titre + photo principale)
+     * - l'autre participant (id, fullname, avatar, role)
+     * - le dernier message
+     * - le nombre de messages non lus
      */
-    public function index(Request $request): JsonResponse
+    public function index(): JsonResponse
     {
-        $userId = $request->user()->id;
+        $userId = Auth::id();
 
-        $conversations = Conversation::where('participant_1_id', $userId)
-            ->orWhere('participant_2_id', $userId)
-            ->with([
-                'vehicule',
-                'vehicule.description:vehicule_id,marque,modele',
-                'vehicule.photos' => fn($q) => $q->orderBy('position'),
-                'participant1:id,fullname,avatar,role',
-                'participant2:id,fullname,avatar,role',
-            ])
-            ->orderBy('last_message_at', 'desc')
+        $conversations = Conversation::forUser($userId)
+            ->with(['vehicule.description', 'vehicule.photos'])
+            // Compte les messages recus non lus (read_at IS NULL et sender != moi)
+            ->withCount(['messages as unread_count' => function ($query) use ($userId) {
+                $query->where('sender_id', '!=', $userId)
+                      ->whereNull('read_at');
+            }])
+            ->orderByDesc('last_message_at')
             ->get();
 
-        $conversationIds = $conversations->pluck('id')->toArray();
+        // Enrichir chaque conversation avec other_participant et last_message
+        $conversations->each(function ($conversation) use ($userId) {
+            $otherId = $this->getOtherParticipantId($conversation, $userId);
+            $conversation->other_participant = User::select('id', 'fullname', 'avatar', 'role')
+                ->find($otherId);
 
-        // DISTINCT ON (PostgreSQL) : récupère le dernier message par conversation
-        // en une seule requête — évite MAX(uuid) incompatible avec Eloquent ofMany.
-        $lastMessages = empty($conversationIds)
-            ? collect()
-            : Messages::selectRaw('DISTINCT ON (conversation_id) *')
-                ->whereIn('conversation_id', $conversationIds)
-                ->orderBy('conversation_id')
+            $conversation->last_message = $conversation->messages()
+                ->select('content', 'created_at', 'sender_id')
                 ->orderByDesc('created_at')
-                ->get()
-                ->keyBy('conversation_id');
+                ->first();
+        });
 
-        $conversations = $conversations->map(function (Conversation $conv) use ($userId, $lastMessages) {
-                $otherParticipant = $conv->participant_1_id === $userId
-                    ? $conv->participant2
-                    : $conv->participant1;
-
-                $unreadCount = Messages::where('conversation_id', $conv->id)
-                    ->where('sender_id', '!=', $userId)
-                    ->where('is_read', false)
-                    ->count();
-
-                $v = $conv->vehicule;
-
-                return [
-                    'id'               => $conv->id,
-                    'vehicule'         => $v ? [
-                        'id'          => $v->id,
-                        'description' => $v->description,
-                        'photos'      => $v->photos,
-                    ] : null,
-                    'other_participant' => $otherParticipant,
-                    'last_message'     => $lastMessages->get($conv->id),
-                    'last_message_at'  => $conv->last_message_at,
-                    'unread_count'     => $unreadCount,
-                ];
-            })->values();
-
-        return response()->json(['success' => true, 'data' => ['conversations' => $conversations]]);
+        return response()->json([
+            'success'       => true,
+            'conversations' => $conversations,
+        ]);
     }
 
     /**
      * POST /conversations
      *
-     * Cherche une conversation existante entre l'user connecté et other_user_id
-     * pour le véhicule donné, ou en crée une nouvelle.
+     * Cree ou recupere une conversation existante entre deux users
+     * pour un vehicule donne.
+     *
+     * L'ordre canonique (p1 = min, p2 = max) garantit qu'on ne cree
+     * pas de doublon quelle que soit la direction du contact.
+     * La contrainte UNIQUE en base (p1, p2, vehicule_id) est le filet
+     * de securite en cas de race condition.
      */
-    public function findOrCreate(Request $request): JsonResponse
+    public function findOrCreate(FindOrCreateConversationRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'other_user_id' => 'required|uuid|exists:users,id',
-            'vehicule_id'   => 'required|uuid|exists:vehicules,id',
-        ]);
+        $userId  = Auth::id();
+        $otherId = $request->other_user_id;
 
-        $currentUser = $request->user();
-        $otherUser   = User::findOrFail($validated['other_user_id']);
-
-        // Empêcher de créer une conversation avec soi-même
-        if ($currentUser->id === $otherUser->id) {
+        // Interdire de se parler a soi-meme
+        if ($userId === $otherId) {
             return response()->json([
-                'message' => 'Impossible de créer une conversation avec vous-même.',
+                'success' => false,
+                'message' => 'Vous ne pouvez pas demarrer une conversation avec vous-meme.',
             ], 422);
         }
 
-        $conversation = Conversation::findOrCreateBetween(
-            $currentUser,
-            $otherUser,
-            $validated['vehicule_id']
-        );
+        // Ordre canonique : p1 < p2 (comparaison string UUID)
+        // Cela garantit que la meme paire d'users + vehicule
+        // produit toujours les memes valeurs p1/p2
+        $p1 = min($userId, $otherId);
+        $p2 = max($userId, $otherId);
 
-        $conversation->load([
-            'participant1:id,fullname,avatar,role',
-            'participant2:id,fullname,avatar,role',
-            'vehicule',
-            'vehicule.description:vehicule_id,marque,modele',
-            'vehicule.photos' => fn($q) => $q->orderBy('position'),
+        $conversation = Conversation::firstOrCreate([
+            'participant_1_id' => $p1,
+            'participant_2_id' => $p2,
+            'vehicule_id'      => $request->vehicule_id,
         ]);
 
-        return response()->json(['success' => true, 'data' => $conversation], 201);
+        // Charger les relations pour le retour
+        $conversation->load(['vehicule.description', 'vehicule.photos']);
+        $conversation->other_participant = User::select('id', 'fullname', 'avatar', 'role')
+            ->find($otherId);
+        $conversation->unread_count = 0;
+
+        return response()->json([
+            'success'      => true,
+            'conversation' => $conversation,
+        ], 201);
     }
 
     /**
      * GET /conversations/{id}/messages
      *
-     * Retourne les messages paginés d'une conversation (50 par page, plus récents d'abord).
-     * Seuls les participants de la conversation y ont accès.
+     * Charge tous les messages d'une conversation.
+     * Marque automatiquement les messages recus comme lus
+     * (ceux ou sender_id != userId et read_at IS NULL).
      */
-    public function messages(Request $request, string $id): JsonResponse
+    public function messages(string $id): JsonResponse
     {
-        $conversation = Conversation::findOrFail($id);
-        $userId       = $request->user()->id;
+        $userId       = Auth::id();
+        $conversation = $this->getConversationForUser($id, $userId);
 
-        // Vérifier que l'utilisateur est bien participant
-        if (!$this->isParticipant($conversation, $userId)) {
-            return response()->json([
-                'message' => 'Vous n\'êtes pas participant de cette conversation.',
-            ], 403);
-        }
+        // Marquer les messages recus non lus comme lus
+        $conversation->messages()
+            ->where('sender_id', '!=', $userId)
+            ->whereNull('read_at')
+            ->update([
+                'is_read' => true,
+                'read_at' => now(),
+            ]);
 
-        $messages = Messages::where('conversation_id', $id)
-            ->with('sender:id,fullname,avatar')
-            ->orderByDesc('created_at')
-            ->paginate(50);
+        $messages = $conversation->messages()
+            ->with('sender:id,fullname,avatar,role')
+            ->orderBy('created_at', 'asc')
+            ->get();
 
-        return response()->json(['success' => true, 'data' => ['messages' => $messages->items()]]);
+        return response()->json([
+            'success'  => true,
+            'messages' => $messages,
+        ]);
     }
 
     /**
      * POST /conversations/{id}/messages
      *
-     * Envoie un message texte dans la conversation.
-     * Met à jour last_message_at et broadcast l'event MessageSent.
+     * Envoie un message dans une conversation.
+     * - Cree le message en base
+     * - Met a jour last_message_at sur la conversation
+     * - Broadcast l'event MessageSent via Reverb
+     *   (toOthers() exclut l'emetteur du broadcast)
      */
-    public function sendMessage(Request $request, string $id): JsonResponse
+    public function send(SendMessageRequest $request, string $id): JsonResponse
     {
-        $conversation = Conversation::findOrFail($id);
-        $userId       = $request->user()->id;
-
-        if (!$this->isParticipant($conversation, $userId)) {
-            return response()->json([
-                'message' => 'Vous n\'êtes pas participant de cette conversation.',
-            ], 403);
-        }
-
-        $validated = $request->validate([
-            'content' => 'required|string|max:2000',
-        ]);
-
-        // Déterminer le destinataire (l'autre participant)
-        $receiverId = $conversation->getOtherParticipantId($userId);
+        $userId       = Auth::id();
+        $conversation = $this->getConversationForUser($id, $userId);
+        $otherId      = $this->getOtherParticipantId($conversation, $userId);
 
         $message = Messages::create([
             'conversation_id' => $conversation->id,
             'sender_id'       => $userId,
-            'receiver_id'     => $receiverId,
-            'vehicule_id'     => $conversation->vehicule_id,
-            'type'            => 'text',
-            'content'         => $validated['content'],
-            'is_read'         => false,
+            'receiver_id'     => $otherId,
+            'content'         => $request->content,
         ]);
 
-        // Mettre à jour le timestamp du dernier message
-        $conversation->update(['last_message_at' => Carbon::now()]);
+        // Mettre a jour le timestamp pour le tri des conversations
+        $conversation->update(['last_message_at' => now()]);
 
-        $message->load('sender:id,fullname,avatar');
+        // Charger le sender pour le broadcast (le frontend en a besoin
+        // pour afficher le nom + avatar sans appel supplementaire)
+        $message->load('sender:id,fullname,avatar,role');
 
-        // Broadcast best-effort : ne bloque pas la réponse si Reverb est éteint
-        try {
-            broadcast(new MessageSent($message))->toOthers();
-        } catch (\Throwable) {}
+        // Broadcast en temps reel via Reverb
+        // toOthers() : l'emetteur ne recoit pas son propre message via WS
+        broadcast(new MessageSent($message))->toOthers();
 
-        return response()->json(['success' => true, 'data' => $message], 201);
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+        ], 201);
     }
 
-    public function updateMessage(Request $request, string $conversationId, string $messageId): JsonResponse
+    /**
+     * DELETE /conversations/{id}/messages/{messageId}
+     *
+     * Supprime un message.
+     * Seul l'expediteur peut supprimer son propre message.
+     * Verifie que le message appartient bien a cette conversation
+     * et que l'user est participant.
+     */
+    public function destroyMessage(string $id, string $messageId): JsonResponse
     {
-        $conversation = Conversation::findOrFail($conversationId);
-        $userId = $request->user()->id;
-        $message = Messages::findOrFail($messageId);
+        $userId       = Auth::id();
+        $conversation = $this->getConversationForUser($id, $userId);
+
+        $message = $conversation->messages()->findOrFail($messageId);
+
         if ($message->sender_id !== $userId) {
             return response()->json([
                 'success' => false,
-                'message' => "Seul l'auteur peut modifier ce message"
+                'message' => 'Vous ne pouvez supprimer que vos propres messages.',
             ], 403);
         }
-        $validated = $request->validate([
-            'content' => 'required|string|max:2000',
-        ]);
 
-        $message->update([
-            'content' => $validated['content'],
-        ]);
+        $conversationId = $message->conversation_id;
+        $message->delete();
 
-        $conversation->update(['last_message_at' => Carbon::now()]);
+        // Notifie l'autre participant en temps reel via Reverb
+        broadcast(new MessageDeleted($conversationId, $messageId))->toOthers();
 
-        $message->load('sender:id,fullname,avatar');
-
-        try {
-            broadcast(new MessageSent($message))->toOthers();
-        } catch (\Throwable) {}
-
-        return response()->json(['success' => true, 'data' => $message], 201);
+        return response()->json(['success' => true]);
     }
 
     /**
      * POST /conversations/{id}/read
      *
-     * Marque comme lus tous les messages non lus de la conversation
-     * envoyés par l'autre participant (pas les siens).
+     * Marque tous les messages recus non lus comme lus.
+     * Utile quand l'user ouvre une conversation sans charger
+     * tous les messages (ex: vue liste des conversations).
      */
-    public function markAsRead(Request $request, string $id): JsonResponse
+    public function markAsRead(string $id): JsonResponse
     {
-        $conversation = Conversation::findOrFail($id);
-        $userId  = $request->user()->id;
+        $userId       = Auth::id();
+        $conversation = $this->getConversationForUser($id, $userId);
 
-        if (!$this->isParticipant($conversation, $userId)) {
-            return response()->json([
-                'message' => 'Vous n\'êtes pas participant de cette conversation.',
-            ], 403);
-        }
-
-        $updated = Messages::where('conversation_id', $id)
+        $conversation->messages()
             ->where('sender_id', '!=', $userId)
-            ->where('is_read', false)
+            ->whereNull('read_at')
             ->update([
                 'is_read' => true,
-                'read_at' => Carbon::now(),
+                'read_at' => now(),
             ]);
 
-        return response()->json([
-            'message'       => 'Messages marqués comme lus.',
-            'updated_count' => $updated,
-        ]);
-    }
-
-    /**
-     * Vérifie si un utilisateur est participant de la conversation.
-     *
-     * @param  Conversation $conversation
-     * @param  string       $userId       UUID de l'utilisateur
-     * @return bool
-     */
-    private function isParticipant(Conversation $conversation, string $userId): bool
-    {
-        return $conversation->participant_1_id === $userId
-            || $conversation->participant_2_id === $userId;
+        return response()->json(['success' => true]);
     }
 }

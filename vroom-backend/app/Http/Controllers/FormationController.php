@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreFormationRequest;
+use App\Http\Requests\UpdateFormationRequest;
 use App\Models\DescriptionFormation;
 use App\Models\Formation;
 use App\Models\InscriptionFormation;
@@ -64,6 +66,32 @@ class FormationController extends Controller
     }
 
     /**
+     * Liste tous les inscrits de toutes les formations de cette auto-ecole.
+     * GET /formations/mes-inscrits
+     *
+     * Inclut la formation (type_permis + titre) et le client pour chaque inscription.
+     * Permet a l'auto-ecole de voir d'un coup l'ensemble de ses eleves
+     * et quel type de permis chacun a choisi.
+     */
+    public function mesInscrits(): JsonResponse
+    {
+        $userId = Auth::id();
+
+        $inscrits = InscriptionFormation::whereHas('formation', function ($q) use ($userId) {
+                $q->where('auto_ecole_id', $userId);
+            })
+            ->with([
+                'client:id,fullname,email,avatar,telephone',
+                'formation:id,type_permis,auto_ecole_id',
+                'formation.description:formation_id,titre',
+            ])
+            ->orderByDesc('date_inscription')
+            ->get();
+
+        return response()->json(['success' => true, 'data' => $inscrits]);
+    }
+
+    /**
      * Liste des inscrits d'une formation (auto-école uniquement).
      * GET /formations/{id}/inscrits
      */
@@ -87,18 +115,10 @@ class FormationController extends Controller
      * Crée une formation avec sa description.
      * POST /formations
      */
-    public function store(Request $request): JsonResponse
+    public function store(StoreFormationRequest $request): JsonResponse
     {
-        $user = Auth::user();
-
-        $validated = $request->validate([
-            'type_permis'  => ['required', Rule::in(['A', 'A2', 'B', 'B1', 'C', 'D'])],
-            'prix'         => 'required|numeric|min:0',
-            'duree_heures' => 'required|integer|min:1',
-            'titre'        => 'required|string|max:255',
-            'texte'        => 'required|string',
-            'langue'       => 'nullable|string|max:10',
-        ]);
+        $user      = Auth::user();
+        $validated = $request->validated();
 
         DB::beginTransaction();
         try {
@@ -134,7 +154,7 @@ class FormationController extends Controller
      * Modifie une formation.
      * PUT /formations/{id}
      */
-    public function update(Request $request, string $id): JsonResponse
+    public function update(UpdateFormationRequest $request, string $id): JsonResponse
     {
         $user = Auth::user();
 
@@ -142,13 +162,7 @@ class FormationController extends Controller
             ->where('auto_ecole_id', $user->id)
             ->firstOrFail();
 
-        $validated = $request->validate([
-            'type_permis'  => ['sometimes', Rule::in(['A', 'A2', 'B', 'B1', 'C', 'D'])],
-            'prix'         => 'sometimes|numeric|min:0',
-            'duree_heures' => 'sometimes|integer|min:1',
-            'titre'        => 'sometimes|string|max:255',
-            'texte'        => 'sometimes|string',
-        ]);
+        $validated = $request->validated();
 
         DB::beginTransaction();
         try {

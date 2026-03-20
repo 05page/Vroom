@@ -2,43 +2,96 @@
 
 namespace Database\Factories;
 
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\User>
+ * @extends Factory<User>
  */
 class UserFactory extends Factory
 {
-    /**
-     * The current password being used by the factory.
-     */
-    protected static ?string $password;
+    protected $model = User::class;
 
-    /**
-     * Define the model's default state.
-     *
-     * @return array<string, mixed>
-     */
     public function definition(): array
     {
         return [
-            'name' => fake()->name(),
-            'email' => fake()->unique()->safeEmail(),
-            'email_verified_at' => now(),
-            'password' => static::$password ??= Hash::make('password'),
-            'remember_token' => Str::random(10),
+            'fullname' => fake()->name(),
+            'email'    => fake()->unique()->safeEmail(),
+            'role'     => User::CLIENT,
+            'statut'   => User::ACTIF,
+            'password' => Hash::make('password'),
         ];
     }
 
-    /**
-     * Indicate that the model's email address should be unverified.
-     */
-    public function unverified(): static
+    // ── States par rôle ──────────────────────────────────────
+
+    /** Crée un user avec le rôle client */
+    public function client(): static
     {
-        return $this->state(fn (array $attributes) => [
-            'email_verified_at' => null,
+        return $this->state(fn () => [
+            'role'      => User::CLIENT,
+            'telephone' => fake()->phoneNumber(),
+            'adresse'   => fake()->address(),
+            'latitude'  => fake()->latitude(),
+            'longitude' => fake()->longitude(),
         ]);
+    }
+
+    /** Crée un user avec le rôle vendeur */
+    public function vendeur(): static
+    {
+        return $this->state(fn () => [
+            'role'         => User::VENDEUR,
+            'rccm'         => fake()->numerify('RCCM-####'),
+            'note_moyenne' => fake()->randomFloat(1, 0, 5),
+            'nb_avis'      => fake()->numberBetween(0, 100),
+            'telephone'    => fake()->phoneNumber(),
+            'adresse'      => fake()->address(),
+            'latitude'     => fake()->latitude(),
+            'longitude'    => fake()->longitude(),
+        ]);
+    }
+
+    /** Crée un user avec le rôle concessionnaire */
+    public function concessionnaire(): static
+    {
+        return $this->state(fn () => [
+            'role'             => User::CONCESSIONNAIRE,
+            'raison_sociale'   => fake()->company(),
+            'badge_officiel'   => fake()->boolean(),
+            'adresse_showroom' => fake()->address(),
+            'telephone'        => fake()->phoneNumber(),
+            'latitude'         => fake()->latitude(),
+            'longitude'        => fake()->longitude(),
+        ]);
+    }
+
+    /** Crée un user avec le rôle auto_ecole */
+    public function autoEcole(): static
+    {
+        return $this->state(fn () => [
+            'role'             => User::AUTO_ECOLE,
+            'raison_sociale'   => fake()->company(),
+            'taux_reussite'    => fake()->numberBetween(50, 100),
+            'numero_agrement'  => fake()->numerify('AGR-####'),
+            'adresse_showroom' => fake()->address(),
+            'telephone'        => fake()->phoneNumber(),
+        ]);
+    }
+
+    /** Crée un user admin */
+    public function admin(): static
+    {
+        return $this->state(fn () => [
+            'role'         => User::ADMIN,
+            'niveau_acces' => 1,
+        ]);
+    }
+
+    /** Crée un user suspendu */
+    public function suspendu(): static
+    {
+        return $this->state(fn () => ['statut' => User::SUSPENDU]);
     }
 }

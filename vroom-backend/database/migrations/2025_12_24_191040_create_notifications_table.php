@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('notifications', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->foreignUuid('user_id')->constrained('users')->onDelete('cascade');
-            $table->enum('type', ['rdv', 'formation', 'alerte_vehicule', 'abonnement', 'moderation']);
+            $table->enum('type', ['rdv', 'formation', 'alerte_vehicule', 'abonnement', 'moderation', 'transaction']);
             $table->string('title');
             $table->text('message');
             $table->json('data')->nullable();

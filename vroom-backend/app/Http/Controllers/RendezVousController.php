@@ -2,16 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreRendezVousRequest;
 use App\Models\Notifications;
 use App\Models\RendezVous;
 use App\Models\TransactionConclue;
 use App\Models\Vehicules;
 use App\Services\GoogleCalendarService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 
 class RendezVousController extends Controller
 {
@@ -50,20 +49,9 @@ class RendezVousController extends Controller
     }
 
     // ── Créer un RDV (client → auteur du post véhicule) ───
-    public function store(Request $request): JsonResponse
+    public function store(StoreRendezVousRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'vehicule_id' => 'required|uuid|exists:vehicules,id',
-            'date_heure'  => 'required|date|after:now',
-            'type'        => ['required', Rule::in([
-                RendezVous::TYPE_VISITE,
-                RendezVous::TYPE_ESSAI_ROUTIER,
-                RendezVous::TYPE_PREMIERE_RENCONTRE,
-            ])],
-            'motif' => 'nullable|string|max:500',
-            'lieu'  => 'nullable|string|max:255',
-            'notes' => 'nullable|string|max:1000',
-        ]);
+        $validated = $request->validated();
 
         try {
             DB::beginTransaction();
@@ -74,6 +62,7 @@ class RendezVousController extends Controller
             $vehicule = Vehicules::findOrFail($validated['vehicule_id']);
 
             if ($vehicule->created_by === $user->id) {
+                DB::rollBack(); // transaction ouverte sans données — on annule proprement
                 return response()->json([
                     'success' => false,
                     'message' => 'Vous ne pouvez pas prendre rendez-vous sur votre propre annonce',
@@ -236,7 +225,7 @@ class RendezVousController extends Controller
     {
         try {
             $user = Auth::user();
-            $rdv  = RendezVous::where('id', $id)->where('vendeur_id', $user->id)->firstOrFail();
+            $rdv  = RendezVous::where('id', $id)->where('vendeur_id', $user->id)->with('vehicule')->firstOrFail();
 
             DB::beginTransaction();
 
@@ -246,12 +235,13 @@ class RendezVousController extends Controller
             $code = TransactionConclue::genererCode();
 
             $transaction = TransactionConclue::create([
-                'rendez_vous_id' => $rdv->id,
-                'vehicule_id'    => $rdv->vehicule_id,
-                'vendeur_id'     => $rdv->vendeur_id,
-                'client_id'      => $rdv->client_id,
+                'rendez_vous_id'    => $rdv->id,
+                'vehicule_id'       => $rdv->vehicule_id,
+                'vendeur_id'        => $rdv->vendeur_id,
+                'client_id'         => $rdv->client_id,
+                'type'              => $rdv->vehicule->post_type, // 'vente' ou 'location'
                 'code_confirmation' => $code,
-                'expires_at'     => now()->addHours(48),
+                'expires_at'        => now()->addHours(48),
                 'statut'         => TransactionConclue::STATUT_EN_ATTENTE,
             ]);
 
