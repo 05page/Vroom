@@ -280,8 +280,8 @@ class FormationController extends Controller
                 SUM(CASE WHEN statut_eleve = 'en_cours'     THEN 1 ELSE 0 END) as en_cours,
                 SUM(CASE WHEN statut_eleve = 'examen_passe' THEN 1 ELSE 0 END) as examens_passes,
                 SUM(CASE WHEN statut_eleve = 'terminé'      THEN 1 ELSE 0 END) as termines,
-                SUM(CASE WHEN statut_eleve = 'terminé' AND reussite = 1 THEN 1 ELSE 0 END) as reussis,
-                SUM(CASE WHEN statut_eleve = 'terminé' AND reussite = 0 THEN 1 ELSE 0 END) as echoues,
+                SUM(CASE WHEN statut_eleve = 'terminé' AND reussite = true  THEN 1 ELSE 0 END) as reussis,
+                SUM(CASE WHEN statut_eleve = 'terminé' AND reussite = false THEN 1 ELSE 0 END) as echoues,
                 SUM(CASE WHEN statut_eleve = 'abandonné'    THEN 1 ELSE 0 END) as abandonnes
             ")
             ->first();
@@ -321,7 +321,7 @@ class FormationController extends Controller
                 COUNT(*) as total,
                 SUM(CASE WHEN statut_eleve = 'en_cours'     THEN 1 ELSE 0 END) as en_cours,
                 SUM(CASE WHEN statut_eleve = 'terminé'      THEN 1 ELSE 0 END) as termines,
-                SUM(CASE WHEN statut_eleve = 'terminé' AND reussite = 1 THEN 1 ELSE 0 END) as reussis,
+                SUM(CASE WHEN statut_eleve = 'terminé' AND reussite = true THEN 1 ELSE 0 END) as reussis,
                 SUM(CASE WHEN statut_eleve = 'abandonné'    THEN 1 ELSE 0 END) as abandonnes
             ")
             ->first();
@@ -356,7 +356,7 @@ class FormationController extends Controller
             ->where('statut_eleve', InscriptionFormation::STATUT_TERMINE)
             ->selectRaw("
                 COUNT(*) as termines,
-                SUM(CASE WHEN reussite = 1 THEN 1 ELSE 0 END) as reussis
+                SUM(CASE WHEN reussite = true THEN 1 ELSE 0 END) as reussis
             ")
             ->first();
 
