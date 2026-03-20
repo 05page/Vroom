@@ -171,7 +171,7 @@ export interface InscriptionFormation {
   statut_eleve: 'inscrit' | 'en_cours' | 'examen_passe' | 'terminé' | 'abandonné'
   date_examen: string | null
   reussite: boolean | null
-  client?: { id: string; fullname: string; avatar?: string; email?: string; telephone?: string }
+  client?: { id: string; fullname: string; avatar?: string; email?: string; telephone?: string; adresse?: string }
   formation?: Formation
 }
 

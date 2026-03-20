@@ -81,7 +81,7 @@ class FormationController extends Controller
                 $q->where('auto_ecole_id', $userId);
             })
             ->with([
-                'client:id,fullname,email,avatar,telephone',
+                'client:id,fullname,email,avatar,telephone,adresse',
                 'formation:id,type_permis,auto_ecole_id',
                 'formation.description:formation_id,titre',
             ])
@@ -103,7 +103,7 @@ class FormationController extends Controller
             ->where('auto_ecole_id', $user->id)
             ->firstOrFail();
 
-        $inscrits = InscriptionFormation::with('client:id,fullname,email,avatar,telephone')
+        $inscrits = InscriptionFormation::with('client:id,fullname,email,avatar,telephone,adresse')
             ->where('formation_id', $formation->id)
             ->latest()
             ->get();

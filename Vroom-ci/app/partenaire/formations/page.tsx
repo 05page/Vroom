@@ -28,7 +28,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
-    BookOpen, Plus, Users, Clock, CircleDollarSign, Trash2, Eye, CheckCircle2, TrendingUp, Pencil,
+    BookOpen, Plus, Users, Clock, CircleDollarSign, Trash2, Eye, CheckCircle2, TrendingUp, Pencil, UserRound, Phone, MapPin, Mail,
 } from "lucide-react"
 import { Formation, InscriptionFormation } from "@/src/types"
 import { getMesFormations, createFormation, deleteFormation, getMesInscrits, getMesStats, updateInscrit } from "@/src/actions/formations.actions"
@@ -87,6 +87,10 @@ export default function FormationsAutoEcolePage() {
     const [editInscrit, setEditInscrit]   = useState<InscriptionFormation | null>(null)
     const [editForm, setEditForm]         = useState({ statut_eleve: "", date_examen: "", reussite: "" })
     const [updating, setUpdating]         = useState(false)
+
+    // État pour le drawer profil élève
+    const [profilInscrit, setProfilInscrit] = useState<InscriptionFormation | null>(null)
+    const [profilOpen, setProfilOpen]       = useState(false)
 
     // État pour la sélection multiple + action groupée
     const [selectedIds, setSelectedIds]   = useState<Set<string>>(new Set())
@@ -677,15 +681,24 @@ export default function FormationsAutoEcolePage() {
                                                 {new Date(inscription.date_inscription).toLocaleDateString("fr-FR")}
                                             </TableCell>
 
-                                            {/* Action — modifier statut */}
+                                            {/* Actions — profil + modifier statut */}
                                             <TableCell className="text-right pr-4">
-                                                <Button
-                                                    variant="ghost" size="icon"
-                                                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                                                    onClick={() => openEdit(inscription)}
-                                                >
-                                                    <Pencil className="h-4 w-4" />
-                                                </Button>
+                                                <div className="flex items-center justify-end gap-1">
+                                                    <Button
+                                                        variant="ghost" size="icon"
+                                                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                                        onClick={() => { setProfilInscrit(inscription); setProfilOpen(true) }}
+                                                    >
+                                                        <UserRound className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost" size="icon"
+                                                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                                        onClick={() => openEdit(inscription)}
+                                                    >
+                                                        <Pencil className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
                                             </TableCell>
                                         </TableRow>
                                     )
@@ -701,6 +714,110 @@ export default function FormationsAutoEcolePage() {
             </TabsContent>
 
             </Tabs>
+
+            {/* ── Drawer profil élève ── */}
+            <Sheet open={profilOpen} onOpenChange={setProfilOpen}>
+                <SheetContent className="w-full sm:max-w-md">
+                    <SheetHeader className="pb-4">
+                        <SheetTitle>Profil de l&apos;élève</SheetTitle>
+                    </SheetHeader>
+
+                    {profilInscrit?.client && (
+                        <div className="space-y-6">
+                            {/* Avatar + nom */}
+                            <div className="flex flex-col items-center gap-3 py-4">
+                                <Avatar className="h-20 w-20">
+                                    <AvatarImage
+                                        src={profilInscrit.client.avatar
+                                            ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/storage/${profilInscrit.client.avatar}`
+                                            : undefined}
+                                    />
+                                    <AvatarFallback className="text-2xl font-semibold">
+                                        {profilInscrit.client.fullname?.charAt(0) ?? "?"}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div className="text-center">
+                                    <p className="font-semibold text-base">{profilInscrit.client.fullname}</p>
+                                    {/* Statut de la formation */}
+                                    <Badge className={`mt-1 border text-xs ${
+                                        {
+                                            inscrit:      "bg-blue-100 text-blue-700 border-blue-200",
+                                            en_cours:     "bg-amber-100 text-amber-700 border-amber-200",
+                                            examen_passe: "bg-purple-100 text-purple-700 border-purple-200",
+                                            terminé:      "bg-emerald-100 text-emerald-700 border-emerald-200",
+                                            abandonné:    "bg-zinc-100 text-zinc-500 border-zinc-200",
+                                        }[profilInscrit.statut_eleve] ?? ""
+                                    }`}>
+                                        {{
+                                            inscrit: "Inscrit", en_cours: "En cours",
+                                            examen_passe: "Examen passé", terminé: "Terminé", abandonné: "Abandonné",
+                                        }[profilInscrit.statut_eleve] ?? profilInscrit.statut_eleve}
+                                    </Badge>
+                                </div>
+                            </div>
+
+                            <Separator />
+
+                            {/* Coordonnées */}
+                            <div className="space-y-3">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Coordonnées</p>
+
+                                <div className="flex items-center gap-3 text-sm">
+                                    <div className="h-8 w-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+                                        <Mail className="h-4 w-4 text-blue-500" />
+                                    </div>
+                                    <span className="text-muted-foreground">
+                                        {profilInscrit.client.email ?? "—"}
+                                    </span>
+                                </div>
+
+                                <div className="flex items-center gap-3 text-sm">
+                                    <div className="h-8 w-8 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0">
+                                        <Phone className="h-4 w-4 text-emerald-500" />
+                                    </div>
+                                    <span className={profilInscrit.client.telephone ? "" : "text-muted-foreground italic"}>
+                                        {profilInscrit.client.telephone ?? "Non renseigné"}
+                                    </span>
+                                </div>
+
+                                <div className="flex items-center gap-3 text-sm">
+                                    <div className="h-8 w-8 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
+                                        <MapPin className="h-4 w-4 text-amber-500" />
+                                    </div>
+                                    <span className={profilInscrit.client.adresse ? "" : "text-muted-foreground italic"}>
+                                        {profilInscrit.client.adresse ?? "Non renseignée"}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <Separator />
+
+                            {/* Infos formation */}
+                            <div className="space-y-3">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Formation</p>
+                                <div className="p-3 rounded-lg bg-zinc-50 border space-y-1">
+                                    <p className="text-sm font-medium">
+                                        {profilInscrit.formation?.description?.titre ?? `Permis ${profilInscrit.formation?.type_permis ?? "—"}`}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Inscrit le {new Date(profilInscrit.date_inscription).toLocaleDateString("fr-FR")}
+                                    </p>
+                                    {profilInscrit.date_examen && (
+                                        <p className="text-xs text-muted-foreground">
+                                            Examen le {new Date(profilInscrit.date_examen).toLocaleDateString("fr-FR")}
+                                        </p>
+                                    )}
+                                    {profilInscrit.reussite !== null && (
+                                        <p className={`text-xs font-medium ${profilInscrit.reussite ? "text-emerald-600" : "text-red-500"}`}>
+                                            {profilInscrit.reussite ? "✓ Réussi" : "✗ Échoué"}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </SheetContent>
+            </Sheet>
 
             {/* ── Drawer mise à jour statut élève ── */}
             <Sheet open={editOpen} onOpenChange={setEditOpen}>
