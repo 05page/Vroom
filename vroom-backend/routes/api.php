@@ -144,10 +144,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::middleware('role:auto_ecole')->group(function () {
             Route::get('/mes-formations',  [FormationController::class, 'mesFormations']);
             Route::get('/mes-inscrits',    [FormationController::class, 'mesInscrits']);
+            Route::get('/mes-stats',       [FormationController::class, 'mesStats']);
             Route::post('/',               [FormationController::class, 'store']);
             Route::put('/{id}',            [FormationController::class, 'update']);
             Route::delete('/{id}',         [FormationController::class, 'destroy']);
             Route::get('/{id}/inscrits',   [FormationController::class, 'inscrits']);
+            Route::get('/{id}/stats',      [FormationController::class, 'stats']);
             Route::put('/{formationId}/inscrits/{inscriptionId}', [FormationController::class, 'updateInscrit']);
         });
         // Routes dynamiques après les routes statiques pour éviter les conflits UUID

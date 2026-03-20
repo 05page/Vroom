@@ -59,3 +59,28 @@ export const annulerInscription = (formationId: string) =>
 /** Client consulte ses inscriptions. */
 export const getMesInscriptions = () =>
   api.get<InscriptionFormation[]>("/formations/mes-inscriptions")
+
+/** Auto-école — stats globales toutes formations confondues. */
+export const getMesStats = () =>
+  api.get<{
+    nb_formations:  number
+    total_inscrits: number
+    en_cours:       number
+    termines:       number
+    reussis:        number
+    abandonnes:     number
+    taux_reussite:  number | null
+  }>("/formations/mes-stats")
+
+/** Auto-école — stats d'une formation spécifique. */
+export const getFormationStats = (formationId: string) =>
+  api.get<{
+    total:          number
+    en_cours:       number
+    examens_passes: number
+    termines:       number
+    reussis:        number
+    echoues:        number
+    abandonnes:     number
+    taux_reussite:  number | null
+  }>(`/formations/${formationId}/stats`)

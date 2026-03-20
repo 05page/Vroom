@@ -27,10 +27,10 @@ import {
 } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
-    BookOpen, Plus, Users, Clock, CircleDollarSign, Trash2, Eye, CheckCircle2,
+    BookOpen, Plus, Users, Clock, CircleDollarSign, Trash2, Eye, CheckCircle2, TrendingUp,
 } from "lucide-react"
 import { Formation, InscriptionFormation } from "@/src/types"
-import { getMesFormations, createFormation, deleteFormation, getMesInscrits } from "@/src/actions/formations.actions"
+import { getMesFormations, createFormation, deleteFormation, getMesInscrits, getMesStats } from "@/src/actions/formations.actions"
 import { useUser } from "@/src/context/UserContext"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -72,6 +72,7 @@ export default function FormationsAutoEcolePage() {
     const router   = useRouter()
     const [formations, setFormations]   = useState<Formation[]>([])
     const [inscrits, setInscrits]       = useState<InscriptionFormation[]>([])
+    const [mesStats, setMesStats]       = useState<{ taux_reussite: number | null; reussis: number; termines: number } | null>(null)
     const [loading, setLoading]         = useState(true)
     const [loadingInscrits, setLoadingInscrits] = useState(false)
     const [sheetOpen, setSheetOpen]     = useState(false)
@@ -89,8 +90,11 @@ export default function FormationsAutoEcolePage() {
 
     useEffect(() => {
         if (!user || user.role !== "auto_ecole") return
-        getMesFormations()
-            .then(res => setFormations(res?.data ?? []))
+        Promise.allSettled([getMesFormations(), getMesStats()])
+            .then(([formRes, statsRes]) => {
+                if (formRes.status === "fulfilled") setFormations(formRes.value?.data ?? [])
+                if (statsRes.status === "fulfilled") setMesStats(statsRes.value?.data ?? null)
+            })
             .catch(() => toast.error("Erreur de chargement"))
             .finally(() => setLoading(false))
     }, [user])
@@ -256,7 +260,7 @@ export default function FormationsAutoEcolePage() {
 
             <TabsContent value="formations" className="mt-4 space-y-6">
             {/* --- KPI cards --- */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card>
                     <CardContent className="p-4 flex items-start justify-between">
                         <div>
@@ -292,6 +296,28 @@ export default function FormationsAutoEcolePage() {
                             </div>
                         </div>
                         <Progress value={kpis.tauxValid} className="h-1.5" />
+                    </CardContent>
+                </Card>
+                {/* KPI taux de réussite — calculé en live depuis la DB */}
+                <Card>
+                    <CardContent className="p-4 space-y-2">
+                        <div className="flex items-start justify-between">
+                            <div>
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Taux de réussite</p>
+                                <p className="text-2xl font-bold">
+                                    {mesStats?.taux_reussite != null ? `${mesStats.taux_reussite}%` : "—"}
+                                </p>
+                                {mesStats && (
+                                    <p className="text-xs text-muted-foreground">
+                                        {mesStats.reussis} réussi{mesStats.reussis > 1 ? "s" : ""} / {mesStats.termines} terminé{mesStats.termines > 1 ? "s" : ""}
+                                    </p>
+                                )}
+                            </div>
+                            <div className="h-8 w-8 rounded-lg bg-green-50 flex items-center justify-center shrink-0">
+                                <TrendingUp className="h-4 w-4 text-green-500" />
+                            </div>
+                        </div>
+                        <Progress value={mesStats?.taux_reussite ?? 0} className="h-1.5 [&>div]:bg-green-500" />
                     </CardContent>
                 </Card>
             </div>

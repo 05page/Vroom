@@ -232,6 +232,11 @@ class FormationController extends Controller
 
         $inscription->update($validated);
 
+        // Quand un élève termine avec un résultat, on recalcule le taux de réussite global de l'auto-école
+        if ($validated['statut_eleve'] === InscriptionFormation::STATUT_TERMINE && array_key_exists('reussite', $validated)) {
+            $this->recalculerTauxReussite($user->id);
+        }
+
         // Notifie le client de l'avancement
         $messages = [
             InscriptionFormation::STATUT_EN_COURS     => 'Votre formation a démarré. Bonne chance !',
@@ -253,5 +258,112 @@ class FormationController extends Controller
         }
 
         return response()->json(['success' => true, 'data' => $inscription->load('client:id,fullname,avatar')]);
+    }
+
+    /**
+     * Stats d'une formation spécifique (auto-école uniquement).
+     * GET /formations/{id}/stats
+     *
+     * Retourne nb total inscrits, répartition par statut, taux de réussite calculé en live.
+     */
+    public function stats(string $id): JsonResponse
+    {
+        $user = Auth::user();
+
+        Formation::where('id', $id)
+            ->where('auto_ecole_id', $user->id)
+            ->firstOrFail();
+
+        $stats = InscriptionFormation::where('formation_id', $id)
+            ->selectRaw("
+                COUNT(*) as total,
+                SUM(CASE WHEN statut_eleve = 'en_cours'     THEN 1 ELSE 0 END) as en_cours,
+                SUM(CASE WHEN statut_eleve = 'examen_passe' THEN 1 ELSE 0 END) as examens_passes,
+                SUM(CASE WHEN statut_eleve = 'terminé'      THEN 1 ELSE 0 END) as termines,
+                SUM(CASE WHEN statut_eleve = 'terminé' AND reussite = 1 THEN 1 ELSE 0 END) as reussis,
+                SUM(CASE WHEN statut_eleve = 'terminé' AND reussite = 0 THEN 1 ELSE 0 END) as echoues,
+                SUM(CASE WHEN statut_eleve = 'abandonné'    THEN 1 ELSE 0 END) as abandonnes
+            ")
+            ->first();
+
+        // Taux calculé sur les terminés (pas sur le total — les en_cours ne comptent pas encore)
+        $tauxReussite = $stats->termines > 0
+            ? round(($stats->reussis / $stats->termines) * 100, 1)
+            : null;
+
+        return response()->json([
+            'success' => true,
+            'data'    => [
+                'total'          => (int) $stats->total,
+                'en_cours'       => (int) $stats->en_cours,
+                'examens_passes' => (int) $stats->examens_passes,
+                'termines'       => (int) $stats->termines,
+                'reussis'        => (int) $stats->reussis,
+                'echoues'        => (int) $stats->echoues,
+                'abandonnes'     => (int) $stats->abandonnes,
+                'taux_reussite'  => $tauxReussite,
+            ],
+        ]);
+    }
+
+    /**
+     * Stats globales de l'auto-école connectée (toutes formations confondues).
+     * GET /formations/mes-stats
+     */
+    public function mesStats(): JsonResponse
+    {
+        $userId = Auth::id();
+
+        $formationIds = Formation::where('auto_ecole_id', $userId)->pluck('id');
+
+        $stats = InscriptionFormation::whereIn('formation_id', $formationIds)
+            ->selectRaw("
+                COUNT(*) as total,
+                SUM(CASE WHEN statut_eleve = 'en_cours'     THEN 1 ELSE 0 END) as en_cours,
+                SUM(CASE WHEN statut_eleve = 'terminé'      THEN 1 ELSE 0 END) as termines,
+                SUM(CASE WHEN statut_eleve = 'terminé' AND reussite = 1 THEN 1 ELSE 0 END) as reussis,
+                SUM(CASE WHEN statut_eleve = 'abandonné'    THEN 1 ELSE 0 END) as abandonnes
+            ")
+            ->first();
+
+        $tauxReussite = $stats->termines > 0
+            ? round(($stats->reussis / $stats->termines) * 100, 1)
+            : null;
+
+        return response()->json([
+            'success' => true,
+            'data'    => [
+                'nb_formations'  => count($formationIds),
+                'total_inscrits' => (int) $stats->total,
+                'en_cours'       => (int) $stats->en_cours,
+                'termines'       => (int) $stats->termines,
+                'reussis'        => (int) $stats->reussis,
+                'abandonnes'     => (int) $stats->abandonnes,
+                'taux_reussite'  => $tauxReussite,
+            ],
+        ]);
+    }
+
+    /**
+     * Recalcule le taux_reussite global de l'auto-école et le persiste sur le User.
+     * Appelé après chaque updateInscrit() qui définit un résultat d'examen.
+     */
+    private function recalculerTauxReussite(string $autoEcoleId): void
+    {
+        $formationIds = Formation::where('auto_ecole_id', $autoEcoleId)->pluck('id');
+
+        $stats = InscriptionFormation::whereIn('formation_id', $formationIds)
+            ->where('statut_eleve', InscriptionFormation::STATUT_TERMINE)
+            ->selectRaw("
+                COUNT(*) as termines,
+                SUM(CASE WHEN reussite = 1 THEN 1 ELSE 0 END) as reussis
+            ")
+            ->first();
+
+        $taux = $stats->termines > 0
+            ? round(($stats->reussis / $stats->termines) * 100, 1)
+            : null;
+
+        \App\Models\User::where('id', $autoEcoleId)->update(['taux_reussite' => $taux]);
     }
 }

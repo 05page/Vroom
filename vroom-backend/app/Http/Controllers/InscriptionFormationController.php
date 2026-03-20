@@ -97,7 +97,23 @@ class InscriptionFormationController extends Controller
             ], 422);
         }
 
+        // Charge la formation avant suppression pour pouvoir notifier l'auto-école
+        $formation = Formation::with('description')->find($id);
+
         $inscription->delete();
+
+        // Notifie l'auto-école de l'annulation
+        if ($formation) {
+            Notifications::create([
+                'user_id'    => $formation->auto_ecole_id,
+                'type'       => Notifications::TYPE_FORMATION,
+                'title'      => 'Inscription annulée',
+                'message'    => $user->fullname . ' a annulé son inscription à "' .
+                                ($formation->description->titre ?? 'Permis ' . $formation->type_permis) . '".',
+                'data'       => ['formation_id' => $id],
+                'date_envoi' => now(),
+            ]);
+        }
 
         return response()->json(['success' => true, 'message' => 'Inscription annulée']);
     }
