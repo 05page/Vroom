@@ -27,10 +27,10 @@ import {
 } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
-    BookOpen, Plus, Users, Clock, CircleDollarSign, Trash2, Eye, CheckCircle2, TrendingUp,
+    BookOpen, Plus, Users, Clock, CircleDollarSign, Trash2, Eye, CheckCircle2, TrendingUp, Pencil,
 } from "lucide-react"
 import { Formation, InscriptionFormation } from "@/src/types"
-import { getMesFormations, createFormation, deleteFormation, getMesInscrits, getMesStats } from "@/src/actions/formations.actions"
+import { getMesFormations, createFormation, deleteFormation, getMesInscrits, getMesStats, updateInscrit } from "@/src/actions/formations.actions"
 import { useUser } from "@/src/context/UserContext"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -80,6 +80,12 @@ export default function FormationsAutoEcolePage() {
     const [form, setForm] = useState({
         type_permis: "", prix: "", duree_heures: "", titre: "", texte: "",
     })
+
+    // État pour le drawer de mise à jour du statut d'un élève
+    const [editOpen, setEditOpen]         = useState(false)
+    const [editInscrit, setEditInscrit]   = useState<InscriptionFormation | null>(null)
+    const [editForm, setEditForm]         = useState({ statut_eleve: "", date_examen: "", reussite: "" })
+    const [updating, setUpdating]         = useState(false)
 
     // Garde : seule une auto-école peut accéder à cette page
     useEffect(() => {
@@ -151,6 +157,53 @@ export default function FormationsAutoEcolePage() {
             toast.success("Formation supprimée")
         } catch {
             toast.error("Impossible de supprimer")
+        }
+    }
+
+    // Ouvre le drawer pré-rempli avec les valeurs actuelles de l'inscription
+    const openEdit = (inscription: InscriptionFormation) => {
+        setEditInscrit(inscription)
+        setEditForm({
+            statut_eleve: inscription.statut_eleve,
+            date_examen:  inscription.date_examen ?? "",
+            reussite:     inscription.reussite === true ? "oui" : inscription.reussite === false ? "non" : "",
+        })
+        setEditOpen(true)
+    }
+
+    const handleUpdateInscrit = async () => {
+        if (!editInscrit || !editForm.statut_eleve) return
+        setUpdating(true)
+        try {
+            // Construit le payload — date_examen et reussite sont optionnels selon le statut
+            const payload: { statut_eleve: string; date_examen?: string; reussite?: boolean } = {
+                statut_eleve: editForm.statut_eleve,
+            }
+            if (editForm.date_examen) payload.date_examen = editForm.date_examen
+            if (editForm.statut_eleve === "terminé" && editForm.reussite !== "") {
+                payload.reussite = editForm.reussite === "oui"
+            }
+
+            await updateInscrit(editInscrit.formation_id, editInscrit.id, payload)
+
+            // Mise à jour locale sans re-fetch (cast pour conserver les types union de InscriptionFormation)
+            setInscrits(prev => prev.map(i =>
+                i.id === editInscrit.id
+                    ? { ...i, ...(payload as Partial<InscriptionFormation>) }
+                    : i
+            ))
+
+            // Si l'élève vient de terminer, le taux_reussite global peut avoir changé
+            if (editForm.statut_eleve === "terminé") {
+                getMesStats().then(res => setMesStats(res?.data ?? null))
+            }
+
+            setEditOpen(false)
+            toast.success("Statut mis à jour")
+        } catch {
+            toast.error("Erreur lors de la mise à jour")
+        } finally {
+            setUpdating(false)
         }
     }
 
@@ -454,7 +507,8 @@ export default function FormationsAutoEcolePage() {
                                     <TableHead>Formation choisie</TableHead>
                                     <TableHead>Permis</TableHead>
                                     <TableHead>Statut</TableHead>
-                                    <TableHead className="text-right pr-4">Inscrit le</TableHead>
+                                    <TableHead>Inscrit le</TableHead>
+                                    <TableHead className="text-right pr-4">Avancement</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -510,8 +564,19 @@ export default function FormationsAutoEcolePage() {
                                             </TableCell>
 
                                             {/* Date */}
-                                            <TableCell className="text-right pr-4 text-xs text-muted-foreground">
+                                            <TableCell className="text-xs text-muted-foreground">
                                                 {new Date(inscription.date_inscription).toLocaleDateString("fr-FR")}
+                                            </TableCell>
+
+                                            {/* Action — modifier statut */}
+                                            <TableCell className="text-right pr-4">
+                                                <Button
+                                                    variant="ghost" size="icon"
+                                                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                                    onClick={() => openEdit(inscription)}
+                                                >
+                                                    <Pencil className="h-4 w-4" />
+                                                </Button>
                                             </TableCell>
                                         </TableRow>
                                     )
@@ -526,6 +591,113 @@ export default function FormationsAutoEcolePage() {
             </TabsContent>
 
             </Tabs>
+
+            {/* ── Drawer mise à jour statut élève ── */}
+            <Sheet open={editOpen} onOpenChange={setEditOpen}>
+                <SheetContent className="w-full sm:max-w-md">
+                    <SheetHeader className="pb-4">
+                        <SheetTitle>Mettre à jour l&apos;avancement</SheetTitle>
+                    </SheetHeader>
+
+                    {editInscrit && (
+                        <div className="space-y-5">
+                            {/* Rappel élève */}
+                            <div className="flex items-center gap-3 p-3 rounded-lg bg-zinc-50 border">
+                                <Avatar className="h-9 w-9 shrink-0">
+                                    <AvatarImage
+                                        src={editInscrit.client?.avatar
+                                            ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/storage/${editInscrit.client.avatar}`
+                                            : undefined}
+                                    />
+                                    <AvatarFallback className="text-xs">
+                                        {editInscrit.client?.fullname?.charAt(0) ?? "?"}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div>
+                                    <p className="text-sm font-medium">{editInscrit.client?.fullname}</p>
+                                    <p className="text-xs text-muted-foreground">{editInscrit.client?.email}</p>
+                                </div>
+                            </div>
+
+                            <Separator />
+
+                            {/* Statut élève */}
+                            <div className="space-y-1.5">
+                                <Label>Statut de l&apos;élève</Label>
+                                <Select
+                                    value={editForm.statut_eleve}
+                                    onValueChange={v => setEditForm(p => ({
+                                        ...p,
+                                        statut_eleve: v,
+                                        // Réinitialise reussite si on quitte "terminé"
+                                        reussite: v === "terminé" ? p.reussite : "",
+                                    }))}
+                                >
+                                    <SelectTrigger><SelectValue placeholder="Choisir un statut" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="inscrit">Inscrit</SelectItem>
+                                        <SelectItem value="en_cours">En cours</SelectItem>
+                                        <SelectItem value="examen_passe">Examen passé</SelectItem>
+                                        <SelectItem value="terminé">Terminé</SelectItem>
+                                        <SelectItem value="abandonné">Abandonné</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            {/* Date d'examen — visible si examen passé ou terminé */}
+                            {(editForm.statut_eleve === "examen_passe" || editForm.statut_eleve === "terminé") && (
+                                <div className="space-y-1.5">
+                                    <Label>Date de l&apos;examen</Label>
+                                    <Input
+                                        type="date"
+                                        value={editForm.date_examen}
+                                        onChange={e => setEditForm(p => ({ ...p, date_examen: e.target.value }))}
+                                    />
+                                </div>
+                            )}
+
+                            {/* Résultat — visible uniquement si statut = terminé */}
+                            {editForm.statut_eleve === "terminé" && (
+                                <div className="space-y-2">
+                                    <Label>Résultat de l&apos;examen</Label>
+                                    <div className="flex gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setEditForm(p => ({ ...p, reussite: "oui" }))}
+                                            className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                                                editForm.reussite === "oui"
+                                                    ? "bg-emerald-500 border-emerald-500 text-white"
+                                                    : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"
+                                            }`}
+                                        >
+                                            ✓ Réussi
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setEditForm(p => ({ ...p, reussite: "non" }))}
+                                            className={`flex-1 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                                                editForm.reussite === "non"
+                                                    ? "bg-red-500 border-red-500 text-white"
+                                                    : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"
+                                            }`}
+                                        >
+                                            ✗ Échoué
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            <Button
+                                className="w-full"
+                                onClick={handleUpdateInscrit}
+                                disabled={updating || !editForm.statut_eleve}
+                            >
+                                {updating ? "Enregistrement…" : "Enregistrer"}
+                            </Button>
+                        </div>
+                    )}
+                </SheetContent>
+            </Sheet>
         </div>
     )
 }
