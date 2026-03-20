@@ -37,6 +37,7 @@ interface EditVehiculeProps {
 
 interface FormData {
     typePublication: "vente" | "location" | ""
+    typeVehicule: "neuf" | "occasion" | ""
     marque: string
     modele: string
     annee: string
@@ -109,6 +110,7 @@ export function AddVehicule({ isOpen, onClose, onSubmit }: EditVehiculeProps) {
 
     const [formData, setFormData] = useState<FormData>({
         typePublication: "",
+        typeVehicule: "",
         marque: "",
         modele: "",
         annee: "",
@@ -224,7 +226,7 @@ export function AddVehicule({ isOpen, onClose, onSubmit }: EditVehiculeProps) {
         // Construire le FormData pour l'envoi multipart (champs + photos)
         const fd = new FormData()
         fd.append("post_type", formData.typePublication)
-        fd.append("type", "occasion") // TODO: ajouter ce champ dans le formulaire
+        fd.append("type", formData.typeVehicule || "occasion")
         fd.append("prix", formData.prix)
         fd.append("marque", formData.marque)
         fd.append("modele", formData.modele)
@@ -376,6 +378,36 @@ export function AddVehicule({ isOpen, onClose, onSubmit }: EditVehiculeProps) {
                                         <h4 className="font-bold text-sm mb-1">Location</h4>
                                         <p className="text-xs text-muted-foreground">Proposer en location</p>
                                     </button>
+                                </div>
+
+                                {/* Type de véhicule */}
+                                <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider pt-2">
+                                    État du véhicule
+                                </h3>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {(["neuf", "occasion"] as const).map(type => (
+                                        <button
+                                            key={type}
+                                            type="button"
+                                            onClick={() => updateFormData("typeVehicule", type)}
+                                            className={cn(
+                                                "relative p-4 rounded-xl border-2 text-left transition-all",
+                                                formData.typeVehicule === type
+                                                    ? "border-green-500 bg-green-500/5"
+                                                    : "border-border/40 hover:border-green-500/30",
+                                            )}
+                                        >
+                                            {formData.typeVehicule === type && (
+                                                <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
+                                                    <Check className="h-3 w-3 text-white" />
+                                                </div>
+                                            )}
+                                            <h4 className="font-bold text-sm capitalize">{type}</h4>
+                                            <p className="text-xs text-muted-foreground mt-0.5">
+                                                {type === "neuf" ? "0 km, jamais immatriculé" : "Déjà utilisé"}
+                                            </p>
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
                         )}
