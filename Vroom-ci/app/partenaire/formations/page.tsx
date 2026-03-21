@@ -28,10 +28,10 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
-    BookOpen, Plus, Users, Clock, CircleDollarSign, Trash2, Eye, CheckCircle2, TrendingUp, Pencil, UserRound, Phone, MapPin, Mail,
+    BookOpen, Plus, Users, Clock, CircleDollarSign, Trash2, Eye, CheckCircle2, TrendingUp, Pencil, UserRound, Phone, MapPin, Mail, CreditCard, X,
 } from "lucide-react"
-import { Formation, InscriptionFormation } from "@/src/types"
-import { getMesFormations, createFormation, deleteFormation, getMesInscrits, getMesStats, updateInscrit } from "@/src/actions/formations.actions"
+import { Formation, InscriptionFormation, Versement } from "@/src/types"
+import { getMesFormations, createFormation, deleteFormation, getMesInscrits, getMesStats, updateInscrit, getVersements, addVersement, deleteVersement } from "@/src/actions/formations.actions"
 import { useUser } from "@/src/context/UserContext"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -91,6 +91,13 @@ export default function FormationsAutoEcolePage() {
     // État pour le drawer profil élève
     const [profilInscrit, setProfilInscrit] = useState<InscriptionFormation | null>(null)
     const [profilOpen, setProfilOpen]       = useState(false)
+
+    // État versements
+    const [versements, setVersements]           = useState<Versement[]>([])
+    const [montantPaye, setMontantPaye]         = useState(0)
+    const [montantTotal, setMontantTotal]       = useState(0)
+    const [versementForm, setVersementForm]     = useState({ montant: "", date_versement: "", note: "" })
+    const [versementLoading, setVersementLoading] = useState(false)
 
     // État pour la sélection multiple + action groupée
     const [selectedIds, setSelectedIds]   = useState<Set<string>>(new Set())
@@ -170,7 +177,7 @@ export default function FormationsAutoEcolePage() {
         }
     }
 
-    // Ouvre le drawer pré-rempli avec les valeurs actuelles de l'inscription
+    // Ouvre le drawer pré-rempli et charge les versements de l'inscription
     const openEdit = (inscription: InscriptionFormation) => {
         setEditInscrit(inscription)
         setEditForm({
@@ -178,7 +185,55 @@ export default function FormationsAutoEcolePage() {
             date_examen:  inscription.date_examen ?? "",
             reussite:     inscription.reussite === true ? "oui" : inscription.reussite === false ? "non" : "",
         })
+        setVersements([])
+        setMontantPaye(0)
+        setMontantTotal(0)
+        setVersementForm({ montant: "", date_versement: "", note: "" })
         setEditOpen(true)
+
+        // Charge les versements en arrière-plan
+        getVersements(inscription.formation_id, inscription.id)
+            .then(res => {
+                setVersements(res.data?.versements ?? [])
+                setMontantPaye(res.data?.montant_paye ?? 0)
+                setMontantTotal(res.data?.montant_total ?? 0)
+            })
+            .catch(() => {/* silencieux — non bloquant */})
+    }
+
+    const handleAddVersement = async () => {
+        if (!editInscrit || !versementForm.montant) return
+        setVersementLoading(true)
+        try {
+            const res = await addVersement(editInscrit.formation_id, editInscrit.id, {
+                montant: parseFloat(versementForm.montant),
+                date_versement: versementForm.date_versement || undefined,
+                note: versementForm.note || undefined,
+            })
+            setMontantPaye(res.data?.montant_paye ?? montantPaye + parseFloat(versementForm.montant))
+            // Recharge la liste complète pour avoir l'id du nouveau versement
+            const updated = await getVersements(editInscrit.formation_id, editInscrit.id)
+            setVersements(updated.data?.versements ?? [])
+            setVersementForm({ montant: "", date_versement: "", note: "" })
+            toast.success("Versement enregistré")
+        } catch {
+            toast.error("Erreur lors de l'enregistrement du versement")
+        } finally {
+            setVersementLoading(false)
+        }
+    }
+
+    const handleDeleteVersement = async (versementId: string) => {
+        if (!editInscrit) return
+        try {
+            await deleteVersement(editInscrit.formation_id, editInscrit.id, versementId)
+            const updated = await getVersements(editInscrit.formation_id, editInscrit.id)
+            setVersements(updated.data?.versements ?? [])
+            setMontantPaye(updated.data?.montant_paye ?? 0)
+            toast.success("Versement supprimé")
+        } catch {
+            toast.error("Impossible de supprimer ce versement")
+        }
     }
 
     const handleUpdateInscrit = async () => {
@@ -572,7 +627,8 @@ export default function FormationsAutoEcolePage() {
                                     <SelectValue placeholder="Choisir un statut…" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="inscrit">Inscrit</SelectItem>
+                                    <SelectItem value="paiement_en_cours">Paiement en cours</SelectItem>
+                                    <SelectItem value="inscrit">Inscrit (soldé)</SelectItem>
                                     <SelectItem value="en_cours">En cours</SelectItem>
                                     <SelectItem value="examen_passe">Examen passé</SelectItem>
                                     <SelectItem value="terminé">Terminé</SelectItem>
@@ -617,11 +673,13 @@ export default function FormationsAutoEcolePage() {
                             <TableBody>
                                 {inscrits.map(inscription => {
                                     const statutInfo = {
-                                        inscrit:      { label: "Inscrit",       cls: "bg-blue-100 text-blue-700 border-blue-200" },
-                                        en_cours:     { label: "En cours",      cls: "bg-amber-100 text-amber-700 border-amber-200" },
-                                        examen_passe: { label: "Examen passé",  cls: "bg-purple-100 text-purple-700 border-purple-200" },
-                                        terminé:      { label: "Terminé",       cls: "bg-emerald-100 text-emerald-700 border-emerald-200" },
-                                        abandonné:    { label: "Abandonné",     cls: "bg-zinc-100 text-zinc-500 border-zinc-200" },
+                                        préinscrit:        { label: "Préinscrit",        cls: "bg-zinc-100 text-zinc-600 border-zinc-200" },
+                                        paiement_en_cours: { label: "Paiement en cours", cls: "bg-amber-100 text-amber-700 border-amber-200" },
+                                        inscrit:           { label: "Inscrit",           cls: "bg-blue-100 text-blue-700 border-blue-200" },
+                                        en_cours:          { label: "En cours",          cls: "bg-indigo-100 text-indigo-700 border-indigo-200" },
+                                        examen_passe:      { label: "Examen passé",      cls: "bg-purple-100 text-purple-700 border-purple-200" },
+                                        terminé:           { label: "Terminé",           cls: "bg-emerald-100 text-emerald-700 border-emerald-200" },
+                                        abandonné:         { label: "Abandonné",         cls: "bg-red-100 text-red-500 border-red-200" },
                                     }[inscription.statut_eleve]
                                     const permisCls = permisBadgeColor[inscription.formation?.type_permis ?? ""] ?? "bg-zinc-100 text-zinc-700"
 
@@ -740,18 +798,21 @@ export default function FormationsAutoEcolePage() {
                                     <p className="font-semibold text-base">{profilInscrit.client.fullname}</p>
                                     {/* Statut de la formation */}
                                     <Badge className={`mt-1 border text-xs ${
-                                        {
-                                            inscrit:      "bg-blue-100 text-blue-700 border-blue-200",
-                                            en_cours:     "bg-amber-100 text-amber-700 border-amber-200",
-                                            examen_passe: "bg-purple-100 text-purple-700 border-purple-200",
-                                            terminé:      "bg-emerald-100 text-emerald-700 border-emerald-200",
-                                            abandonné:    "bg-zinc-100 text-zinc-500 border-zinc-200",
-                                        }[profilInscrit.statut_eleve] ?? ""
+                                        ({
+                                            préinscrit:        "bg-zinc-100 text-zinc-600 border-zinc-200",
+                                            paiement_en_cours: "bg-amber-100 text-amber-700 border-amber-200",
+                                            inscrit:           "bg-blue-100 text-blue-700 border-blue-200",
+                                            en_cours:          "bg-indigo-100 text-indigo-700 border-indigo-200",
+                                            examen_passe:      "bg-purple-100 text-purple-700 border-purple-200",
+                                            terminé:           "bg-emerald-100 text-emerald-700 border-emerald-200",
+                                            abandonné:         "bg-red-100 text-red-500 border-red-200",
+                                        } as Record<string, string>)[profilInscrit.statut_eleve] ?? ""
                                     }`}>
-                                        {{
+                                        {({
+                                            préinscrit: "Préinscrit", paiement_en_cours: "Paiement en cours",
                                             inscrit: "Inscrit", en_cours: "En cours",
                                             examen_passe: "Examen passé", terminé: "Terminé", abandonné: "Abandonné",
-                                        }[profilInscrit.statut_eleve] ?? profilInscrit.statut_eleve}
+                                        } as Record<string, string>)[profilInscrit.statut_eleve] ?? profilInscrit.statut_eleve}
                                     </Badge>
                                 </div>
                             </div>
@@ -862,7 +923,8 @@ export default function FormationsAutoEcolePage() {
                                 >
                                     <SelectTrigger><SelectValue placeholder="Choisir un statut" /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="inscrit">Inscrit</SelectItem>
+                                        <SelectItem value="paiement_en_cours">Paiement en cours</SelectItem>
+                                        <SelectItem value="inscrit">Inscrit (soldé)</SelectItem>
                                         <SelectItem value="en_cours">En cours</SelectItem>
                                         <SelectItem value="examen_passe">Examen passé</SelectItem>
                                         <SelectItem value="terminé">Terminé</SelectItem>
@@ -919,8 +981,127 @@ export default function FormationsAutoEcolePage() {
                                 onClick={handleUpdateInscrit}
                                 disabled={updating || !editForm.statut_eleve}
                             >
-                                {updating ? "Enregistrement…" : "Enregistrer"}
+                                {updating ? "Enregistrement…" : "Enregistrer le statut"}
                             </Button>
+
+                            <Separator />
+
+                            {/* ── Section versements ── */}
+                            <div className="space-y-3">
+                                <div className="flex items-center gap-2">
+                                    <CreditCard className="h-4 w-4 text-muted-foreground" />
+                                    <p className="text-sm font-semibold">Paiements</p>
+                                </div>
+
+                                {/* Barre de progression */}
+                                {montantTotal > 0 && (
+                                    <div className="space-y-1.5 p-3 rounded-lg bg-muted/40 border">
+                                        <div className="flex justify-between text-xs">
+                                            <span className="text-muted-foreground">Payé</span>
+                                            <span className="font-semibold">
+                                                {montantPaye.toLocaleString("fr-FR")}
+                                                <span className="text-muted-foreground font-normal"> / {montantTotal.toLocaleString("fr-FR")} FCFA</span>
+                                            </span>
+                                        </div>
+                                        <Progress
+                                            value={Math.min(100, (montantPaye / montantTotal) * 100)}
+                                            className="h-2"
+                                        />
+                                        <p className="text-xs text-right text-muted-foreground">
+                                            Reste : {Math.max(0, montantTotal - montantPaye).toLocaleString("fr-FR")} FCFA
+                                        </p>
+                                    </div>
+                                )}
+
+                                {/* Formulaire ajout versement */}
+                                {(() => {
+                                    const reste = Math.max(0, montantTotal - montantPaye)
+                                    const saisi = parseFloat(versementForm.montant) || 0
+                                    const depasse = saisi > reste
+                                    const soldé = reste === 0 && montantTotal > 0
+
+                                    return (
+                                        <div className="space-y-2 p-3 rounded-lg border border-dashed">
+                                            <div className="flex items-center justify-between">
+                                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Nouveau versement</p>
+                                                {montantTotal > 0 && (
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Max : <span className="font-semibold text-foreground">{reste.toLocaleString("fr-FR")} FCFA</span>
+                                                    </p>
+                                                )}
+                                            </div>
+
+                                            {soldé ? (
+                                                <p className="text-xs text-emerald-600 font-medium text-center py-2">
+                                                    ✓ Formation entièrement soldée
+                                                </p>
+                                            ) : (
+                                                <>
+                                                    <div className="flex gap-2">
+                                                        <Input
+                                                            type="number"
+                                                            placeholder="Montant (FCFA)"
+                                                            value={versementForm.montant}
+                                                            max={reste}
+                                                            onChange={e => setVersementForm(p => ({ ...p, montant: e.target.value }))}
+                                                            className={`flex-1 ${depasse ? "border-red-400 focus-visible:ring-red-400" : ""}`}
+                                                        />
+                                                        <Input
+                                                            type="date"
+                                                            value={versementForm.date_versement}
+                                                            onChange={e => setVersementForm(p => ({ ...p, date_versement: e.target.value }))}
+                                                            className="w-36"
+                                                        />
+                                                    </div>
+                                                    {depasse && (
+                                                        <p className="text-xs text-red-500">
+                                                            Montant trop élevé — reste à payer : {reste.toLocaleString("fr-FR")} FCFA
+                                                        </p>
+                                                    )}
+                                                    <Input
+                                                        placeholder="Note (optionnel)"
+                                                        value={versementForm.note}
+                                                        onChange={e => setVersementForm(p => ({ ...p, note: e.target.value }))}
+                                                    />
+                                                    <Button
+                                                        size="sm"
+                                                        className="w-full gap-1"
+                                                        onClick={handleAddVersement}
+                                                        disabled={versementLoading || !versementForm.montant || depasse}
+                                                    >
+                                                        <Plus className="h-3.5 w-3.5" />
+                                                        {versementLoading ? "Enregistrement…" : "Ajouter ce versement"}
+                                                    </Button>
+                                                </>
+                                            )}
+                                        </div>
+                                    )
+                                })()}
+
+                                {/* Historique versements */}
+                                {versements.length > 0 && (
+                                    <div className="space-y-1.5">
+                                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Historique</p>
+                                        {versements.map(v => (
+                                            <div key={v.id} className="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-muted/30 border text-sm">
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="font-semibold">{Number(v.montant).toLocaleString("fr-FR")} FCFA</p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {new Date(v.date_versement).toLocaleDateString("fr-FR")}
+                                                        {v.note && <> · {v.note}</>}
+                                                    </p>
+                                                </div>
+                                                <button
+                                                    onClick={() => handleDeleteVersement(v.id)}
+                                                    className="text-muted-foreground hover:text-red-500 transition-colors shrink-0"
+                                                >
+                                                    <X className="h-3.5 w-3.5" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
                 </SheetContent>

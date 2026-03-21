@@ -23,12 +23,30 @@ class InscriptionFormation extends Model
         'reussite'         => 'boolean',
     ];
 
-    const STATUT_INSCRIT       = 'inscrit';
-    const STATUT_EN_COURS      = 'en_cours';
-    const STATUT_EXAMEN_PASSE  = 'examen_passe';
-    const STATUT_TERMINE       = 'terminé';
-    const STATUT_ABANDONNE     = 'abandonné';
+    // Statuts gérés par l'élève
+    const STATUT_PREINSCRIT         = 'préinscrit';       // statut initial à la création
 
-    public function client()    { return $this->belongsTo(User::class, 'client_id'); }
-    public function formation() { return $this->belongsTo(Formation::class, 'formation_id'); }
+    // Statuts gérés par l'auto-école
+    const STATUT_PAIEMENT_EN_COURS  = 'paiement_en_cours'; // dossier pris en charge → annulation bloquée
+    const STATUT_INSCRIT            = 'inscrit';            // paiement soldé → inscription officielle
+    const STATUT_EN_COURS           = 'en_cours';
+    const STATUT_EXAMEN_PASSE       = 'examen_passe';
+    const STATUT_TERMINE            = 'terminé';
+    const STATUT_ABANDONNE          = 'abandonné';
+
+    /** Retourne true si l'élève ne peut plus annuler sa préinscription. */
+    public function annulationBloquee(): bool
+    {
+        return $this->statut_eleve !== self::STATUT_PREINSCRIT;
+    }
+
+    public function client()      { return $this->belongsTo(User::class, 'client_id'); }
+    public function formation()   { return $this->belongsTo(Formation::class, 'formation_id'); }
+    public function versements()  { return $this->hasMany(VersementInscription::class, 'inscription_id'); }
+
+    /** Somme de tous les versements enregistrés pour cette inscription. */
+    public function getMontantPayeAttribute(): float
+    {
+        return (float) $this->versements()->sum('montant');
+    }
 }

@@ -1,5 +1,5 @@
 import { api } from "@/src/lib/api"
-import type { Formation, InscriptionFormation } from "@/src/types"
+import type { Formation, InscriptionFormation, Versement } from "@/src/types"
 
 /** Catalogue public des formations validées. */
 export const getFormations = () =>
@@ -71,6 +71,29 @@ export const getMesStats = () =>
     abandonnes:     number
     taux_reussite:  number | null
   }>("/formations/mes-stats")
+
+/** Auto-école — liste les versements d'une inscription + totaux. */
+export const getVersements = (formationId: string, inscriptionId: string) =>
+  api.get<{
+    versements:    Versement[]
+    montant_paye:  number
+    montant_total: number
+    reste_a_payer: number
+  }>(`/formations/${formationId}/inscrits/${inscriptionId}/versements`)
+
+/** Auto-école — enregistre un versement. */
+export const addVersement = (
+  formationId: string,
+  inscriptionId: string,
+  data: { montant: number; date_versement?: string; note?: string }
+) => api.post<{ versement: Versement; montant_paye: number; reste: number }>(
+  `/formations/${formationId}/inscrits/${inscriptionId}/versements`,
+  data
+)
+
+/** Auto-école — supprime un versement. */
+export const deleteVersement = (formationId: string, inscriptionId: string, versementId: string) =>
+  api.delete<void>(`/formations/${formationId}/inscrits/${inscriptionId}/versements/${versementId}`)
 
 /** Auto-école — stats d'une formation spécifique. */
 export const getFormationStats = (formationId: string) =>

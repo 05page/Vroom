@@ -172,14 +172,24 @@ export interface Formation {
   description?: DescriptionFormation
 }
 
+export interface Versement {
+  id: string
+  inscription_id: string
+  montant: number
+  date_versement: string
+  note: string | null
+  created_at: string
+}
+
 export interface InscriptionFormation {
   id: string
   client_id: string
   formation_id: string
   date_inscription: string
-  statut_eleve: 'inscrit' | 'en_cours' | 'examen_passe' | 'terminé' | 'abandonné'
+  statut_eleve: 'préinscrit' | 'paiement_en_cours' | 'inscrit' | 'en_cours' | 'examen_passe' | 'terminé' | 'abandonné'
   date_examen: string | null
   reussite: boolean | null
+  montant_paye?: number
   client?: { id: string; fullname: string; avatar?: string; email?: string; telephone?: string; adresse?: string }
   formation?: Formation
 }

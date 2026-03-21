@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\DataRefresh;
 use App\Http\Requests\StoreFormationRequest;
 use App\Http\Requests\UpdateFormationRequest;
 use App\Models\DescriptionFormation;
@@ -220,6 +221,7 @@ class FormationController extends Controller
 
         $validated = $request->validate([
             'statut_eleve' => ['required', Rule::in([
+                InscriptionFormation::STATUT_PAIEMENT_EN_COURS,
                 InscriptionFormation::STATUT_INSCRIT,
                 InscriptionFormation::STATUT_EN_COURS,
                 InscriptionFormation::STATUT_EXAMEN_PASSE,
@@ -239,9 +241,11 @@ class FormationController extends Controller
 
         // Notifie le client de l'avancement
         $messages = [
-            InscriptionFormation::STATUT_EN_COURS     => 'Votre formation a démarré. Bonne chance !',
-            InscriptionFormation::STATUT_EXAMEN_PASSE => 'Votre examen est enregistré.' . (($validated['date_examen'] ?? null) ? ' Date : ' . $validated['date_examen'] : ''),
-            InscriptionFormation::STATUT_TERMINE      => ($validated['reussite'] ?? false)
+            InscriptionFormation::STATUT_PAIEMENT_EN_COURS => 'Votre dossier est en cours de traitement. Votre préinscription ne peut plus être annulée.',
+            InscriptionFormation::STATUT_INSCRIT           => 'Votre paiement a été enregistré. Vous êtes officiellement inscrit(e) !',
+            InscriptionFormation::STATUT_EN_COURS          => 'Votre formation a démarré. Bonne chance !',
+            InscriptionFormation::STATUT_EXAMEN_PASSE      => 'Votre examen est enregistré.' . (($validated['date_examen'] ?? null) ? ' Date : ' . $validated['date_examen'] : ''),
+            InscriptionFormation::STATUT_TERMINE           => ($validated['reussite'] ?? false)
                 ? 'Félicitations ! Vous avez réussi votre formation.'
                 : 'Votre formation est terminée.',
         ];
@@ -256,6 +260,9 @@ class FormationController extends Controller
                 'date_envoi' => now(),
             ]);
         }
+
+        // Temps réel — le client voit la mise à jour de son statut sans F5
+        event(new DataRefresh($inscription->client_id, 'formation'));
 
         return response()->json(['success' => true, 'data' => $inscription->load('client:id,fullname,avatar')]);
     }

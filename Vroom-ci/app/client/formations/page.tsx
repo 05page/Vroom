@@ -1,7 +1,9 @@
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState, useMemo, useCallback } from "react"
 import { toast } from "sonner"
+import { useRevalidateOnFocus } from "@/hooks/useRevalidateOnFocus"
+import { useDataRefresh } from "@/hooks/useDataRefresh"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -32,14 +34,16 @@ const defaultHeader = { bg: "bg-zinc-50", text: "text-zinc-700", dot: "bg-zinc-5
 
 // Config statut élève
 const statutEleve: Record<string, { label: string; className: string; step: number }> = {
-    inscrit:      { label: "Inscrit",       className: "bg-blue-100 text-blue-700 border-blue-200",          step: 1 },
-    en_cours:     { label: "En cours",      className: "bg-amber-100 text-amber-700 border-amber-200",       step: 2 },
-    examen_passe: { label: "Examen passé",  className: "bg-purple-100 text-purple-700 border-purple-200",    step: 3 },
-    terminé:      { label: "Terminé",       className: "bg-emerald-100 text-emerald-700 border-emerald-200", step: 4 },
-    abandonné:    { label: "Abandonné",     className: "bg-zinc-100 text-zinc-500 border-zinc-200",          step: 0 },
+    préinscrit:         { label: "Préinscrit",          className: "bg-zinc-100 text-zinc-600 border-zinc-200",          step: 0 },
+    paiement_en_cours:  { label: "Paiement en cours",   className: "bg-amber-100 text-amber-700 border-amber-200",       step: 1 },
+    inscrit:            { label: "Inscrit",             className: "bg-blue-100 text-blue-700 border-blue-200",          step: 2 },
+    en_cours:           { label: "En cours",            className: "bg-indigo-100 text-indigo-700 border-indigo-200",    step: 3 },
+    examen_passe:       { label: "Examen passé",        className: "bg-purple-100 text-purple-700 border-purple-200",    step: 4 },
+    terminé:            { label: "Terminé",             className: "bg-emerald-100 text-emerald-700 border-emerald-200", step: 5 },
+    abandonné:          { label: "Abandonné",           className: "bg-red-100 text-red-500 border-red-200",             step: -1 },
 }
 
-const TIMELINE_STEPS = ["Inscrit", "En cours", "Examen passé", "Terminé"]
+const TIMELINE_STEPS = ["Paiement", "Inscrit", "En cours", "Examen", "Terminé"]
 const PERMIS_OPTIONS  = ["Tous", "A", "A2", "B", "B1", "C", "D"]
 
 function PageSkeleton() {
@@ -63,7 +67,7 @@ export default function FormationsClientPage() {
     const [inscriptionLoading, setInscriptionLoading] = useState<string | null>(null)
     const [filtrePermis, setFiltrePermis]           = useState("Tous")
 
-    useEffect(() => {
+    const fetchData = useCallback(() => {
         Promise.allSettled([getFormations(), getMesInscriptions()])
             .then(([formRes, inscRes]) => {
                 if (formRes.status === "fulfilled") setFormations(formRes.value?.data ?? [])
@@ -71,6 +75,13 @@ export default function FormationsClientPage() {
             })
             .finally(() => setLoading(false))
     }, [])
+
+    useEffect(() => { fetchData() }, [fetchData])
+
+    // Recharge quand l'utilisateur revient sur l'onglet
+    useRevalidateOnFocus(fetchData)
+    // Recharge en temps réel via Reverb quand une formation/inscription change
+    useDataRefresh("formation", fetchData)
 
     const inscriptionMap = useMemo(
         () => new Map(mesInscriptions.map(i => [i.formation_id, i])),
@@ -87,9 +98,11 @@ export default function FormationsClientPage() {
         try {
             const res = await sInscrire(formationId)
             setMesInscriptions(prev => [...prev, res.data!])
-            toast.success("Inscription confirmée !")
+            toast.success("Préinscription confirmée !", {
+                description: "L'auto-école va prendre en charge votre dossier."
+            })
         } catch {
-            toast.error("Impossible de s'inscrire")
+            toast.error("Impossible de se préinscrire")
         } finally {
             setInscriptionLoading(null)
         }
@@ -100,9 +113,10 @@ export default function FormationsClientPage() {
         try {
             await annulerInscription(formationId)
             setMesInscriptions(prev => prev.filter(i => i.formation_id !== formationId))
-            toast.success("Inscription annulée")
-        } catch {
-            toast.error("Impossible d'annuler")
+            toast.success("Préinscription annulée")
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : "Impossible d'annuler"
+            toast.error(msg)
         } finally {
             setInscriptionLoading(null)
         }
@@ -136,7 +150,7 @@ export default function FormationsClientPage() {
                             <div className="w-px h-8 bg-zinc-700" />
                             <div className="text-center">
                                 <p className="text-2xl font-bold text-white">{mesInscriptions.length}</p>
-                                <p className="text-xs text-zinc-400">inscription{mesInscriptions.length > 1 ? "s" : ""}</p>
+                                <p className="text-xs text-zinc-400">préinscription{mesInscriptions.length > 1 ? "s" : ""}</p>
                             </div>
                         </>
                     )}
@@ -149,7 +163,7 @@ export default function FormationsClientPage() {
                     <div className="flex items-center gap-2">
                         <TrendingUp className="h-4 w-4 text-muted-foreground" />
                         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                            Mon parcours
+                            Mes préinscriptions
                         </h2>
                         <Badge variant="secondary" className="text-xs">{mesInscriptions.length}</Badge>
                     </div>
@@ -340,10 +354,11 @@ export default function FormationsClientPage() {
                                         </div>
                                     )}
 
-                                    {/* CTA inscription */}
+                                    {/* CTA préinscription */}
                                     <div className="mt-auto pt-1">
                                         {inscription ? (
-                                            inscription.statut_eleve === "inscrit" ? (
+                                            inscription.statut_eleve === "préinscrit" ? (
+                                                // Seul ce statut autorise l'annulation
                                                 <Button
                                                     variant="outline"
                                                     className="w-full text-red-600 border-red-200 hover:bg-red-50"
@@ -351,22 +366,29 @@ export default function FormationsClientPage() {
                                                     disabled={isLoading}
                                                 >
                                                     <XCircle className="h-4 w-4 mr-2" />
-                                                    {isLoading ? "Annulation…" : "Annuler l'inscription"}
+                                                    {isLoading ? "Annulation…" : "Annuler la préinscription"}
+                                                </Button>
+                                            ) : inscription.statut_eleve === "paiement_en_cours" ? (
+                                                // Paiement démarré → annulation bloquée
+                                                <Button variant="outline" className="w-full cursor-default" disabled>
+                                                    <CheckCircle2 className="h-4 w-4 mr-2 text-amber-500" />
+                                                    Dossier en cours de traitement
                                                 </Button>
                                             ) : (
-                                                <Button variant="outline" className="w-full" disabled>
+                                                // Inscrit ou plus avancé
+                                                <Button variant="outline" className="w-full cursor-default" disabled>
                                                     <CheckCircle2 className="h-4 w-4 mr-2 text-emerald-500" />
-                                                    Déjà inscrit
+                                                    {statutEleve[inscription.statut_eleve]?.label ?? "Inscrit"}
                                                 </Button>
                                             )
                                         ) : (
                                             <Button
-                                                className="w-full gap-2 bg-zinc-900 hover:bg-zinc-800"
+                                                className="w-full gap-2 bg-zinc-900 hover:bg-zinc-800 text-white"
                                                 onClick={() => handleInscrire(f.id)}
                                                 disabled={isLoading}
                                             >
-                                                {isLoading ? "Inscription…" : (
-                                                    <>S&apos;inscrire <ArrowRight className="h-4 w-4" /></>
+                                                {isLoading ? "Envoi…" : (
+                                                    <>Se préinscrire <ArrowRight className="h-4 w-4" /></>
                                                 )}
                                             </Button>
                                         )}
