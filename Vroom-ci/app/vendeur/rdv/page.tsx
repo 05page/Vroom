@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from "react"
 import { toast } from "sonner"
+import { useRevalidateOnFocus } from "@/hooks/useRevalidateOnFocus"
+import { useDataRefresh } from "@/hooks/useDataRefresh"
 import { cn } from "@/src/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -25,6 +27,7 @@ import { fr } from "date-fns/locale"
 import { RendezVous, TransactionConclue } from "@/src/types"
 import { getNosRdv, confirmerRdv, refuserRdv, annulerRdv, terminerRdv } from "@/src/actions/rdv.actions"
 import { getMesTransactions, confirmerVendeur } from "@/src/actions/transactions.actions"
+import { FadeIn, SlideIn, StaggerList, StaggerItem } from "@/components/ui/motion-primitives"
 
 const CARD = "rounded-2xl md:rounded-3xl shadow-xl border border-border/40 overflow-hidden bg-card/50 backdrop-blur-sm"
 
@@ -83,6 +86,12 @@ export default function RdvPage() {
     useEffect(() => {
         fetchData()
     }, [fetchData])
+
+    // Recharge quand l'utilisateur revient sur l'onglet
+    useRevalidateOnFocus(fetchData)
+    // Recharge en temps réel via Reverb quand un RDV ou une transaction change
+    useDataRefresh("rdv", fetchData)
+    useDataRefresh("transaction", fetchData)
 
     const handleRefresh = () => {
         setRefreshing(true)
@@ -330,8 +339,9 @@ export default function RdvPage() {
 
     return (
         <div className="min-h-screen pt-20 px-4 md:px-6 pb-12">
-            <div className="max-w-6xl mx-auto space-y-4 md:space-y-6">
+            <FadeIn className="max-w-6xl mx-auto space-y-4 md:space-y-6">
                 {/* Header */}
+                <SlideIn direction="left">
                 <Card className="rounded-2xl md:rounded-3xl shadow-sm border border-zinc-200 overflow-hidden animate-in fade-in slide-in-from-bottom duration-500 bg-white">
                     <CardContent className="p-4 md:p-6">
                         <div className="flex items-center justify-between gap-3 md:gap-4">
@@ -357,6 +367,7 @@ export default function RdvPage() {
                         </div>
                     </CardContent>
                 </Card>
+                </SlideIn>
 
                 {/* Stats */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 animate-in fade-in slide-in-from-bottom duration-500">
@@ -503,7 +514,15 @@ export default function RdvPage() {
 
                     {["tous", "a_venir", "passes", "annules"].map(tab => (
                         <TabsContent key={tab} value={tab} className="space-y-3">
-                            {filterRdvs(tab).map(r => <RdvCard key={r.id} rdv={r} />)}
+                            {filterRdvs(tab).length > 0 && (
+                                <StaggerList className="space-y-3">
+                                    {filterRdvs(tab).map(r => (
+                                        <StaggerItem key={r.id}>
+                                            <RdvCard rdv={r} />
+                                        </StaggerItem>
+                                    ))}
+                                </StaggerList>
+                            )}
                             {filterRdvs(tab).length === 0 && (
                                 <Card className={CARD}>
                                     <CardContent className="p-12 text-center">
@@ -516,7 +535,7 @@ export default function RdvPage() {
                         </TabsContent>
                     ))}
                 </Tabs>
-            </div>
+            </FadeIn>
         </div>
     )
 }

@@ -1,5 +1,8 @@
 "use client"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
+import { useRevalidateOnFocus } from "@/hooks/useRevalidateOnFocus"
+import { useDataRefresh } from "@/hooks/useDataRefresh"
+import { motion } from "motion/react"
 import { toast } from "sonner"
 import { cn } from "@/src/lib/utils"
 import { Card, CardContent } from "@/components/ui/card"
@@ -11,9 +14,8 @@ import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import {
     Car, Plus, Eye, Search,
-    Tag, Key, MoreHorizontal, Package, CheckCircle2,
-    Edit, Trash2, FileText,
-    Trash2Icon,
+    Tag, Key, Package, CheckCircle2,
+    Edit, Trash2, Trash2Icon,
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
@@ -46,25 +48,28 @@ export default function VehiclesPage() {
         setDeleteOpen(false)
         setVehicleToDelete(null)
     }
-    useEffect(() => {
-        const fetchVendeurVehicles = async () => {
-            try {
-                setIsLoading(true);
-                const [statsRes, mesVehiculesRes] = await Promise.all([
-                    getMesStats(),
-                    getMesVehicules()
-                ]);
-                setStats(statsRes.data ?? null)
-                setMesVehicules(mesVehiculesRes.data?.vehicules ?? [])
-                console.log(mesVehiculesRes.data?.vehicules)
-            } catch (error) {
-                toast.error(error instanceof Error ? error?.message : "Erreur serveur");
-            } finally {
-                setIsLoading(false);
-            }
+    const fetchVendeurVehicles = useCallback(async () => {
+        try {
+            setIsLoading(true);
+            const [statsRes, mesVehiculesRes] = await Promise.all([
+                getMesStats(),
+                getMesVehicules()
+            ]);
+            setStats(statsRes.data ?? null)
+            setMesVehicules(mesVehiculesRes.data?.vehicules ?? [])
+        } catch (error) {
+            toast.error(error instanceof Error ? error?.message : "Erreur serveur");
+        } finally {
+            setIsLoading(false);
         }
-        fetchVendeurVehicles()
     }, [])
+
+    useEffect(() => { fetchVendeurVehicles() }, [fetchVendeurVehicles])
+
+    // Recharge la liste quand l'utilisateur revient sur l'onglet
+    useRevalidateOnFocus(fetchVendeurVehicles)
+    // Recharge en temps réel via Reverb quand un véhicule change (ex: validation admin)
+    useDataRefresh("vehicule", fetchVendeurVehicles)
 
     const getStatutColor = (statut: string) => {
         switch (statut) {
@@ -125,80 +130,112 @@ export default function VehiclesPage() {
         )
     }
 
-    const VehicleCard = ({ v }: { v: vehicule }) => (
-        <Card className={cn(CARD, "hover:shadow-2xl transition-all duration-300 hover:-translate-y-1")}>
-            <CardContent className="p-0">
-                {/* Photo principale du véhicule — fallback sur l'icône Car si aucune photo */}
-                <div className="h-40 bg-linear-to-br from-muted/50 to-muted/30 flex items-center justify-center relative overflow-hidden">
-                    {(() => {
-                        // Récupérer la photo principale (is_primary=true) ou la première du tableau
-                        const primaryPhoto = v.photos?.find(p => p.is_primary) ?? v.photos?.[0]
-                        // URL de l'image : stockage Laravel public via storage:link
-                        const imageUrl = primaryPhoto
-                            ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/storage/${primaryPhoto.path}`
-                            : null 
-                        return imageUrl
-                            ? <Image src={imageUrl} alt={`${v.description?.marque} ${v.description?.modele}`} fill className="object-cover" unoptimized/>
-                            : <Car className="h-12 w-12 text-muted-foreground/30" />
-                    })()}
-                    <Badge className={cn("absolute top-3 left-3 rounded-full text-xs", getStatutColor(v?.statut))}>
-                        {getStatutLabel(v?.statut)}
-                    </Badge>
-                    <Badge className={cn("absolute top-3 right-3 rounded-full text-xs",
-                        v?.post_type === "vente" ? "bg-zinc-900/10 text-zinc-700 border-zinc-900/20" : "bg-blue-500/10 text-blue-600 border-blue-500/20"
-                    )}>
-                        {v?.post_type === "vente" ? <Tag className="h-3 w-3 mr-1" /> : <Key className="h-3 w-3 mr-1" />}
-                        {v?.post_type === "vente" ? "Vente" : "Location"}
-                    </Badge>
-                </div>
+    const VehicleCard = ({ v, index }: { v: vehicule; index: number }) => {
+        // Récupère la photo principale (is_primary=true) ou la première du tableau
+        const primaryPhoto = v.photos?.find(p => p.is_primary) ?? v.photos?.[0]
+        const imageUrl = primaryPhoto
+            ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/storage/${primaryPhoto.path}`
+            : null
 
-                <div className="p-4 space-y-3">
-                    <div className="flex items-start justify-between">
-                        <div>
-                            <h3 className="font-bold text-base">{v?.description.marque} {v?.description.modele}</h3>
-                            <p className="text-xs text-muted-foreground">{v?.description.annee} &middot; {v?.description.kilometrage} km &middot; {v?.description.carburant}</p>
+        return (
+            <motion.div
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35, delay: index * 0.07, ease: "easeOut" }}
+            >
+                <Card className={cn(CARD, "group hover:shadow-2xl transition-shadow duration-300 overflow-hidden")}>
+                    <CardContent className="p-0">
+                        {/* Zone image — plus haute, zoom au hover */}
+                        <div className="h-52 bg-muted/30 relative overflow-hidden">
+                            {imageUrl ? (
+                                <Image
+                                    src={imageUrl}
+                                    alt={`${v.description?.marque} ${v.description?.modele}`}
+                                    fill
+                                    className="object-cover transition-transform duration-500 group-hover:scale-105"
+                                />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                    <Car className="h-14 w-14 text-muted-foreground/20" />
+                                </div>
+                            )}
+
+                            {/* Gradient overlay — prix en bas de l'image */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
+
+                            {/* Badges statut + type */}
+                            <Badge className={cn("absolute top-3 left-3 rounded-full text-xs font-semibold", getStatutColor(v?.statut))}>
+                                {getStatutLabel(v?.statut)}
+                            </Badge>
+                            <Badge className={cn(
+                                "absolute top-3 right-3 rounded-full text-xs font-semibold",
+                                v?.post_type === "vente"
+                                    ? "bg-black/60 text-white border-white/10"
+                                    : "bg-blue-500/80 text-white border-transparent"
+                            )}>
+                                {v?.post_type === "vente"
+                                    ? <><Tag className="h-3 w-3 mr-1 inline" />Vente</>
+                                    : <><Key className="h-3 w-3 mr-1 inline" />Location</>
+                                }
+                            </Badge>
+
+                            {/* Prix dans l'overlay bas */}
+                            <div className="absolute bottom-3 left-4 right-4 flex items-end justify-between">
+                                <div>
+                                    <p className="text-white font-bold text-lg leading-tight">
+                                        {v?.prix?.toLocaleString("fr-FR")}
+                                        <span className="text-xs font-normal text-white/70 ml-1">FCFA</span>
+                                    </p>
+                                </div>
+                                <span className="flex items-center gap-1 text-white/70 text-xs">
+                                    <Eye className="h-3 w-3" /> {v?.views_count}
+                                </span>
+                            </div>
                         </div>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 cursor-pointer">
-                            <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                    </div>
 
-                    <p className="text-lg font-bold text-zinc-700">{v?.prix} <span className="text-xs font-normal text-muted-foreground">FCFA</span></p>
+                        {/* Infos + actions */}
+                        <div className="p-4 space-y-3">
+                            <div>
+                                <h3 className="font-bold text-base leading-tight">
+                                    {v?.description.marque} {v?.description.modele}
+                                </h3>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                    {v?.description.annee} · {v?.description.kilometrage?.toLocaleString("fr-FR")} km · {v?.description.carburant}
+                                </p>
+                            </div>
 
-                    <Separator />
-
-                    <div className="flex items-center justify-center text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1"><Eye className="h-3 w-3" /> {v?.views_count}</span>
-                    </div>
-
-                    <div className="flex gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex-1 gap-1 cursor-pointer rounded-lg text-xs"
-                            onClick={()=>setDetailVehicle(v)}
-                        >
-                            <Eye className="h-3 w-3" /> Détails
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => setEditingVehicle(v)} className="flex-1 gap-1 cursor-pointer rounded-lg text-xs">
-                            <Edit className="h-3 w-3" /> Modifier
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="gap-1 cursor-pointer rounded-lg text-xs text-red-500 hover:text-red-600 hover:border-red-200"
-                            onClick={() => {
-                                setVehicleToDelete(v)
-                                setDeleteOpen(true)
-                            }}
-                        >
-                            <Trash2 className="h-3 w-3" />
-                        </Button>
-                    </div>
-                </div>
-            </CardContent>
-        </Card>
-    )
+                            <div className="flex gap-2 pt-1">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex-1 gap-1 cursor-pointer rounded-lg text-xs"
+                                    onClick={() => setDetailVehicle(v)}
+                                >
+                                    <Eye className="h-3 w-3" /> Détails
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex-1 gap-1 cursor-pointer rounded-lg text-xs"
+                                    onClick={() => setEditingVehicle(v)}
+                                >
+                                    <Edit className="h-3 w-3" /> Modifier
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="gap-1 cursor-pointer rounded-lg text-xs text-red-500 hover:text-red-600 hover:border-red-200"
+                                    onClick={() => { setVehicleToDelete(v); setDeleteOpen(true) }}
+                                >
+                                    <Trash2 className="h-3 w-3" />
+                                </Button>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            </motion.div>
+        )
+    }
 
     return (
         <div className="min-h-screen pt-20 px-4 md:px-6 pb-12">
@@ -265,7 +302,7 @@ export default function VehiclesPage() {
                     {["tous", "vente", "location", "vendus"].map(tab => (
                         <TabsContent key={tab} value={tab}>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {filterVehicles(tab).map(v => <VehicleCard key={v.id} v={v} />)}
+                                {filterVehicles(tab).map((v, i) => <VehicleCard key={v.id} v={v} index={i} />)}
                             </div>
                             {filterVehicles(tab).length === 0 && (
                                 <Card className={CARD}>

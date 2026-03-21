@@ -18,6 +18,7 @@ import { getAdminTransactions } from "@/src/actions/admin.actions"
 import { TransactionConclue } from "@/src/types"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
+import { FadeIn, SlideIn, StaggerList, StaggerItem } from "@/components/ui/motion-primitives"
 
 
 interface AdminTransaction extends Omit<TransactionConclue, 'vehicule'> {
@@ -88,7 +89,7 @@ export default function AdminTransactionsPage() {
     const nbEnAttente   = transactions.filter(t => t.statut === "en_attente").length
     const totalRevenus  = transactions
         .filter(t => t.statut === "confirmé" && t.type === "vente")
-        .reduce((sum, t) => sum + (t.prix_final ?? 0), 0)
+        .reduce((sum, t) => sum + (Number(t.prix_final) || 0), 0)
 
     const kpis = [
         { label: "Total",        value: total,        icon: ArrowLeftRight, color: "bg-zinc-100 text-zinc-700" },
@@ -98,8 +99,10 @@ export default function AdminTransactionsPage() {
     ]
 
     return (
+        <FadeIn>
         <div className="space-y-6">
             {/* Header */}
+            <SlideIn direction="left">
             <div className="flex items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">Transactions</h1>
@@ -118,11 +121,13 @@ export default function AdminTransactionsPage() {
                     {refreshing ? "Chargement..." : "Rafraîchir"}
                 </Button>
             </div>
+            </SlideIn>
 
             {/* KPIs */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <StaggerList className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 {kpis.map(k => (
-                    <Card key={k.label}>
+                    <StaggerItem key={k.label}>
+                    <Card>
                         <CardContent className="p-4 flex items-center gap-3">
                             <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0", k.color)}>
                                 <k.icon className="h-5 w-5" />
@@ -133,8 +138,9 @@ export default function AdminTransactionsPage() {
                             </div>
                         </CardContent>
                     </Card>
+                    </StaggerItem>
                 ))}
-            </div>
+            </StaggerList>
 
             <Separator />
 
@@ -181,12 +187,13 @@ export default function AdminTransactionsPage() {
                     </CardContent>
                 </Card>
             ) : (
-                <div className="space-y-3">
+                <StaggerList className="space-y-3">
                     {transactions.map(tx => {
                         const cfg = statutConfig[tx.statut] ?? statutConfig["en_attente"]
                         const Icon = cfg.icon
                         return (
-                            <Card key={tx.id} className="hover:shadow-sm transition-shadow">
+                            <StaggerItem key={tx.id}>
+                            <Card className="hover:shadow-sm transition-shadow">
                                 <CardContent className="p-4">
                                     <div className="flex flex-col md:flex-row md:items-center gap-4">
 
@@ -265,10 +272,12 @@ export default function AdminTransactionsPage() {
                                     )}
                                 </CardContent>
                             </Card>
+                            </StaggerItem>
                         )
                     })}
-                </div>
+                </StaggerList>
             )}
         </div>
+        </FadeIn>
     )
 }

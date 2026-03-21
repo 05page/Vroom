@@ -11,6 +11,7 @@ import { getMesStats } from "@/src/actions/stats.actions"
 import { getMesFormations } from "@/src/actions/formations.actions"
 import { VendeurStats, Formation } from "@/src/types"
 import { useUser } from "@/src/context/UserContext"
+import { FadeIn, SlideIn, StaggerList, StaggerItem } from "@/components/ui/motion-primitives"
 
 export default function PartenaireDashboard() {
     const { user } = useUser()
@@ -75,7 +76,8 @@ export default function PartenaireDashboard() {
     const stats = isAutoEcole ? autoEcoleStats : concessStats
 
     return (
-        <div className="space-y-6">
+        <FadeIn className="space-y-6">
+            <SlideIn direction="left">
             <div className="flex items-start justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
@@ -96,11 +98,13 @@ export default function PartenaireDashboard() {
                     {refreshing ? "Chargement..." : "Rafraîchir"}
                 </Button>
             </div>
+            </SlideIn>
 
             {/* KPIs */}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StaggerList className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {stats.map((stat) => (
-                    <Card key={stat.label}>
+                    <StaggerItem key={stat.label}>
+                    <Card>
                         <CardHeader className="flex flex-row items-center justify-between pb-2">
                             <CardTitle className="text-sm font-medium text-muted-foreground">
                                 {stat.label}
@@ -114,8 +118,9 @@ export default function PartenaireDashboard() {
                             }
                         </CardContent>
                     </Card>
+                    </StaggerItem>
                 ))}
-            </div>
+            </StaggerList>
 
             {/* Blocs secondaires selon le rôle */}
             <div className="grid gap-4 md:grid-cols-2">
@@ -210,6 +215,6 @@ export default function PartenaireDashboard() {
                     </CardContent>
                 </Card>
             </div>
-        </div>
+        </FadeIn>
     )
 }

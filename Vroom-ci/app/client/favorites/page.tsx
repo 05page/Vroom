@@ -18,37 +18,44 @@ import {
     BellOff,
     Trash2,
 } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { toast } from "sonner"
 import { Favori, Alerte } from "@/src/types"
 import { getFavoris, removeFavori } from "@/src/actions/favoris.actions"
 import { getAlertes, deleteAlerte, updateAlerte } from "@/src/actions/alertes.actions"
+import { useRevalidateOnFocus } from "@/hooks/useRevalidateOnFocus"
+import { useDataRefresh } from "@/hooks/useDataRefresh"
 import { Switch } from "@/components/ui/switch"
+import { FadeIn, SlideIn, StaggerList, StaggerItem } from "@/components/ui/motion-primitives"
 
 const FavoritesPage = () => {
     const [favoris, setFavoris] = useState<Favori[]>([])
     const [alertes, setAlertes] = useState<Alerte[]>([])
     const [isLoading, setIsLoading] = useState(true)
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                setIsLoading(true)
-                // Charge favoris et alertes en parallèle
-                const [favorisRes, alertesRes] = await Promise.all([
-                    getFavoris(),
-                    getAlertes(),
-                ])
-                setFavoris(favorisRes.data ?? [])
-                setAlertes(alertesRes.data ?? [])
-            } catch (error) {
-                toast.error(error instanceof Error ? error.message : "Erreur serveur")
-            } finally {
-                setIsLoading(false)
-            }
+    const fetchData = useCallback(async () => {
+        try {
+            setIsLoading(true)
+            // Charge favoris et alertes en parallèle
+            const [favorisRes, alertesRes] = await Promise.all([
+                getFavoris(),
+                getAlertes(),
+            ])
+            setFavoris(favorisRes.data ?? [])
+            setAlertes(alertesRes.data ?? [])
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Erreur serveur")
+        } finally {
+            setIsLoading(false)
         }
-        fetchData()
     }, [])
+
+    useEffect(() => { fetchData() }, [fetchData])
+
+    // Recharge quand l'utilisateur revient sur l'onglet
+    useRevalidateOnFocus(fetchData)
+    // Recharge en temps réel via Reverb quand un véhicule favori change
+    useDataRefresh("vehicule", fetchData)
 
     const handleRemoveFavori = async (vehiculeId: string) => {
         try {
@@ -229,8 +236,10 @@ const FavoritesPage = () => {
     }
 
     return (
+        <FadeIn>
         <div className="pt-20 px-4 md:px-6 space-y-4 md:space-y-6 max-w-6xl mx-auto mb-12">
             {/* Header */}
+            <SlideIn direction="left">
             <Card className="rounded-2xl md:rounded-3xl shadow-sm border border-zinc-200 overflow-hidden animate-in fade-in slide-in-from-bottom duration-500 bg-white">
                 <CardContent className="p-4 md:p-6">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -255,6 +264,7 @@ const FavoritesPage = () => {
                     </div>
                 </CardContent>
             </Card>
+            </SlideIn>
 
             {/* Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6 animate-in fade-in slide-in-from-bottom duration-500 delay-100">
@@ -346,9 +356,13 @@ const FavoritesPage = () => {
                                     </Button>
                                 </div>
                             ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                                    {getFavorisFiltres(tab).map(f => <FavoriCard key={f.id} f={f} />)}
-                                </div>
+                                <StaggerList className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                                    {getFavorisFiltres(tab).map(f => (
+                                        <StaggerItem key={f.id}>
+                                            <FavoriCard f={f} />
+                                        </StaggerItem>
+                                    ))}
+                                </StaggerList>
                             )}
                         </TabsContent>
                     ))}
@@ -410,6 +424,7 @@ const FavoritesPage = () => {
                 </CardContent>
             </Card>
         </div>
+        </FadeIn>
     )
 }
 

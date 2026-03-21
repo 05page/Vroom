@@ -20,6 +20,7 @@ import {
 } from "lucide-react"
 import { getUsersPaginated, getVehiculesEnAttente, getSignalements, getLogs } from "@/src/actions/admin.actions"
 import { PaginatedResponse } from "@/src/types"
+import { FadeIn, SlideIn, StaggerList, StaggerItem } from "@/components/ui/motion-primitives"
 
 // Types locaux pour les données admin non encore dans src/types/index.ts
 interface AdminUser {
@@ -178,13 +179,15 @@ export default function AdminDashboard() {
     ]
 
     return (
+        <FadeIn>
         <div className="space-y-6">
             {/* En-tête */}
+            <SlideIn direction="left">
             <div className="flex items-start justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">Vue d&apos;ensemble</h1>
                     <p className="text-muted-foreground text-sm mt-1">
-                        Tableau de bord de modération — Vroom CI
+                        Tableau de bord de modération — Move CI
                     </p>
                 </div>
                 <Button
@@ -198,12 +201,13 @@ export default function AdminDashboard() {
                     {refreshing ? "Chargement..." : "Rafraîchir"}
                 </Button>
             </div>
+            </SlideIn>
 
             {/* Cartes de statistiques */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <StaggerList className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 {stats.map((stat) => (
+                    <StaggerItem key={stat.label}>
                     <Card
-                        key={stat.label}
                         className={`relative overflow-hidden ${stat.urgent ? "ring-1 ring-primary/50" : ""}`}
                     >
                         {stat.urgent && (
@@ -233,8 +237,9 @@ export default function AdminDashboard() {
                             )}
                         </CardContent>
                     </Card>
+                    </StaggerItem>
                 ))}
-            </div>
+            </StaggerList>
 
             <Separator />
 
@@ -263,10 +268,10 @@ export default function AdminDashboard() {
                                 <p className="text-sm">Aucune action récente</p>
                             </div>
                         ) : (
-                            <div className="divide-y">
+                            <StaggerList className="divide-y">
                                 {recentLogs.map((log) => (
+                                    <StaggerItem key={log.id}>
                                     <div
-                                        key={log.id}
                                         className="flex items-center justify-between gap-4 px-4 py-3 hover:bg-muted/40 transition-colors"
                                     >
                                         <div className="flex items-center gap-3 min-w-0">
@@ -288,8 +293,9 @@ export default function AdminDashboard() {
                                             })}
                                         </span>
                                     </div>
+                                    </StaggerItem>
                                 ))}
-                            </div>
+                            </StaggerList>
                         )}
                     </CardContent>
                 </Card>
@@ -356,5 +362,6 @@ export default function AdminDashboard() {
                 </div>
             </div>
         </div>
+        </FadeIn>
     )
 }

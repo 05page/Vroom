@@ -39,6 +39,7 @@ import { getFavoris, removeFavori, addFavori } from "@/src/actions/favoris.actio
 import { useUser } from "@/src/context/UserContext"
 import VehicleDetails from "./VehicleDetails"
 import { cn } from "@/src/lib/utils"
+import { FadeIn, SlideIn, StaggerList, StaggerItem } from "@/components/ui/motion-primitives"
 
 interface Filters {
     search: string
@@ -373,8 +374,10 @@ const VehiclesPage = () => {
     }
 
     return (
+        <FadeIn>
         <div className="pt-20 px-4 md:px-6 space-y-4 md:space-y-6 max-w-6xl mx-auto mb-12">
             {/* Header */}
+            <SlideIn direction="left">
             <Card className="rounded-2xl md:rounded-3xl shadow-sm border border-zinc-200 overflow-hidden animate-in fade-in slide-in-from-bottom duration-500 bg-white">
                 <CardContent className="p-4 md:p-6">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -429,6 +432,7 @@ const VehiclesPage = () => {
                     </div>
                 </CardContent>
             </Card>
+            </SlideIn>
 
             {/* Bannière non-connecté — visible uniquement pour les visiteurs anonymes */}
             {!user && (
@@ -781,9 +785,13 @@ const VehiclesPage = () => {
                                 )}
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                                {getVehiclesFiltres("tous").map(v => <VehicleCard key={v.id} v={v} />)}
-                            </div>
+                            <StaggerList className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                                {getVehiclesFiltres("tous").map(v => (
+                                    <StaggerItem key={v.id}>
+                                        <VehicleCard v={v} />
+                                    </StaggerItem>
+                                ))}
+                            </StaggerList>
                         )}
                     </TabsContent>
 
@@ -810,9 +818,13 @@ const VehiclesPage = () => {
                                 )}
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                                {getVehiclesFiltres("vente").map(v => <VehicleCard key={v.id} v={v} />)}
-                            </div>
+                            <StaggerList className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                                {getVehiclesFiltres("vente").map(v => (
+                                    <StaggerItem key={v.id}>
+                                        <VehicleCard v={v} />
+                                    </StaggerItem>
+                                ))}
+                            </StaggerList>
                         )}
                     </TabsContent>
 
@@ -839,9 +851,13 @@ const VehiclesPage = () => {
                                 )}
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                                {getVehiclesFiltres("location").map(v => <VehicleCard key={v.id} v={v} />)}
-                            </div>
+                            <StaggerList className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                                {getVehiclesFiltres("location").map(v => (
+                                    <StaggerItem key={v.id}>
+                                        <VehicleCard v={v} />
+                                    </StaggerItem>
+                                ))}
+                            </StaggerList>
                         )}
                     </TabsContent>
                 </Tabs>
@@ -964,6 +980,7 @@ const VehiclesPage = () => {
                 </div>
             )}
         </div>
+        </FadeIn>
     )
 }
 

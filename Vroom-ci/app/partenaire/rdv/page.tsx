@@ -32,6 +32,7 @@ import {
 import { toast } from "sonner"
 import { getNosRdv, confirmerRdv, refuserRdv, annulerRdv, terminerRdv } from "@/src/actions/rdv.actions"
 import { RendezVous } from "@/src/types"
+import { FadeIn, SlideIn, StaggerList, StaggerItem } from "@/components/ui/motion-primitives"
 
 // Filtres disponibles sur le statut du RDV
 const FILTRES = [
@@ -130,8 +131,9 @@ export default function NosRdvPage() {
     }
 
     return (
-        <div className="space-y-6">
+        <FadeIn className="space-y-6">
             {/* En-tête */}
+            <SlideIn direction="left">
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">Nos Rendez-Vous</h1>
@@ -156,6 +158,7 @@ export default function NosRdvPage() {
                     </Button>
                 </div>
             </div>
+            </SlideIn>
 
             {/* Filtres pills */}
             <div className="flex flex-wrap gap-2">
@@ -208,9 +211,10 @@ export default function NosRdvPage() {
                     </CardContent>
                 </Card>
             ) : (
-                <div className="space-y-3">
+                <StaggerList className="space-y-3">
                     {rdvsFiltres.map((rdv) => (
-                        <Card key={rdv.id} className="hover:shadow-sm transition-shadow">
+                        <StaggerItem key={rdv.id}>
+                        <Card className="hover:shadow-sm transition-shadow">
                             <CardContent className="p-4">
                                 <div className="flex items-start gap-4">
                                     {/* Icône */}
@@ -310,8 +314,9 @@ export default function NosRdvPage() {
                                 </div>
                             </CardContent>
                         </Card>
+                        </StaggerItem>
                     ))}
-                </div>
+                </StaggerList>
             )}
 
             {/* Dialog de confirmation d'action */}
@@ -351,6 +356,6 @@ export default function NosRdvPage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </div>
+        </FadeIn>
     )
 }

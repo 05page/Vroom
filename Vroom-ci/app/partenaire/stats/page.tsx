@@ -51,6 +51,7 @@ import { CardHeader, CardTitle } from "@/components/ui/card"
 import { getMesFormations, getMesStats, getFormationStats } from "@/src/actions/formations.actions"
 import { VendeurStats, TopVehicle, Formation } from "@/src/types"
 import { useUser } from "@/src/context/UserContext"
+import { FadeIn, SlideIn, StaggerList, StaggerItem } from "@/components/ui/motion-primitives"
 
 const getStatutConfig = (statut: string) => {
     switch (statut) {
@@ -191,7 +192,9 @@ export default function StatsPage() {
     ]
 
     return (
+        <FadeIn>
         <div className="space-y-6">
+            <SlideIn direction="left">
             <div className="flex items-start justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight text-black">Mes Statistiques</h1>
@@ -212,11 +215,13 @@ export default function StatsPage() {
                     {refreshing ? "Chargement..." : "Rafraîchir"}
                 </Button>
             </div>
+            </SlideIn>
 
             {/* KPIs */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 animate-in fade-in slide-in-from-bottom duration-500">
+            <StaggerList className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
                 {statsCards.map((stat) => (
-                    <Card key={stat.label} className="rounded-2xl shadow-sm border border-border/40">
+                    <StaggerItem key={stat.label}>
+                    <Card className="rounded-2xl shadow-sm border border-border/40">
                         <CardContent className="p-4 flex flex-col items-center gap-3">
                             <div className={`${stat.bgColor} rounded-xl p-2.5`}>
                                 <stat.icon className={`h-5 w-5 ${stat.iconColor}`} />
@@ -230,8 +235,9 @@ export default function StatsPage() {
                             </div>
                         </CardContent>
                     </Card>
+                    </StaggerItem>
                 ))}
-            </div>
+            </StaggerList>
 
             {/* Graphique concessionnaire — données réelles du backend */}
             {!isAutoEcole && <StatsChart data={data?.stats_mensuel ?? []} />}
@@ -558,5 +564,6 @@ export default function StatsPage() {
                 </div>
             )}
         </div>
+        </FadeIn>
     )
 }

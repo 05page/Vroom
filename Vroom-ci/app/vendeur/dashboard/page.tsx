@@ -45,8 +45,11 @@ import {
     RefreshCw,
 } from "lucide-react"
 import { useEffect, useState, useCallback } from "react"
+import { useRevalidateOnFocus } from "@/hooks/useRevalidateOnFocus"
+import { useDataRefresh } from "@/hooks/useDataRefresh"
 import { toast } from "sonner"
 import Link from "next/link"
+import { FadeIn, SlideIn, StaggerList, StaggerItem } from "@/components/ui/motion-primitives"
 import {
     Bar, BarChart, CartesianGrid, Line, ComposedChart, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer,
 } from "recharts"
@@ -102,6 +105,12 @@ const VendeurDashboard = () => {
     useEffect(() => {
         fetchData()
     }, [fetchData])
+
+    // Recharge les stats quand l'utilisateur revient sur l'onglet
+    useRevalidateOnFocus(fetchData)
+    // Recharge en temps réel via Reverb quand un RDV ou véhicule change
+    useDataRefresh("rdv", fetchData)
+    useDataRefresh("vehicule", fetchData)
 
     const handleRefresh = () => {
         setRefreshing(true)
@@ -269,9 +278,10 @@ const VendeurDashboard = () => {
 
     return (
         <>
-        <div className="pt-20 px-4 md:px-6 space-y-4 md:space-y-6 max-w-6xl mx-auto mb-12">
+        <FadeIn className="pt-20 px-4 md:px-6 space-y-4 md:space-y-6 max-w-6xl mx-auto mb-12">
 
             {/* ==================== WELCOME HEADER ==================== */}
+            <SlideIn direction="left">
             <Card className="rounded-2xl md:rounded-3xl shadow-xl border border-border/40 overflow-hidden animate-in fade-in slide-in-from-bottom duration-500 bg-card/50 backdrop-blur-sm">
                 <CardContent className="p-4 md:p-6">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -343,9 +353,11 @@ const VendeurDashboard = () => {
                     </div>
                 </CardContent>
             </Card>
+            </SlideIn>
 
             {/* ==================== STATS KPI CARDS ==================== */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
+            <StaggerList className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
+                <StaggerItem>
                 <Card className="rounded-2xl md:rounded-3xl shadow-lg border border-border/40 bg-card/50 backdrop-blur-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 animate-in fade-in slide-in-from-left">
                     <CardContent className="p-4">
                         <div className="flex items-center justify-between mb-3">
@@ -361,7 +373,9 @@ const VendeurDashboard = () => {
                         <p className="text-xs font-semibold text-muted-foreground">Revenus FCFA</p>
                     </CardContent>
                 </Card>
+                </StaggerItem>
 
+                <StaggerItem>
                 <Card className="rounded-2xl md:rounded-3xl shadow-lg border border-border/40 bg-card/50 backdrop-blur-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 animate-in fade-in slide-in-from-bottom">
                     <CardContent className="p-4">
                         <div className="flex items-center justify-between mb-3">
@@ -377,7 +391,9 @@ const VendeurDashboard = () => {
                         <p className="text-xs font-semibold text-muted-foreground">Annonces actives</p>
                     </CardContent>
                 </Card>
+                </StaggerItem>
 
+                <StaggerItem>
                 <Card className="rounded-2xl md:rounded-3xl shadow-lg border border-border/40 bg-card/50 backdrop-blur-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 animate-in fade-in slide-in-from-bottom">
                     <CardContent className="p-4">
                         <div className="flex items-center justify-between mb-3">
@@ -393,7 +409,9 @@ const VendeurDashboard = () => {
                         <p className="text-xs font-semibold text-muted-foreground">Vues ce mois</p>
                     </CardContent>
                 </Card>
+                </StaggerItem>
 
+                <StaggerItem>
                 <Card className="rounded-2xl md:rounded-3xl shadow-lg border border-border/40 bg-card/50 backdrop-blur-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 animate-in fade-in slide-in-from-right">
                     <CardContent className="p-4">
                         <div className="flex items-center justify-between mb-3">
@@ -416,7 +434,8 @@ const VendeurDashboard = () => {
                         </div>
                     </CardContent>
                 </Card>
-            </div>
+                </StaggerItem>
+            </StaggerList>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
 
@@ -750,7 +769,8 @@ const VendeurDashboard = () => {
                     </div>
                 </CardHeader>
                 <CardContent className="p-4 md:p-6 pt-4">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+                    <StaggerList className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+                        <StaggerItem>
                         <Link href="/vendeur/addVehicle" className="group">
                             <div className="flex flex-col items-center gap-3 p-4 rounded-2xl bg-zinc-900/5 border border-zinc-900/10 hover:bg-zinc-900/10 hover:border-zinc-900/20 hover:shadow-lg transition-all duration-300 cursor-pointer hover:-translate-y-1">
                                 <div className="w-12 h-12 rounded-xl bg-zinc-900/10 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -762,6 +782,8 @@ const VendeurDashboard = () => {
                                 </div>
                             </div>
                         </Link>
+                        </StaggerItem>
+                        <StaggerItem>
                         <Link href="/vendeur/vehicles" className="group">
                             <div className="flex flex-col items-center gap-3 p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10 hover:bg-blue-500/10 hover:border-blue-500/20 hover:shadow-lg transition-all duration-300 cursor-pointer hover:-translate-y-1">
                                 <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -773,6 +795,8 @@ const VendeurDashboard = () => {
                                 </div>
                             </div>
                         </Link>
+                        </StaggerItem>
+                        <StaggerItem>
                         <Link href="/vendeur/messages" className="group">
                             <div className="flex flex-col items-center gap-3 p-4 rounded-2xl bg-amber-500/5 border border-amber-500/10 hover:bg-amber-500/10 hover:border-amber-500/20 hover:shadow-lg transition-all duration-300 cursor-pointer hover:-translate-y-1">
                                 <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center group-hover:scale-110 transition-transform relative">
@@ -789,6 +813,8 @@ const VendeurDashboard = () => {
                                 </div>
                             </div>
                         </Link>
+                        </StaggerItem>
+                        <StaggerItem>
                         <Link href="/vendeur/notifications" className="group">
                             <div className="flex flex-col items-center gap-3 p-4 rounded-2xl bg-purple-500/5 border border-purple-500/10 hover:bg-purple-500/10 hover:border-purple-500/20 hover:shadow-lg transition-all duration-300 cursor-pointer hover:-translate-y-1">
                                 <div className="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -800,11 +826,12 @@ const VendeurDashboard = () => {
                                 </div>
                             </div>
                         </Link>
-                    </div>
+                        </StaggerItem>
+                    </StaggerList>
                 </CardContent>
             </Card>
 
-        </div>
+        </FadeIn>
 
         {/* ── Dialog modification de profil ── */}
         <Dialog open={editOpen} onOpenChange={setEditOpen}>

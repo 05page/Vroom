@@ -20,13 +20,16 @@ import {
     User,
     XCircle,
 } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { toast } from "sonner"
 import { RendezVous } from "@/src/types"
 import { getMesRdv, annulerRdv } from "@/src/actions/rdv.actions"
 import { createAvis } from "@/src/actions/avis.actions"
+import { useRevalidateOnFocus } from "@/hooks/useRevalidateOnFocus"
+import { useDataRefresh } from "@/hooks/useDataRefresh"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
+import { FadeIn, SlideIn, StaggerList, StaggerItem } from "@/components/ui/motion-primitives"
 
 // Formate un datetime ISO en date lisible : "25 février 2026"
 const formatDate = (dt: string) =>
@@ -53,20 +56,24 @@ const MesRdv = () => {
     // Ensemble des rdv_id pour lesquels un avis a déjà été soumis cette session
     const [avisSubmis, setAvisSubmis] = useState<Set<string>>(new Set())
 
-    useEffect(() => {
-        const fetchRdvs = async () => {
-            try {
-                setIsLoading(true)
-                const res = await getMesRdv()
-                setRdvList(res.data ?? [])
-            } catch (error) {
-                toast.error(error instanceof Error ? error.message : "Erreur serveur")
-            } finally {
-                setIsLoading(false)
-            }
+    const fetchRdvs = useCallback(async () => {
+        try {
+            setIsLoading(true)
+            const res = await getMesRdv()
+            setRdvList(res.data ?? [])
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Erreur serveur")
+        } finally {
+            setIsLoading(false)
         }
-        fetchRdvs()
     }, [])
+
+    useEffect(() => { fetchRdvs() }, [fetchRdvs])
+
+    // Recharge les RDV quand l'utilisateur revient sur l'onglet
+    useRevalidateOnFocus(fetchRdvs)
+    // Recharge en temps réel via Reverb quand un RDV change
+    useDataRefresh("rdv", fetchRdvs)
 
     // Annule un RDV côté backend et met à jour la liste locale
     const handleAnnuler = async (id: string) => {
@@ -314,8 +321,9 @@ const MesRdv = () => {
     }
 
     return (
-        <div className="pt-20 px-4 md:px-6 space-y-4 md:space-y-6 max-w-6xl mx-auto mb-12">
+        <FadeIn className="pt-20 px-4 md:px-6 space-y-4 md:space-y-6 max-w-6xl mx-auto mb-12">
             {/* Header */}
+            <SlideIn direction="left">
             <Card className="rounded-2xl md:rounded-3xl shadow-sm border border-zinc-200 overflow-hidden animate-in fade-in slide-in-from-bottom duration-500 bg-white">
                 <CardContent className="p-4 md:p-6">
                     <div className="flex items-center gap-3 md:gap-4">
@@ -338,6 +346,7 @@ const MesRdv = () => {
                     </div>
                 </CardContent>
             </Card>
+            </SlideIn>
 
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 animate-in fade-in slide-in-from-bottom duration-500 delay-100">
@@ -391,11 +400,13 @@ const MesRdv = () => {
                                     description="Aucun rendez-vous dans cette catégorie."
                                 />
                             ) : (
-                                <div className="space-y-3">
+                                <StaggerList className="space-y-3">
                                     {getRdvByTab(tab).map((rdv) => (
-                                        <RdvCard key={rdv.id} rdv={rdv} />
+                                        <StaggerItem key={rdv.id}>
+                                            <RdvCard rdv={rdv} />
+                                        </StaggerItem>
                                     ))}
-                                </div>
+                                </StaggerList>
                             )}
                         </TabsContent>
                     ))}
@@ -448,7 +459,7 @@ const MesRdv = () => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </div>
+        </FadeIn>
     )
 }
 

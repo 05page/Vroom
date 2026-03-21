@@ -15,6 +15,7 @@ import {
     Calendar, Target, Clock, CheckCircle2, ShoppingCart,
     RefreshCw,
 } from "lucide-react"
+import { FadeIn, SlideIn, StaggerList, StaggerItem } from "@/components/ui/motion-primitives"
 
 interface MonthlyStat {
     mois: string
@@ -130,9 +131,11 @@ export default function StatsPage() {
 
     return (
         <div className="min-h-screen pt-20 px-4 md:px-6 pb-12">
+            <FadeIn>
             <div className="max-w-6xl mx-auto space-y-4 md:space-y-6">
                 {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 animate-in fade-in slide-in-from-left duration-500">
+                <SlideIn direction="left">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <div className="w-12 h-12 rounded-2xl bg-zinc-900/10 flex items-center justify-center">
                             <BarChart3 className="h-6 w-6 text-zinc-700" />
@@ -158,11 +161,13 @@ export default function StatsPage() {
                         </Button>
                     </div>
                 </div>
+                </SlideIn>
 
                 {/* Stats Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 animate-in fade-in slide-in-from-bottom duration-500">
+                <StaggerList className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
                     {stats.map((s, i) => (
-                        <Card key={i} className={cn(CARD, "hover:shadow-lg transition-all duration-300")}>
+                        <StaggerItem key={i}>
+                        <Card className={cn(CARD, "hover:shadow-lg transition-all duration-300")}>
                             <CardContent className="p-4">
                                 <div className="flex items-center gap-3 mb-2">
                                     <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0", s.color)}>
@@ -178,11 +183,12 @@ export default function StatsPage() {
                                 </div>
                             </CardContent>
                         </Card>
+                        </StaggerItem>
                     ))}
-                </div>
+                </StaggerList>
 
                 {/* Revenue Chart */}
-                <Card className={cn(CARD, "animate-in fade-in slide-in-from-bottom duration-500 delay-100")}>
+                <Card className={cn(CARD)}>
                     <CardHeader className="p-4 md:p-6 pb-2 md:pb-2">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
@@ -245,9 +251,10 @@ export default function StatsPage() {
                 </Card>
 
                 {/* KPIs */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 animate-in fade-in slide-in-from-bottom duration-500 delay-150">
+                <StaggerList className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
                     {kpis.map((k, i) => (
-                        <Card key={i} className={cn(CARD, "hover:shadow-lg transition-all duration-300")}>
+                        <StaggerItem key={i}>
+                        <Card className={cn(CARD, "hover:shadow-lg transition-all duration-300")}>
                             <CardContent className="p-4">
                                 <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center mb-3", k.color)}>
                                     <k.icon className="h-5 w-5" />
@@ -257,11 +264,12 @@ export default function StatsPage() {
                                 <p className="text-[10px] text-muted-foreground">{k.desc}</p>
                             </CardContent>
                         </Card>
+                        </StaggerItem>
                     ))}
-                </div>
+                </StaggerList>
 
                 {/* Vues Chart */}
-                <Card className={cn(CARD, "animate-in fade-in slide-in-from-bottom duration-500 delay-200")}>
+                <Card className={cn(CARD)}>
                     <CardHeader className="p-4 md:p-6 pb-2 md:pb-2">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
@@ -301,7 +309,7 @@ export default function StatsPage() {
                 </Card>
 
                 {/* Performance par véhicule */}
-                <Card className={cn(CARD, "animate-in fade-in slide-in-from-bottom duration-500 delay-250")}>
+                <Card className={cn(CARD)}>
                     <CardHeader className="p-4 md:p-6 pb-2 md:pb-2">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-xl bg-zinc-900/10 flex items-center justify-center">
@@ -372,8 +380,9 @@ export default function StatsPage() {
                 </Card>
 
                 {/* Résumé rapide */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom duration-500 delay-300">
+                <StaggerList className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Sources de trafic */}
+                    <StaggerItem>
                     <Card className={CARD}>
                         <CardHeader className="p-4 md:p-6 pb-2 md:pb-2">
                             <div className="flex items-center gap-3">
@@ -402,8 +411,10 @@ export default function StatsPage() {
                             ))}
                         </CardContent>
                     </Card>
+                    </StaggerItem>
 
                     {/* Entonnoir de conversion */}
+                    <StaggerItem>
                     <Card className={CARD}>
                         <CardHeader className="p-4 md:p-6 pb-2 md:pb-2">
                             <div className="flex items-center gap-3">
@@ -435,8 +446,10 @@ export default function StatsPage() {
                             ))}
                         </CardContent>
                     </Card>
-                </div>
+                    </StaggerItem>
+                </StaggerList>
             </div>
+            </FadeIn>
         </div>
     )
 }
