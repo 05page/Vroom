@@ -42,11 +42,14 @@ class Vehicules extends Model
     const POST_TYPE_LOCATION = 'location';
     const VEHICLE_TYPE_NEUF     = 'neuf';
     const VEHICLE_TYPE_OCCASION = 'occasion';
-    const STATUS_DISPONIBLE = 'disponible';
-    const STATUS_VENDU      = 'vendu';
-    const STATUS_LOUE       = 'loué';
-    const STATUS_SUSPENDU   = 'suspendu';
-    const STATUS_BANNI      = 'banni';
+    const STATUS_DISPONIBLE     = 'disponible';
+    const STATUS_VENDU          = 'vendu';
+    const STATUS_LOUE           = 'loué';
+    const STATUS_SUSPENDU       = 'suspendu';
+    const STATUS_BANNI          = 'banni';
+    // Véhicule temporairement verrouillé le temps qu'une transaction soit confirmée.
+    // Empêche de nouveaux RDV et masque l'annonce du catalogue.
+    const STATUS_EN_TRANSACTION = 'en_transaction';
     const STATUS_VALIDATED  = 'validee';
     const STATUS_REJETEE    = 'rejetee';
     const STATUS_PENDING    = 'en_attente';

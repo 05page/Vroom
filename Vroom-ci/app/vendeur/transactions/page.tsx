@@ -1,7 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { toast } from "sonner"
+import { useRevalidateOnFocus } from "@/hooks/useRevalidateOnFocus"
+import { useDataRefresh } from "@/hooks/useDataRefresh"
 import { cn } from "@/src/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -44,12 +46,19 @@ export default function TransactionsVendeurPage() {
     const [forms, setForms]               = useState<Record<string, ConfirmForm>>({})
     const [confirmLoading, setConfirmLoading] = useState<string | null>(null)
 
-    useEffect(() => {
+    const fetchData = useCallback(() => {
         getMesTransactions()
             .then(res => setTransactions(res?.data ?? []))
             .catch(() => toast.error("Erreur lors du chargement"))
             .finally(() => setIsLoading(false))
     }, [])
+
+    useEffect(() => { fetchData() }, [fetchData])
+
+    // Recharge quand l'utilisateur revient sur l'onglet
+    useRevalidateOnFocus(fetchData)
+    // Recharge en temps réel via Reverb quand une transaction change
+    useDataRefresh("transaction", fetchData)
 
     const getForm = (id: string): ConfirmForm =>
         forms[id] ?? { code: "", type: "", prix_final: "", date_debut_location: "", date_fin_location: "" }

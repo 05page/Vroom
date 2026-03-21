@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Notifications;
 use App\Models\RendezVous;
+use App\Models\Signalement;
 use App\Models\TransactionConclue;
+use App\Models\User;
 use App\Models\Vehicules;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -138,16 +140,79 @@ class TransactionConclueController extends Controller
 
         $transaction->update(['statut' => TransactionConclue::STATUT_REFUSE]);
 
+        // Déverrouille le véhicule — le client a refusé, deal annulé
+        Vehicules::where('id', $transaction->vehicule_id)
+            ->update(['statut' => Vehicules::STATUS_DISPONIBLE]);
+
         Notifications::create([
             'user_id'    => $transaction->vendeur_id,
             'type'       => Notifications::TYPE_TRANSACTION,
-            'title'      => 'Transaction refusée',
-            'message'    => $transaction->client->fullname . ' a refusé de confirmer la transaction.',
-            'data'       => ['transaction_id' => $transaction->id, 'rdv_id' => $transaction->rendez_vous_id],
+            'title'      => 'Transaction refusée par le client',
+            'message'    => $transaction->client->fullname . ' a refusé de confirmer la transaction. Votre annonce est de nouveau disponible.',
+            'data'       => ['transaction_id' => $transaction->id],
             'date_envoi' => now(),
         ]);
 
         return response()->json(['success' => true, 'message' => 'Transaction refusée']);
+    }
+
+    /**
+     * Vendeur refuse explicitement de confirmer la transaction.
+     * POST /transactions-conclues/{id}/refuser-vendeur
+     *
+     * Conséquences :
+     *  - Transaction → statut refusé
+     *  - Véhicule → disponible (déverrouillé)
+     *  - Signalement automatique créé sur le vendeur (visible admin)
+     *  - Compteur nb_refus_transaction du vendeur incrémenté
+     *  - Client notifié
+     */
+    public function refuserVendeur(string $id): JsonResponse
+    {
+        $user = Auth::user();
+
+        $transaction = TransactionConclue::where('id', $id)
+            ->where('vendeur_id', $user->id)
+            ->where('statut', TransactionConclue::STATUT_EN_ATTENTE)
+            ->firstOrFail();
+
+        DB::beginTransaction();
+        try {
+            $transaction->update(['statut' => TransactionConclue::STATUT_REFUSE]);
+
+            // Déverrouille le véhicule
+            Vehicules::where('id', $transaction->vehicule_id)
+                ->update(['statut' => Vehicules::STATUS_DISPONIBLE]);
+
+            // Signalement automatique sur le vendeur — visible par l'admin
+            Signalement::create([
+                'client_id'        => null, // signalement système, pas un utilisateur
+                'cible_user_id'    => $user->id,
+                'motif'            => 'transaction_non_confirmee',
+                'description'      => 'Le vendeur ' . $user->fullname . ' a refusé de confirmer une transaction (transaction #' . $transaction->id . '). Le véhicule est revenu disponible sans être marqué comme vendu.',
+                'statut'           => Signalement::STATUT_EN_ATTENTE,
+                'date_signalement' => now(),
+            ]);
+
+            // Incrémente le compteur de réputation du vendeur
+            User::where('id', $user->id)->increment('nb_refus_transaction');
+
+            // Notifie le client
+            Notifications::create([
+                'user_id'    => $transaction->client_id,
+                'type'       => Notifications::TYPE_TRANSACTION,
+                'title'      => 'Transaction annulée par le vendeur',
+                'message'    => 'Le vendeur a refusé de confirmer la transaction. Si vous avez effectué un paiement, contactez le support.',
+                'data'       => ['transaction_id' => $transaction->id],
+                'date_envoi' => now(),
+            ]);
+
+            DB::commit();
+            return response()->json(['success' => true, 'message' => 'Transaction refusée']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
     }
 
     /**

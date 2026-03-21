@@ -1,7 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { toast } from "sonner"
+import { useRevalidateOnFocus } from "@/hooks/useRevalidateOnFocus"
+import { useDataRefresh } from "@/hooks/useDataRefresh"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -36,12 +38,19 @@ export default function TransactionsClientPage() {
     const [codes, setCodes]               = useState<Record<string, string>>({})
     const [confirmLoading, setConfirmLoading] = useState<string | null>(null)
 
-    useEffect(() => {
+    const fetchData = useCallback(() => {
         getMesDemandes()
             .then(res => setTransactions(res?.data ?? []))
             .catch(() => toast.error("Erreur lors du chargement"))
             .finally(() => setLoading(false))
     }, [])
+
+    useEffect(() => { fetchData() }, [fetchData])
+
+    // Recharge quand l'utilisateur revient sur l'onglet
+    useRevalidateOnFocus(fetchData)
+    // Recharge en temps réel via Reverb quand une transaction change
+    useDataRefresh("transaction", fetchData)
 
     const handleConfirmer = async (t: TransactionConclue) => {
         const code = codes[t.id]?.trim()

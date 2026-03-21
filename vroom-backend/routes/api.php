@@ -20,6 +20,7 @@ use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\SignalementController;
 use App\Http\Controllers\VehiculesController;
 use App\Http\Controllers\VendeurStatsController;
+use App\Http\Controllers\VersementInscriptionController;
 // À créer :
 // use App\Http\Controllers\CatalogueController;
 // use App\Http\Controllers\FormationController;
@@ -159,6 +160,10 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/{id}/inscrits',   [FormationController::class, 'inscrits']);
             Route::get('/{id}/stats',      [FormationController::class, 'stats']);
             Route::put('/{formationId}/inscrits/{inscriptionId}', [FormationController::class, 'updateInscrit']);
+            // Versements d'un élève inscrit
+            Route::get('/{formationId}/inscrits/{inscriptionId}/versements',             [VersementInscriptionController::class, 'index']);
+            Route::post('/{formationId}/inscrits/{inscriptionId}/versements',            [VersementInscriptionController::class, 'store']);
+            Route::delete('/{formationId}/inscrits/{inscriptionId}/versements/{versId}', [VersementInscriptionController::class, 'destroy']);
         });
         // Routes dynamiques après les routes statiques pour éviter les conflits UUID
         Route::get('/{id}',                [FormationController::class, 'show']);
@@ -181,8 +186,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{id}/confirmer-client',  [TransactionConclueController::class, 'confirmerClient']);
         Route::post('/{id}/refuser',           [TransactionConclueController::class, 'refuserClient']);
         Route::middleware('role:vendeur,concessionnaire,auto_ecole')->group(function () {
-            Route::get('/mes-transactions',    [TransactionConclueController::class, 'mesTransactions']);
+            Route::get('/mes-transactions',        [TransactionConclueController::class, 'mesTransactions']);
             Route::post('/{id}/confirmer-vendeur', [TransactionConclueController::class, 'confirmerVendeur']);
+            Route::post('/{id}/refuser-vendeur',   [TransactionConclueController::class, 'refuserVendeur']);
         });
     });
 
