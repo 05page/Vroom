@@ -8,12 +8,14 @@ import {
     Car,
     ChevronDown,
     Heart,
+    HelpCircle,
     Home,
     LayoutDashboard,
     LogOut,
     MapPin,
     Menu,
     MessageCircle,
+    Sparkles,
     User as UserIcon,
     Users,
     X,
@@ -50,6 +52,7 @@ const Header = () => {
             ? [
                 { href: "/client/favorites", label: "Favoris", icon: Heart },
                 { href: "/client/formations", label: "Formations", icon: BookOpen },
+                { href: "/client/suggestions", label: "Suggestions", icon: Sparkles },
               ]
             : []),
         {
@@ -178,6 +181,14 @@ const Header = () => {
                                             <LayoutDashboard className="h-3.5 w-3.5" />
                                             {isVendeur ? "Dashboard" : "Mon compte"}
                                         </Link>
+                                        <Link
+                                            href={isVendeur ? "/vendeur/aide" : "/client/aide"}
+                                            onClick={() => setProfileOpen(false)}
+                                            className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 transition-all"
+                                        >
+                                            <HelpCircle className="h-3.5 w-3.5" />
+                                            Aide
+                                        </Link>
                                     </div>
                                     <div className="p-1.5 border-t border-zinc-100">
                                         <button
@@ -298,6 +309,15 @@ const Header = () => {
                         >
                             <MessageCircle className="h-4 w-4 shrink-0" />
                             Messages
+                        </Link>
+
+                        <Link
+                            href={isVendeur ? "/vendeur/aide" : "/client/aide"}
+                            onClick={() => setMobileOpen(false)}
+                            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50 transition-all"
+                        >
+                            <HelpCircle className="h-4 w-4 shrink-0" />
+                            Aide
                         </Link>
 
                         <div className="h-px bg-zinc-100 my-2" />

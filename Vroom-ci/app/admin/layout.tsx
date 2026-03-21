@@ -7,6 +7,7 @@ import {
     Car,
     CheckCheck,
     GraduationCap,
+    HelpCircle,
     LayoutDashboard,
     LogOut,
     ArrowLeftRight,
@@ -60,6 +61,7 @@ const navItems = [
     { href: "/admin/transactions",  label: "Transactions",         icon: ArrowLeftRight },
     { href: "/admin/stats",         label: "Statistiques",         icon: BarChart3 },
     { href: "/admin/logs",         label: "Journal",              icon: ScrollText },
+    { href: "/admin/support",      label: "Support",              icon: HelpCircle },
     { href: "/admin/settings",     label: "Paramètres",           icon: Settings },
 ]
 

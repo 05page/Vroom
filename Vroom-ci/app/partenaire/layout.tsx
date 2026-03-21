@@ -7,7 +7,7 @@ import {
     Bell,
     BookOpen,
     Car,
-    CreditCard,
+    HelpCircle,
     MessageSquare,
     Home,
     LayoutDashboard,
@@ -47,7 +47,7 @@ const ALL_NAV_ITEMS = [
     { href: "/partenaire/trend",      label: "Tendances",       icon: TrendingUp,      roles: null },
     { href: "/partenaire/rdv",        label: "Nos Rendez-vous", icon: Calendar,        roles: null },
     { href: "/partenaire/formations", label: "Formations",      icon: BookOpen,        roles: ["auto_ecole"] },
-    { href: "/partenaire/abonnements",label: "Abonnements",     icon: CreditCard,      roles: null },
+    { href: "/partenaire/aide",       label: "Aide",            icon: HelpCircle,      roles: null },
     { href: "/partenaire/settings",   label: "Paramètres",      icon: Settings,        roles: null },
 ]
 
@@ -58,6 +58,7 @@ export default function PartenaireLayout({
 }) {
     const pathname = usePathname()
     const { user } = useUser()
+    const isMessagesPage = pathname === "/partenaire/messages"
 
     // Filtre les items selon le rôle : null = visible par tous
     const navItems = ALL_NAV_ITEMS.filter(item =>
@@ -177,7 +178,7 @@ export default function PartenaireLayout({
                         </span>
                     </div>
                 </header>
-                <main className="flex-1 overflow-auto p-4 md:p-6">
+                <main className={isMessagesPage ? "flex-1 flex flex-col overflow-hidden" : "flex-1 overflow-auto p-4 md:p-6"}>
                     {children}
                 </main>
             </SidebarInset>
