@@ -162,7 +162,7 @@ const AuthPage = () => {
             <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
                 <Image
                     src="/vehicle/img3.jpg"
-                    alt="Vroom CI - Votre vehicule ideal"
+                    alt="Move CI - Votre vehicule ideal"
                     fill
                     className="object-cover"
                     priority
@@ -179,7 +179,7 @@ const AuthPage = () => {
                         <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center shadow-lg shadow-orange-500/20">
                             <Car className="h-5 w-5 text-white" />
                         </div>
-                        <span className="text-xl font-black text-foreground">Vroom CI</span>
+                        <span className="text-xl font-black text-foreground">Move CI</span>
                     </Link>
                 </div>
 
@@ -191,7 +191,7 @@ const AuthPage = () => {
                                 <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center shadow-lg shadow-orange-500/20">
                                     <Car className="h-5 w-5 text-white" />
                                 </div>
-                                <span className="text-xl font-black text-foreground">Vroom CI</span>
+                                <span className="text-xl font-black text-foreground">Move CI</span>
                             </Link>
                         </div>
 
@@ -300,7 +300,7 @@ const AuthPage = () => {
                             <TabsContent value="register" className="mt-0">
                                 <div className="mb-6">
                                     <h2 className="text-3xl font-black text-zinc-900 mb-2">Creer un compte</h2>
-                                    <p className="text-zinc-400">Rejoignez la communaute Vroom CI</p>
+                                    <p className="text-zinc-400">Rejoignez la communaute Move CI</p>
                                 </div>
 
                                 {/* Step Indicator */}
@@ -645,7 +645,7 @@ const AuthPage = () => {
                         </Tabs>
 
                         <p className="text-center text-xs text-zinc-400 mt-8">
-                            2025 Vroom CI. Tous droits reserves.
+                            2025 Move CI. Tous droits reserves.
                         </p>
                     </div>
                 </div>

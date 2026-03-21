@@ -26,7 +26,7 @@ interface Partenaire {
 
 /* ── Données ── */
 const benefits = [
-    { icon: TrendingUp,        title: "Boostez vos ventes",      desc: "Exposez votre offre à des milliers d'acheteurs actifs sur Vroom." },
+    { icon: TrendingUp,        title: "Boostez vos ventes",      desc: "Exposez votre offre à des milliers d'acheteurs actifs sur Move." },
     { icon: ChartBarIncreasing, title: "Analyse & reporting",    desc: "Suivez vos performances avec des indicateurs clairs en temps réel." },
     { icon: UsersRound,        title: "Clients qualifiés",        desc: "Touchez une audience engagée et locale, prête à acheter." },
     { icon: Shield,            title: "Accompagnement dédié",     desc: "Un support réactif pour accélérer vos résultats dès le départ." },
@@ -78,7 +78,7 @@ export function DevenirPartenaire({ open, onClose }: Partenaire) {
 
                         <DialogTitle className="text-xl font-extrabold text-zinc-900 tracking-tight leading-tight" style={{ fontFamily: "var(--font-syne, sans-serif)" }}>
                             {currentStep === 1
-                                ? "Développez votre activité avec Vroom"
+                                ? "Développez votre activité avec Move"
                                 : "Renseignez vos informations"}
                         </DialogTitle>
                         <p className="text-sm text-zinc-500">
@@ -187,7 +187,7 @@ export function DevenirPartenaire({ open, onClose }: Partenaire) {
                 {/* ── Pied de page ── */}
                 <div className="shrink-0 border-t border-zinc-100 bg-zinc-50/60 px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                     <p className="text-xs text-zinc-400">
-                        Une question ? <span className="font-medium text-zinc-600">contact@vroomci.com</span>
+                        Une question ? <span className="font-medium text-zinc-600">contact@moveci.com</span>
                     </p>
 
                     <div className="flex items-center gap-2 ml-auto">

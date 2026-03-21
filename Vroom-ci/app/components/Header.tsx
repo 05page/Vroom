@@ -90,7 +90,7 @@ const Header = () => {
                             className="text-base font-bold text-zinc-900 tracking-tight"
                             style={{ fontFamily: "var(--font-syne, sans-serif)" }}
                         >
-                            Vroom
+                            Move
                         </span>
                     </Link>
 
@@ -216,7 +216,7 @@ const Header = () => {
                             <Car className="h-3.5 w-3.5 text-white fill-white" />
                         </div>
                         <span className="text-sm font-bold text-zinc-900" style={{ fontFamily: "var(--font-syne, sans-serif)" }}>
-                            Vroom
+                            Move
                         </span>
                     </Link>
 

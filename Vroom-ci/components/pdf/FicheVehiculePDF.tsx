@@ -265,8 +265,8 @@ export function FicheVehiculePDF({ vehicule: v, backendUrl }: Props) {
 
   return (
     <Document
-      title={`Fiche ${desc?.marque} ${desc?.modele} — Vroom`}
-      author="Vroom CI"
+      title={`Fiche ${desc?.marque} ${desc?.modele} — Move`}
+      author="Move CI"
     >
       <Page size="A4" style={s.page}>
 
@@ -274,7 +274,7 @@ export function FicheVehiculePDF({ vehicule: v, backendUrl }: Props) {
         <View style={s.header}>
           <View style={s.brandBox}>
             <View style={s.brandDot} />
-            <Text style={s.brandName}>Vroom</Text>
+            <Text style={s.brandName}>Move</Text>
           </View>
           <View>
             <Text style={s.docTitle}>FICHE VÉHICULE</Text>
@@ -367,7 +367,7 @@ export function FicheVehiculePDF({ vehicule: v, backendUrl }: Props) {
         {/* ── Footer ── */}
         <View style={s.footer} fixed>
           <Text style={s.footerText}>
-            Vroom CI · vroomci.com · contact@vroomci.com
+            Move CI · moveci.com · contact@moveci.com
           </Text>
           <Text style={s.footerText}>
             {desc?.marque} {desc?.modele} — Réf. {v.id.slice(0, 8).toUpperCase()}

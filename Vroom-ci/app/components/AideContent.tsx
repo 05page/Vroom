@@ -268,7 +268,7 @@ export default function AideContent() {
                                         {ticket.reponse_admin && (
                                             <div className="mt-2 p-3 rounded-lg bg-blue-50 border border-blue-100 space-y-1">
                                                 <p className="text-xs font-semibold text-blue-700">
-                                                    Réponse de l&apos;équipe Vroom
+                                                    Réponse de l&apos;équipe Move
                                                     {ticket.repondu_at && (
                                                         <span className="font-normal ml-1 text-blue-500">
                                                             · {timeAgo(ticket.repondu_at)}

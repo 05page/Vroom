@@ -16,30 +16,68 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 })
 
+// ─── Icône "Ma position" : point bleu pulsant (style Google Maps) ─────────────
+/**
+ * Marqueur de position utilisateur avec anneau pulsant.
+ * L'animation @keyframes est injectée dans le DOM via la balise <style>
+ * embarquée dans le html de la DivIcon.
+ */
+const ICON_ME = L.divIcon({
+  className: "",
+  html: `
+    <style>
+      @keyframes vroomPing {
+        0%   { transform: scale(1); opacity: 0.4; }
+        100% { transform: scale(3); opacity: 0; }
+      }
+    </style>
+    <div style="position:relative;width:24px;height:24px;">
+      <div style="
+        position:absolute;inset:0;border-radius:50%;
+        background:#3b82f6;opacity:0.4;
+        animation:vroomPing 1.8s cubic-bezier(0,0,0.2,1) infinite;
+      "></div>
+      <div style="
+        position:absolute;inset:4px;border-radius:50%;
+        background:#3b82f6;border:2.5px solid white;
+        box-shadow:0 2px 8px rgba(59,130,246,0.6);
+      "></div>
+    </div>`,
+  iconSize: [24, 24],
+  iconAnchor: [12, 12],
+  popupAnchor: [0, -14],
+})
+
 // ─── Icônes custom par rôle (DivIcon = icône HTML/CSS sans image) ─────────────
 /**
  * Crée une DivIcon circulaire colorée pour un rôle donné.
- * @param color Couleur CSS du cercle
+ * Plus grand (28px) et avec l'initiale du rôle pour la lisibilité.
+ * @param color  Couleur CSS du cercle
+ * @param letter Initiale affichée au centre (ex: "V", "C", "A")
  */
-function createRoleIcon(color: string): L.DivIcon {
+function createRoleIcon(color: string, letter: string): L.DivIcon {
   return L.divIcon({
-    className: "", // Annule la classe CSS par défaut de Leaflet
+    className: "",
     html: `<div style="
-      width: 16px;
-      height: 16px;
+      width: 28px;
+      height: 28px;
       border-radius: 50%;
       background-color: ${color};
-      border: 2px solid white;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.4);
-    "></div>`,
-    iconSize: [16, 16],
-    iconAnchor: [8, 8],   // Centre du cercle = point d'ancrage
-    popupAnchor: [0, -10],
+      border: 3px solid white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.28);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: white;
+      font-family: sans-serif;
+    ">${letter}</div>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+    popupAnchor: [0, -16],
   })
 }
-
-/** Icône de position utilisateur : cercle bleu */
-const ICON_ME = createRoleIcon("#3b82f6")
 
 /** Map rôle → couleur */
 const ROLE_COLORS: Record<UserProche["role"], string> = {
@@ -53,6 +91,13 @@ const ROLE_LABELS: Record<UserProche["role"], string> = {
   vendeur: "Vendeur",
   concessionnaire: "Concessionnaire",
   auto_ecole: "Auto-école",
+}
+
+/** Initiale affichée dans le marqueur par rôle */
+const ROLE_INITIALS: Record<UserProche["role"], string> = {
+  vendeur: "V",
+  concessionnaire: "C",
+  auto_ecole: "A",
 }
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -92,10 +137,12 @@ export default function MapView({
       className={className}
       style={{ height: "100%", width: "100%" }}
     >
-      {/* Tuiles OpenStreetMap */}
+      {/* Tuiles CartoDB Voyager — plus lisibles et modernes que l'OSM brut */}
       <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'
+        subdomains="abcd"
+        maxZoom={20}
       />
 
       {/* Marqueur "Ma position" */}
@@ -110,7 +157,7 @@ export default function MapView({
       {/* Marqueurs des vendeurs / partenaires */}
       {markers.map((user) => {
         const color = ROLE_COLORS[user.role]
-        const icon = createRoleIcon(color)
+        const icon = createRoleIcon(color, ROLE_INITIALS[user.role])
 
         return (
           <Marker
@@ -122,7 +169,7 @@ export default function MapView({
             }}
           >
             <Popup>
-              <div className="min-w-[160px] space-y-1.5">
+              <div className="min-w-40 space-y-1.5">
                 {/* Nom + rôle */}
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-semibold text-sm text-zinc-900">

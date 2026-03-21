@@ -194,7 +194,7 @@ export default function AdminSettings() {
                                             <p className="text-sm text-muted-foreground">{form.email}</p>
                                             <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
                                                 <Calendar className="h-3.5 w-3.5" />
-                                                Compte administrateur Vroom CI
+                                                Compte administrateur Move CI
                                             </div>
                                         </>
                                     )}

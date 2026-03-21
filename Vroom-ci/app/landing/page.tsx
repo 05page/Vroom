@@ -35,7 +35,7 @@ const howItWorks = [
 
 const temoignages = [
     { name: "Kouame Ange", role: "Acheteur", text: "J'ai trouvé ma Toyota RAV4 en moins d'une semaine. Le processus était simple et le vendeur très professionnel.", rating: 5 },
-    { name: "Diallo Ibrahim", role: "Vendeur", text: "J'ai vendu ma Mercedes en 3 jours grâce à Vroom. Les acheteurs sont sérieux et la plateforme très bien faite.", rating: 5 },
+    { name: "Diallo Ibrahim", role: "Vendeur", text: "J'ai vendu ma Mercedes en 3 jours grâce à Move. Les acheteurs sont sérieux et la plateforme très bien faite.", rating: 5 },
     { name: "Traoré Aminata", role: "Locataire", text: "La location est super pratique. J'ai loué un SUV pour un weekend et tout était parfait. Prix correct, véhicule impeccable.", rating: 5 },
 ]
 
@@ -97,7 +97,7 @@ export default function LandingPage() {
                         style={{ animationDelay: '280ms' }}
                     >
                         Achetez, louez ou vendez votre voiture en toute confiance.
-                        Des centaines de véhicules vérifiés vous attendent sur Vroom.
+                        Des centaines de véhicules vérifiés vous attendent sur Move.
                     </p>
 
                     {/* CTAs */}
@@ -159,7 +159,7 @@ export default function LandingPage() {
                         <span className="text-gradient-gold">toutes les solutions</span>
                     </h2>
                     <p className="text-center text-zinc-500 mb-16 max-w-md mx-auto text-sm leading-relaxed">
-                        Que vous cherchiez à acheter, louer ou vendre, Vroom vous simplifie la vie.
+                        Que vous cherchiez à acheter, louer ou vendre, Move vous simplifie la vie.
                     </p>
 
                     <div className="grid md:grid-cols-3 gap-5">
@@ -330,7 +330,7 @@ export default function LandingPage() {
                 <div className="max-w-6xl mx-auto">
                     <div className="flex items-center gap-3 mb-4">
                         <div className="h-px flex-1 bg-zinc-200" />
-                        <span className="text-xs font-bold text-amber-600 uppercase tracking-widest">Pourquoi Vroom</span>
+                        <span className="text-xs font-bold text-amber-600 uppercase tracking-widest">Pourquoi Move</span>
                         <div className="h-px flex-1 bg-zinc-200" />
                     </div>
                     <h2 className="text-2xl md:text-4xl font-extrabold text-center text-zinc-900 tracking-tight mb-3 max-w-2xl mx-auto"
@@ -422,7 +422,7 @@ export default function LandingPage() {
                         <div className="relative rounded-2xl overflow-hidden order-2 md:order-1 group scroll-reveal h-full">
                             <Image
                                 src="/vehicle/img5.jpg"
-                                alt="Partenaires Vroom – concessionnaires et auto-écoles"
+                                alt="Partenaires Move – concessionnaires et auto-écoles"
                                 fill
                                 className="object-cover transition-transform duration-700 ease-out group-hover:scale-105"
                                 sizes="(max-width: 768px) 100vw, 50vw"
@@ -453,7 +453,7 @@ export default function LandingPage() {
                             </h2>
 
                             <p className="text-zinc-400 text-sm leading-relaxed mb-8 max-w-xs">
-                                Concessionnaires, auto-écoles — accédez à des outils dédiés, une visibilité accrue et des clients qualifiés directement sur Vroom.
+                                Concessionnaires, auto-écoles — accédez à des outils dédiés, une visibilité accrue et des clients qualifiés directement sur Move.
                             </p>
 
                             {/* Avantages */}
@@ -500,7 +500,7 @@ export default function LandingPage() {
                                 style={{ fontFamily: "var(--font-syne, sans-serif)" }}>
                                 Vendez vos véhicules
                                 <br />
-                                <span className="text-gradient-gold">sur Vroom</span>
+                                <span className="text-gradient-gold">sur Move</span>
                             </h2>
                             <p className="text-zinc-500 mb-8 max-w-sm mx-auto text-sm leading-relaxed">
                                 Rejoignez des centaines de vendeurs et publiez vos annonces en quelques minutes.
@@ -539,7 +539,7 @@ export default function LandingPage() {
                                 <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
                                     <Car className="h-4 w-4 text-white fill-white" />
                                 </div>
-                                <span className="font-bold text-white text-lg" style={{ fontFamily: "var(--font-syne, sans-serif)" }}>Vroom</span>
+                                <span className="font-bold text-white text-lg" style={{ fontFamily: "var(--font-syne, sans-serif)" }}>Move</span>
                             </div>
                             <p className="text-xs text-zinc-500 max-w-45 leading-relaxed">
                                 Marketplace automobile de référence en Côte d&apos;Ivoire.
@@ -581,7 +581,7 @@ export default function LandingPage() {
 
                     {/* Barre de séparation + copyright */}
                     <div className="pt-6 border-t border-zinc-800/60 flex flex-col md:flex-row items-center justify-between gap-2">
-                        <p className="text-xs text-zinc-600">© 2026 Vroom. Tous droits réservés.</p>
+                        <p className="text-xs text-zinc-600">© 2026 Move. Tous droits réservés.</p>
                         <p className="text-xs text-zinc-600">Marketplace automobile · Abidjan, Côte d&apos;Ivoire</p>
                     </div>
                 </div>

@@ -90,7 +90,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                             <Shield className="h-4 w-4 text-primary-foreground" />
                                         </div>
                                         <div className="flex flex-col gap-0.5 leading-none">
-                                            <span className="font-bold">Vroom CI</span>
+                                            <span className="font-bold">Move CI</span>
                                             <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px] w-fit">
                                                 admin
                                             </Badge>

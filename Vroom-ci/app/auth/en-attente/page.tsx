@@ -14,7 +14,7 @@ export default function EnAttentePage() {
                     <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center shadow-lg shadow-orange-500/20">
                         <Car className="h-5 w-5 text-white" />
                     </div>
-                    <span className="text-xl font-black text-zinc-900">Vroom CI</span>
+                    <span className="text-xl font-black text-zinc-900">Move CI</span>
                 </div>
 
                 {/* Icône état */}

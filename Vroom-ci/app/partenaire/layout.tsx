@@ -84,7 +84,7 @@ export default function PartenaireLayout({
                                         <Car className="h-4 w-4 text-white" />
                                     </div>
                                     <div className="flex flex-col gap-0.5 leading-none">
-                                        <span className="font-bold">Vroom CI</span>
+                                        <span className="font-bold">Move CI</span>
                                         <Badge className="bg-black text-[10px] w-fit">partenaire</Badge>
                                     </div>
                                 </Link>
