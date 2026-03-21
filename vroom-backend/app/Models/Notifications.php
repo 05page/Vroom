@@ -39,6 +39,7 @@ class Notifications extends Model
     const TYPE_MODERATION      = 'moderation';
     const TYPE_TRANSACTION     = 'transaction';
     const TYPE_SUPPORT         = 'support';
+    const TYPE_TENDANCE        = 'tendance';
 
     public function user()
     {
