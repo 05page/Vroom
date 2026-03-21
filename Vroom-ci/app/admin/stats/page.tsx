@@ -12,8 +12,11 @@ import {
 import {
     Users, Car, ArrowLeftRight, ShieldAlert, Wallet,
     TrendingUp, UserCheck, UserX, GraduationCap, BookOpen, Award,
+    Heart, Star, CheckCircle, Calendar, Fuel,
+    MapPin, MapPinOff, Globe, Warehouse,
 } from "lucide-react"
-import { getAdminStats } from "@/src/actions/admin.actions"
+import { getAdminStats, getAdminStatsMarche, getAdminStatsGeographie } from "@/src/actions/admin.actions"
+import type { StatsMarche, StatsGeographie } from "@/src/types"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -83,16 +86,42 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
     return <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">{children}</h2>
 }
 
+/** Affiché dans un graphique géo quand aucune donnée n'est encore disponible. */
+function EmptyGeo() {
+    return (
+        <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
+            <MapPin className="h-7 w-7 opacity-20" />
+            <p className="text-sm">Pas encore assez de données géographiques</p>
+        </div>
+    )
+}
+
 // ─── Page principale ──────────────────────────────────────────────────────────
 
 export default function AdminStatsPage() {
-    const [data, setData]       = useState<StatsData | null>(null)
-    const [loading, setLoading] = useState(true)
+    const [data, setData]                   = useState<StatsData | null>(null)
+    const [loading, setLoading]             = useState(true)
+    const [marche, setMarche]               = useState<StatsMarche | null>(null)
+    const [loadingMarche, setLoadingMarche] = useState(true)
+    const [geo, setGeo]                     = useState<StatsGeographie | null>(null)
+    const [loadingGeo, setLoadingGeo]       = useState(true)
 
     useEffect(() => {
         getAdminStats()
             .then(r => { if (r.data) setData(r.data as unknown as StatsData) })
             .finally(() => setLoading(false))
+    }, [])
+
+    useEffect(() => {
+        getAdminStatsMarche()
+            .then(r => { if (r.data) setMarche(r.data as unknown as StatsMarche) })
+            .finally(() => setLoadingMarche(false))
+    }, [])
+
+    useEffect(() => {
+        getAdminStatsGeographie()
+            .then(r => { if (r.data) setGeo(r.data as unknown as StatsGeographie) })
+            .finally(() => setLoadingGeo(false))
     }, [])
 
     // ── KPIs dérivés ─────────────────────────────────────────────────────────
@@ -584,6 +613,267 @@ export default function AdminStatsPage() {
                     </div>
                 </div>
             )}
+
+            {/* ── Données marché ── */}
+            <Separator />
+            <div className="space-y-4">
+                <SectionTitle>Données marché — Comportement acheteurs</SectionTitle>
+
+                {/* 3 KPIs conversion */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <KpiCard label="Total RDV" value={marche?.conversion_rdv_transaction.total_rdv ?? 0} icon={Calendar} color="bg-blue-100 text-blue-700" loading={loadingMarche} />
+                    <KpiCard label="RDV terminés" value={marche?.conversion_rdv_transaction.rdv_termines ?? 0} icon={CheckCircle} color="bg-indigo-100 text-indigo-700" loading={loadingMarche} />
+                    <KpiCard label="Taux conversion RDV→Vente" value={marche ? `${marche.conversion_rdv_transaction.taux_conversion}%` : "—"} icon={TrendingUp} color="bg-green-100 text-green-700" loading={loadingMarche} />
+                </div>
+
+                {/* 2 colonnes : Top marques favoris (bar) + Carburant demandé (pie) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                    {/* Top marques favoris */}
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                                <Heart className="h-4 w-4 text-red-500" />
+                                Top marques — Favoris acheteurs
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="h-56">
+                            {loadingMarche ? <Skeleton className="h-full w-full rounded-lg" /> : (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={marche?.top_marques_favoris ?? []} barSize={20} layout="vertical">
+                                        <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+                                        <YAxis type="category" dataKey="marque" tick={{ fontSize: 11 }} width={65} />
+                                        <Tooltip contentStyle={{ fontSize: 12 }} />
+                                        <Bar dataKey="favoris" name="Favoris" fill="#ef4444" radius={[0, 4, 4, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {/* Carburant demandé */}
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                                <Fuel className="h-4 w-4 text-amber-500" />
+                                Carburant le plus demandé
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {loadingMarche ? <Skeleton className="h-32 w-full" /> : (
+                                <>
+                                    <div className="h-36">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <PieChart>
+                                                <Pie data={marche?.repartition_carburant_demande ?? []} dataKey="favoris" nameKey="carburant" cx="50%" cy="50%" outerRadius={55} paddingAngle={3}>
+                                                    {(marche?.repartition_carburant_demande ?? []).map((_, i) => (
+                                                        <Cell key={i} fill={["#f59e0b","#3b82f6","#10b981","#8b5cf6"][i % 4]} />
+                                                    ))}
+                                                </Pie>
+                                                <Tooltip contentStyle={{ fontSize: 12 }} formatter={(v, n) => [v, n]} />
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                    <div className="space-y-1 mt-1">
+                                        {(marche?.repartition_carburant_demande ?? []).map((d, i) => (
+                                            <div key={d.carburant} className="flex items-center justify-between text-sm">
+                                                <span className="flex items-center gap-1.5">
+                                                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: ["#f59e0b","#3b82f6","#10b981","#8b5cf6"][i % 4] }} />
+                                                    {d.carburant}
+                                                </span>
+                                                <Badge variant="outline" className="text-xs">{d.favoris} favoris</Badge>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {/* Tranches de prix demandées */}
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                                <Wallet className="h-4 w-4 text-indigo-500" />
+                                Fourchettes de prix recherchées
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="h-48">
+                            {loadingMarche ? <Skeleton className="h-full w-full rounded-lg" /> : (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={marche?.tranches_prix_demande ?? []} barSize={32}>
+                                        <XAxis dataKey="tranche" tick={{ fontSize: 11 }} />
+                                        <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                                        <Tooltip contentStyle={{ fontSize: 12 }} formatter={(v: number) => [v, "Favoris"]} />
+                                        <Bar dataKey="favoris" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {/* Top modèles favoris */}
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                                <Star className="h-4 w-4 text-amber-500" />
+                                Top modèles — Favoris acheteurs
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="h-48">
+                            {loadingMarche ? <Skeleton className="h-full w-full rounded-lg" /> : (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={(marche?.top_modeles_favoris ?? []).map(d => ({ ...d, label: `${d.marque} ${d.modele}` }))} barSize={18} layout="vertical">
+                                        <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+                                        <YAxis type="category" dataKey="label" tick={{ fontSize: 10 }} width={90} />
+                                        <Tooltip contentStyle={{ fontSize: 12 }} />
+                                        <Bar dataKey="favoris" name="Favoris" fill="#f59e0b" radius={[0, 4, 4, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+
+            {/* ── Répartition géographique ── */}
+            <Separator />
+            <div className="space-y-4">
+                <SectionTitle>Répartition géographique</SectionTitle>
+
+                {/* KPIs couverture */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <KpiCard
+                        label="Zones avec vendeurs"
+                        value={geo?.couverture.zones_avec_vendeurs ?? 0}
+                        icon={MapPin}
+                        color="bg-green-100 text-green-700"
+                        loading={loadingGeo}
+                    />
+                    <KpiCard
+                        label="Zones sans vendeurs"
+                        value={geo?.couverture.zones_sans_vendeurs ?? 0}
+                        icon={MapPinOff}
+                        color="bg-red-100 text-red-700"
+                        loading={loadingGeo}
+                    />
+                    <KpiCard
+                        label="Zones couvertes (total)"
+                        value={geo?.couverture.zones_total ?? 0}
+                        icon={Globe}
+                        color="bg-blue-100 text-blue-700"
+                        loading={loadingGeo}
+                    />
+                </div>
+
+                {/* 2x2 grille de barres horizontales */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                    {/* Acheteurs par zone */}
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                                <Users className="h-4 w-4 text-blue-600" />
+                                Acheteurs par zone
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="h-52">
+                            {loadingGeo ? <Skeleton className="h-full w-full rounded-lg" /> : (
+                                geo?.acheteurs_par_zone.length === 0
+                                ? <EmptyGeo />
+                                : (
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={geo?.acheteurs_par_zone ?? []} layout="vertical" barSize={16}>
+                                            <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+                                            <YAxis type="category" dataKey="zone" tick={{ fontSize: 11 }} width={72} />
+                                            <Tooltip contentStyle={{ fontSize: 12 }} formatter={(v: number) => [v, "Acheteurs"]} />
+                                            <Bar dataKey="total" fill="#3b82f6" radius={[0, 4, 4, 0]} />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                )
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {/* Vendeurs par zone */}
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                                <Car className="h-4 w-4 text-green-600" />
+                                Vendeurs par zone
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="h-52">
+                            {loadingGeo ? <Skeleton className="h-full w-full rounded-lg" /> : (
+                                geo?.vendeurs_par_zone.length === 0
+                                ? <EmptyGeo />
+                                : (
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={geo?.vendeurs_par_zone ?? []} layout="vertical" barSize={16}>
+                                            <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+                                            <YAxis type="category" dataKey="zone" tick={{ fontSize: 11 }} width={72} />
+                                            <Tooltip contentStyle={{ fontSize: 12 }} formatter={(v: number) => [v, "Vendeurs"]} />
+                                            <Bar dataKey="total" fill="#10b981" radius={[0, 4, 4, 0]} />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                )
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {/* Partenaires par zone */}
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                                <Warehouse className="h-4 w-4 text-violet-600" />
+                                Partenaires par zone
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="h-52">
+                            {loadingGeo ? <Skeleton className="h-full w-full rounded-lg" /> : (
+                                geo?.partenaires_par_zone.length === 0
+                                ? <EmptyGeo />
+                                : (
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={geo?.partenaires_par_zone ?? []} layout="vertical" barSize={16}>
+                                            <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+                                            <YAxis type="category" dataKey="zone" tick={{ fontSize: 11 }} width={72} />
+                                            <Tooltip contentStyle={{ fontSize: 12 }} formatter={(v: number) => [v, "Partenaires"]} />
+                                            <Bar dataKey="total" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                )
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {/* Véhicules par zone */}
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                                <Car className="h-4 w-4 text-amber-600" />
+                                Véhicules disponibles par zone
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="h-52">
+                            {loadingGeo ? <Skeleton className="h-full w-full rounded-lg" /> : (
+                                geo?.vehicules_par_zone.length === 0
+                                ? <EmptyGeo />
+                                : (
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={geo?.vehicules_par_zone ?? []} layout="vertical" barSize={16}>
+                                            <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+                                            <YAxis type="category" dataKey="zone" tick={{ fontSize: 11 }} width={72} />
+                                            <Tooltip contentStyle={{ fontSize: 12 }} formatter={(v: number) => [v, "Véhicules"]} />
+                                            <Bar dataKey="total" fill="#f59e0b" radius={[0, 4, 4, 0]} />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                )
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
         </div>
     )
 }

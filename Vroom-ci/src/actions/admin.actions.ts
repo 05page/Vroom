@@ -1,5 +1,5 @@
 import { api } from "@/src/lib/api"
-import type { User, vehicule } from "@/src/types"
+import type { User, vehicule, StatsMarche, StatsGeographie } from "@/src/types"
 
 // ---------------------------------------------------------------------------
 // Types locaux admin (pas encore dans src/types/index.ts)
@@ -171,3 +171,24 @@ export const validerFormation = (id: string) =>
 /** Rejette une formation avec un motif obligatoire. */
 export const rejeterFormation = (id: string, data: { motif: string }) =>
   api.post<void>(`/admin/formations/${id}/rejeter`, data)
+
+// ---------------------------------------------------------------------------
+// Stats marché
+// ---------------------------------------------------------------------------
+
+/**
+ * Récupère les données marché : favoris, vues, carburant demandé,
+ * tranches de prix et taux de conversion RDV → transaction.
+ * Utilisé dans la section "Données marché" du dashboard admin/stats.
+ */
+export async function getAdminStatsMarche() {
+  return api.get<{ success: boolean; data: StatsMarche }>("/admin/stats/marche")
+}
+
+/**
+ * Récupère la répartition géographique des utilisateurs et véhicules.
+ * Utilisé dans la section "Répartition géographique" du dashboard admin/stats.
+ */
+export async function getAdminStatsGeographie() {
+  return api.get<{ success: boolean; data: StatsGeographie }>("/admin/stats/geographie")
+}

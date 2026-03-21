@@ -13,6 +13,7 @@ use App\Models\Vehicules;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class AdminController extends Controller
@@ -457,6 +458,224 @@ class AdminController extends Controller
                 'inscriptions_par_statut' => $inscriptionsParStatut,
                 'examens_total'           => $totalExamens,
                 'examens_reussis'         => $totalReussis,
+            ],
+        ]);
+    }
+
+    /**
+     * Données comportementales acheteurs : marques/modèles favoris, carburant, prix, conversion RDV.
+     * GET /admin/stats/marche
+     */
+    public function statsMarche(): JsonResponse
+    {
+        // -- Top marques favoris (+ vues associées)
+        $topMarquesFavoris = DB::table('favoris')
+            ->join('vehicules', 'favoris.vehicule_id', '=', 'vehicules.id')
+            ->join('vehicules_description', 'vehicules.id', '=', 'vehicules_description.vehicule_id')
+            ->whereNull('favoris.deleted_at')
+            ->select('vehicules_description.marque', DB::raw('count(favoris.id) as favoris'))
+            ->groupBy('vehicules_description.marque')
+            ->orderByDesc('favoris')
+            ->limit(8)
+            ->get();
+
+        $vuesParMarque = DB::table('vehicule_vues')
+            ->join('vehicules_description', 'vehicule_vues.vehicule_id', '=', 'vehicules_description.vehicule_id')
+            ->select('vehicules_description.marque', DB::raw('count(*) as vues'))
+            ->groupBy('vehicules_description.marque')
+            ->pluck('vues', 'marque');
+
+        $topMarquesFavoris = $topMarquesFavoris->map(fn ($row) => [
+            'marque'  => $row->marque,
+            'favoris' => $row->favoris,
+            'vues'    => $vuesParMarque[$row->marque] ?? 0,
+        ]);
+
+        // -- Top modèles favoris
+        $topModelesFavoris = DB::table('favoris')
+            ->join('vehicules', 'favoris.vehicule_id', '=', 'vehicules.id')
+            ->join('vehicules_description', 'vehicules.id', '=', 'vehicules_description.vehicule_id')
+            ->whereNull('favoris.deleted_at')
+            ->select('vehicules_description.marque', 'vehicules_description.modele', DB::raw('count(favoris.id) as favoris'))
+            ->groupBy('vehicules_description.marque', 'vehicules_description.modele')
+            ->orderByDesc('favoris')
+            ->limit(8)
+            ->get();
+
+        // -- Répartition carburant (favoris + vues)
+        $favorisByCarbu = DB::table('favoris')
+            ->join('vehicules', 'favoris.vehicule_id', '=', 'vehicules.id')
+            ->join('vehicules_description', 'vehicules.id', '=', 'vehicules_description.vehicule_id')
+            ->whereNull('favoris.deleted_at')
+            ->whereNotNull('vehicules_description.carburant')
+            ->select('vehicules_description.carburant', DB::raw('count(favoris.id) as favoris'))
+            ->groupBy('vehicules_description.carburant')
+            ->get()
+            ->keyBy('carburant');
+
+        $vuesByCarbu = DB::table('vehicule_vues')
+            ->join('vehicules_description', 'vehicule_vues.vehicule_id', '=', 'vehicules_description.vehicule_id')
+            ->whereNotNull('vehicules_description.carburant')
+            ->select('vehicules_description.carburant', DB::raw('count(*) as vues'))
+            ->groupBy('vehicules_description.carburant')
+            ->pluck('vues', 'carburant');
+
+        $repartitionCarburant = $favorisByCarbu->map(fn ($row) => [
+            'carburant' => $row->carburant,
+            'favoris'   => $row->favoris,
+            'vues'      => $vuesByCarbu[$row->carburant] ?? 0,
+        ])->values();
+
+        // -- Tranches de prix (favoris) — CASE WHEN compatible PostgreSQL
+        $tranchesPrix = DB::table('favoris')
+            ->join('vehicules', 'favoris.vehicule_id', '=', 'vehicules.id')
+            ->whereNull('favoris.deleted_at')
+            ->selectRaw("
+                CASE
+                    WHEN vehicules.prix < 5000000               THEN '< 5M'
+                    WHEN vehicules.prix BETWEEN 5000000 AND 10000000  THEN '5–10M'
+                    WHEN vehicules.prix BETWEEN 10000001 AND 20000000 THEN '10–20M'
+                    WHEN vehicules.prix BETWEEN 20000001 AND 35000000 THEN '20–35M'
+                    ELSE '> 35M'
+                END as tranche,
+                count(favoris.id) as favoris
+            ")
+            ->groupBy('tranche')
+            ->get()
+            ->sortBy(fn ($row) => match($row->tranche) {
+                '< 5M'   => 1,
+                '5–10M'  => 2,
+                '10–20M' => 3,
+                '20–35M' => 4,
+                default  => 5,
+            })
+            ->values();
+
+        // -- Conversion RDV → transaction
+        $totalRdv    = DB::table('rendez_vous')->count();
+        $rdvTermines = DB::table('rendez_vous')->where('statut', 'terminé')->count();
+        $txConfirmees = DB::table('transactions_conclues')->where('statut', 'confirmé')->count();
+        $taux = $rdvTermines > 0 ? round(($txConfirmees / $rdvTermines) * 100, 1) : 0;
+
+        // -- Top marques par vues
+        $topMarquesVues = DB::table('vehicule_vues')
+            ->join('vehicules_description', 'vehicule_vues.vehicule_id', '=', 'vehicules_description.vehicule_id')
+            ->select('vehicules_description.marque', DB::raw('count(*) as vues'))
+            ->groupBy('vehicules_description.marque')
+            ->orderByDesc('vues')
+            ->limit(8)
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data'    => [
+                'top_marques_favoris'           => $topMarquesFavoris,
+                'top_modeles_favoris'           => $topModelesFavoris,
+                'repartition_carburant_demande' => $repartitionCarburant,
+                'tranches_prix_demande'         => $tranchesPrix,
+                'conversion_rdv_transaction'    => [
+                    'total_rdv'               => $totalRdv,
+                    'rdv_termines'            => $rdvTermines,
+                    'transactions_confirmees' => $txConfirmees,
+                    'taux_conversion'         => $taux,
+                ],
+                'top_marques_vues'              => $topMarquesVues,
+            ],
+        ]);
+    }
+
+    /**
+     * Répartition géographique des utilisateurs et véhicules par zone (commune).
+     * Extrait la commune depuis le champ adresse (format "Ville, Commune" ou "Commune").
+     * GET /admin/stats/geographie
+     */
+    public function statsGeographie(): JsonResponse
+    {
+        // Expression SQL pour extraire la zone depuis l'adresse texte
+        // Si l'adresse contient une virgule → prend la 2e partie, sinon prend l'adresse entière
+        $zoneExpr = "CASE WHEN adresse LIKE '%,%' THEN TRIM(SPLIT_PART(adresse, ',', 2)) ELSE TRIM(adresse) END";
+
+        // Acheteurs par zone (rôle client)
+        $acheteursByZone = DB::table('users')
+            ->selectRaw("$zoneExpr as zone, count(*) as total")
+            ->where('role', 'client')
+            ->whereNotNull('adresse')
+            ->where('adresse', '!=', '')
+            ->groupByRaw($zoneExpr)
+            ->orderByDesc('total')
+            ->limit(10)
+            ->get();
+
+        // Vendeurs par zone (rôle vendeur ou concessionnaire)
+        $vendeursByZone = DB::table('users')
+            ->selectRaw("$zoneExpr as zone, count(*) as total")
+            ->whereIn('role', ['vendeur', 'concessionnaire'])
+            ->whereNotNull('adresse')
+            ->where('adresse', '!=', '')
+            ->groupByRaw($zoneExpr)
+            ->orderByDesc('total')
+            ->limit(10)
+            ->get();
+
+        // Partenaires par zone (concessionnaire + auto_ecole)
+        $partenairesByZone = DB::table('users')
+            ->selectRaw("$zoneExpr as zone, count(*) as total")
+            ->whereIn('role', ['concessionnaire', 'auto_ecole'])
+            ->whereNotNull('adresse')
+            ->where('adresse', '!=', '')
+            ->groupByRaw($zoneExpr)
+            ->orderByDesc('total')
+            ->limit(10)
+            ->get();
+
+        // Véhicules par zone (via la table users — créateur du véhicule)
+        $vehiculesByZone = DB::table('vehicules')
+            ->join('users', 'vehicules.created_by', '=', 'users.id')
+            ->selectRaw("$zoneExpr as zone, count(vehicules.id) as total")
+            ->whereNotNull('users.adresse')
+            ->where('users.adresse', '!=', '')
+            ->groupByRaw($zoneExpr)
+            ->orderByDesc('total')
+            ->limit(10)
+            ->get();
+
+        // Calcul de la couverture : zones avec vendeurs vs sans vendeurs
+        $toutesZonesVendeurs = DB::table('users')
+            ->selectRaw("$zoneExpr as zone")
+            ->whereIn('role', ['vendeur', 'concessionnaire'])
+            ->whereNotNull('adresse')
+            ->where('adresse', '!=', '')
+            ->groupByRaw($zoneExpr)
+            ->pluck('zone');
+
+        $toutesZonesAcheteurs = DB::table('users')
+            ->selectRaw("$zoneExpr as zone")
+            ->where('role', 'client')
+            ->whereNotNull('adresse')
+            ->where('adresse', '!=', '')
+            ->groupByRaw($zoneExpr)
+            ->pluck('zone');
+
+        $zonesVendeursSet  = collect($toutesZonesVendeurs)->filter()->unique()->values();
+        $zonesAcheteursSet = collect($toutesZonesAcheteurs)->filter()->unique()->values();
+
+        // Zones avec acheteurs mais sans vendeurs = zones non couvertes
+        $zonesSansVendeurs = $zonesAcheteursSet->diff($zonesVendeursSet)->count();
+        $zonesAvecVendeurs = $zonesVendeursSet->count();
+        $zonesTotal        = $zonesAcheteursSet->union($zonesVendeursSet)->unique()->count();
+
+        return response()->json([
+            'success' => true,
+            'data'    => [
+                'acheteurs_par_zone'   => $acheteursByZone,
+                'vendeurs_par_zone'    => $vendeursByZone,
+                'partenaires_par_zone' => $partenairesByZone,
+                'vehicules_par_zone'   => $vehiculesByZone,
+                'couverture' => [
+                    'zones_avec_vendeurs' => $zonesAvecVendeurs,
+                    'zones_sans_vendeurs' => $zonesSansVendeurs,
+                    'zones_total'         => $zonesTotal,
+                ],
             ],
         ]);
     }

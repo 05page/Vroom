@@ -414,3 +414,65 @@ export interface ConversationsResponse {
 export interface MessagesResponse {
   messages: Message[]
 }
+
+// ─── Support / Aide ───────────────────────────────────────────────────────────
+
+/** Un ticket de support soumis par un utilisateur */
+export interface SupportTicket {
+  id: string
+  user_id: string
+  sujet: string
+  message: string
+  statut: 'ouvert' | 'en_cours' | 'résolu' | 'fermé'
+  priorite: 'basse' | 'normale' | 'haute' | 'urgente'
+  reponse_admin: string | null
+  admin_id: string | null
+  repondu_at: string | null
+  created_at: string
+  /** Présent uniquement dans les vues admin */
+  user?: { id: string; fullname: string; email: string; role: string }
+}
+
+// ─── Stats marché (admin) ──────────────────────────────────────────────────────
+
+/**
+ * Données marché retournées par GET /admin/stats/marche.
+ * Représente les comportements acheteurs : favoris, vues, RDV, conversions.
+ */
+export interface StatsMarche {
+  /** Marques les plus ajoutées en favori avec leur nombre de vues associées */
+  top_marques_favoris:           { marque: string; favoris: number; vues: number }[]
+  /** Modèles les plus ajoutés en favori (marque + modèle) */
+  top_modeles_favoris:           { marque: string; modele: string; favoris: number }[]
+  /** Répartition des favoris et vues par type de carburant */
+  repartition_carburant_demande: { carburant: string; favoris: number; vues: number }[]
+  /** Nombre de favoris groupés par tranche de prix */
+  tranches_prix_demande:         { tranche: string; favoris: number }[]
+  /** Taux de conversion RDV → transaction confirmée */
+  conversion_rdv_transaction: {
+    total_rdv:               number
+    rdv_termines:            number
+    transactions_confirmees: number
+    taux_conversion:         number
+  }
+  /** Marques les plus consultées (vues) sur la plateforme */
+  top_marques_vues:              { marque: string; vues: number }[]
+}
+
+// ─── Stats géographiques (admin) ───────────────────────────────────────────────
+
+/**
+ * Données de répartition géographique retournées par GET /admin/stats/geographie.
+ * Permet de visualiser la couverture territoriale de la plateforme.
+ */
+export interface StatsGeographie {
+  acheteurs_par_zone:    { zone: string; total: number }[]
+  vendeurs_par_zone:     { zone: string; total: number }[]
+  partenaires_par_zone:  { zone: string; total: number }[]
+  vehicules_par_zone:    { zone: string; total: number }[]
+  couverture: {
+    zones_avec_vendeurs: number
+    zones_sans_vendeurs: number
+    zones_total:         number
+  }
+}

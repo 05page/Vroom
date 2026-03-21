@@ -3,6 +3,8 @@
 use App\Http\Controllers\AbonnementController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\ConversationController;
+use App\Http\Controllers\SupportController;
+use App\Http\Controllers\TendancesController;
 use App\Http\Controllers\CrmController;
 use App\Http\Controllers\GeolocalisationController;
 use App\Http\Controllers\FormationController;
@@ -58,6 +60,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/me/update',  [AuthController::class, 'update']);
     Route::put('/me/contact', [AuthController::class, 'updatePhoneAndAddress']);
     Route::post('/logout',    [AuthController::class, 'logout']);
+
+    // Véhicules — suggestions basées sur les favoris (avant les routes dynamiques)
+    Route::get('/vehicules/suggestions', [VehiculesController::class, 'suggestions']);
+
+    // Tendances — agrégats platform-wide ou auto-école
+    Route::get('/tendances', [TendancesController::class, 'index']);
 
     // Véhicules — écriture (vendeurs et partenaires)
     Route::prefix('vehicules')->group(function () {
@@ -186,6 +194,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/resilier',      [AbonnementController::class, 'resilier']);
     });
 
+    // ── Support — tous les users authentifiés ──────────────
+    Route::prefix('support')->group(function () {
+        Route::get('/mes-tickets', [SupportController::class, 'mesTickets']);
+        Route::post('/', [SupportController::class, 'store']);
+    });
+
     // ── Admin ─────────────────────────────────────────────
     Route::middleware('role:admin')->prefix('admin')->group(function () {
         Route::get('/admins',                     [AdminController::class, 'admins']);
@@ -202,10 +216,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/signalements',               [AdminController::class, 'signalements']);
         Route::post('/signalements/{id}/traiter', [AdminController::class, 'traiterSignalement']);
         Route::get('/stats',                      [AdminController::class, 'stats']);
+        Route::get('/stats/marche',               [AdminController::class, 'statsMarche']);
+        Route::get('/stats/geographie',           [AdminController::class, 'statsGeographie']);
         Route::get('/logs',                       [AdminController::class, 'logs']);
         Route::get('/transactions',               [AdminController::class, 'transactions']);
         Route::get('/formations',                 [AdminController::class, 'formations']);
         Route::post('/formations/{id}/valider',   [AdminController::class, 'validerFormation']);
         Route::post('/formations/{id}/rejeter',   [AdminController::class, 'rejeterFormation']);
+        Route::get('/support',                     [SupportController::class, 'index']);
+        Route::post('/support/{id}/repondre',      [SupportController::class, 'repondre']);
     });
 });
