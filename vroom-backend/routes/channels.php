@@ -14,6 +14,12 @@ Broadcast::channel('notifications.{userId}', function($user, $userId){
     return $user->id === $userId;
 });
 
+// Canal privé par utilisateur : utilisé par DataRefresh pour les mises à jour temps réel.
+// Le frontend écoute `private-user.{id}` via le hook useDataRefresh.
+Broadcast::channel('user.{id}', function ($user, $id) {
+    return (int) $user->id === (int) $id;
+});
+
 // Canal privé d'une conversation : seuls les deux participants sont autorisés.
 Broadcast::channel('conversation.{conversationId}', function ($user, $conversationId) {
     $conversation = \App\Models\Conversation::find($conversationId);

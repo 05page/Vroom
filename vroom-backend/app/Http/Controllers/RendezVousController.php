@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\DataRefresh;
 use App\Http\Requests\StoreRendezVousRequest;
 use App\Models\Notifications;
 use App\Models\RendezVous;
@@ -92,6 +93,9 @@ class RendezVousController extends Controller
 
             DB::commit();
 
+            // Temps réel — le vendeur voit la nouvelle demande sans F5
+            event(new DataRefresh($vehicule->created_by, 'rdv'));
+
             return response()->json([
                 'success' => true,
                 'message' => 'Demande de rendez-vous envoyée',
@@ -144,6 +148,9 @@ class RendezVousController extends Controller
 
             DB::commit();
 
+            // Temps réel — le client voit la confirmation sans F5
+            event(new DataRefresh($rdv->client_id, 'rdv'));
+
             return response()->json(['success' => true, 'message' => 'Rendez-vous confirmé', 'data' => $rdv], 200);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['success' => false, 'message' => 'Rendez-vous introuvable'], 404);
@@ -169,6 +176,9 @@ class RendezVousController extends Controller
                 'message' => 'Votre rendez-vous du ' . $rdv->date_heure->format('d/m/Y à H:i') . ' a été refusé.',
                 'data'    => ['rdv_id' => $rdv->id],
             ]);
+
+            // Temps réel — le client voit le refus sans F5
+            event(new DataRefresh($rdv->client_id, 'rdv'));
 
             return response()->json(['success' => true, 'message' => 'Rendez-vous refusé'], 200);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
@@ -211,6 +221,10 @@ class RendezVousController extends Controller
 
             DB::commit();
 
+            // Temps réel — les deux parties voient l'annulation sans F5
+            event(new DataRefresh($rdv->client_id, 'rdv'));
+            event(new DataRefresh($rdv->vendeur_id, 'rdv'));
+
             return response()->json(['success' => true, 'message' => 'Rendez-vous annulé'], 200);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['success' => false, 'message' => 'Rendez-vous introuvable'], 404);
@@ -230,6 +244,10 @@ class RendezVousController extends Controller
             DB::beginTransaction();
 
             $rdv->terminer();
+
+            // Verrouille le véhicule le temps de la confirmation double
+            // → plus visible dans le catalogue, plus de nouveaux RDV possibles
+            $rdv->vehicule->update(['statut' => Vehicules::STATUS_EN_TRANSACTION]);
 
             // Génère le code de confirmation et crée la TransactionConclue
             $code = TransactionConclue::genererCode();
@@ -266,6 +284,12 @@ class RendezVousController extends Controller
             ]);
 
             DB::commit();
+
+            // Temps réel — les deux parties voient le RDV terminé + la transaction créée
+            event(new DataRefresh($rdv->client_id, 'rdv'));
+            event(new DataRefresh($rdv->vendeur_id, 'rdv'));
+            event(new DataRefresh($rdv->client_id, 'transaction'));
+            event(new DataRefresh($rdv->vendeur_id, 'transaction'));
 
             return response()->json([
                 'success' => true,

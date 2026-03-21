@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\DataRefresh;
 use App\Models\Formation;
 use App\Models\InscriptionFormation;
 use App\Models\LogModeration;
@@ -143,6 +144,9 @@ class AdminController extends Controller
 
         $this->logAction('VALIDATE_VEHICLE', 'vehicule', $id, $request->input('details'));
 
+        // Temps réel — le vendeur voit la validation sans F5
+        event(new DataRefresh($vehicule->created_by, 'vehicule'));
+
         return response()->json(['success' => true, 'message' => 'Véhicule validé'], 200);
     }
 
@@ -157,6 +161,9 @@ class AdminController extends Controller
         ]);
 
         $this->logAction('REJECT_VEHICLE', 'vehicule', $id, $request->details);
+
+        // Temps réel — le vendeur voit le rejet sans F5
+        event(new DataRefresh($vehicule->created_by, 'vehicule'));
 
         return response()->json(['success' => true, 'message' => 'Véhicule rejeté'], 200);
     }
@@ -193,6 +200,9 @@ class AdminController extends Controller
 
         $this->logAction('VALIDATE_FORMATION', 'formation', $id, $request->input('details'));
 
+        // Temps réel — l'auto-école voit la validation sans F5
+        event(new DataRefresh($formation->auto_ecole_id, 'formation'));
+
         return response()->json(['success' => true, 'message' => 'Formation validée'], 200);
     }
 
@@ -208,6 +218,9 @@ class AdminController extends Controller
         $formation->update(['statut_validation' => 'rejeté']);
 
         $this->logAction('REJECT_FORMATION', 'formation', $id, $request->motif);
+
+        // Temps réel — l'auto-école voit le rejet sans F5
+        event(new DataRefresh($formation->auto_ecole_id, 'formation'));
 
         return response()->json(['success' => true, 'message' => 'Formation rejetée'], 200);
     }

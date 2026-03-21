@@ -133,7 +133,7 @@ function MessageBubble({
             <div className={cn("group flex items-center gap-2 max-w-[80%]", isMe ? "ml-auto flex-row-reverse" : "mr-auto")}>
                 <div
                     className={cn(
-                        "px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words",
+                        "px-4 py-2.5 rounded-2xl text-sm leading-relaxed wrap-break-word",
                         isMe
                             ? "bg-primary text-primary-foreground rounded-br-sm"
                             : "bg-muted text-foreground rounded-bl-sm"
@@ -298,7 +298,9 @@ export default function MessagesContent() {
         try {
             const res = await sendMessage(selectedConvId, content)
             const newMsg = (res as unknown as { message: Message })?.message
-            if (newMsg) {
+            // Le WebSocket peut avoir déjà ajouté ce message avant que la réponse API revienne.
+            // On vérifie le Set pour éviter le doublon.
+            if (newMsg && !messageIds.current.has(newMsg.id)) {
                 messageIds.current.add(newMsg.id)
                 setMessages(prev => [...prev, newMsg])
                 setConversations(prev =>

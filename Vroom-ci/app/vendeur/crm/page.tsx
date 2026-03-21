@@ -202,7 +202,7 @@ export default function CrmPage() {
                     />
                 </div>
                 <Select value={filterStatut} onValueChange={setFilterStatut}>
-                    <SelectTrigger className="w-[180px]">
+                    <SelectTrigger className="w-45">
                         <SelectValue placeholder="Statut RDV" />
                     </SelectTrigger>
                     <SelectContent>
@@ -215,7 +215,7 @@ export default function CrmPage() {
                     </SelectContent>
                 </Select>
                 <Select value={sortBy} onValueChange={setSortBy}>
-                    <SelectTrigger className="w-[200px]">
+                    <SelectTrigger className="w-50">
                         <SelectValue placeholder="Trier par" />
                     </SelectTrigger>
                     <SelectContent>
@@ -243,7 +243,7 @@ export default function CrmPage() {
                     <Table>
                         <TableHeader>
                             <TableRow className="bg-zinc-50/50 hover:bg-zinc-50/50">
-                                <TableHead className="pl-4 w-[260px]">Client</TableHead>
+                                <TableHead className="pl-4 w-65">Client</TableHead>
                                 <TableHead>Téléphone</TableHead>
                                 <TableHead className="text-center">RDV</TableHead>
                                 <TableHead className="text-center">Transactions</TableHead>
