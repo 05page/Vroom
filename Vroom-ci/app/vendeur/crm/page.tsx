@@ -53,7 +53,7 @@ function formatDate(date: string | null) {
 // --- Skeleton loading ---
 function PageSkeleton() {
     return (
-        <div className="p-6 space-y-6">
+        <div className="pt-14 p-6 space-y-6">
             <div className="space-y-1.5">
                 <Skeleton className="h-7 w-40" />
                 <Skeleton className="h-4 w-32" />
@@ -131,7 +131,7 @@ export default function CrmPage() {
     if (loading) return <PageSkeleton />
 
     return (
-        <div className="p-6 space-y-6">
+        <div className="pt-14 p-6 space-y-6">
             {/* --- En-tête --- */}
             <div>
                 <h1 className="text-xl font-semibold tracking-tight">CRM — Mes clients</h1>

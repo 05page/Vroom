@@ -47,6 +47,9 @@ import {
 import { useEffect, useState, useCallback } from "react"
 import { toast } from "sonner"
 import Link from "next/link"
+import {
+    Bar, BarChart, CartesianGrid, Line, ComposedChart, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer,
+} from "recharts"
 
 //Endpoint vendeur
 import { VendeurStats, VendeurRdv, Avis } from "@/src/types"
@@ -420,22 +423,51 @@ const VendeurDashboard = () => {
                 {/* Revenue Chart */}
                 <Card className="md:col-span-2 rounded-2xl md:rounded-3xl shadow-xl border border-border/40 overflow-hidden animate-in fade-in slide-in-from-left duration-500 delay-100 bg-card/50 backdrop-blur-sm">
                     <CardHeader className="p-4 md:p-6 pb-2 md:pb-2">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-zinc-900/10 flex items-center justify-center">
-                                    <BarChart3 className="h-5 w-5 text-zinc-700" />
-                                </div>
-                                <div>
-                                    <CardTitle className="text-base md:text-lg font-bold">Revenus mensuels</CardTitle>
-                                    <p className="text-xs text-muted-foreground">6 derniers mois</p>
-                                </div>
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-zinc-900/10 flex items-center justify-center">
+                                <BarChart3 className="h-5 w-5 text-zinc-700" />
                             </div>
-                            <Badge variant="outline" className="bg-zinc-900/10 text-zinc-700 border-zinc-900/20 rounded-full font-bold gap-1">
-                                <TrendingUp className="h-3 w-3" />
-                                +12.5%
-                            </Badge>
+                            <div>
+                                <CardTitle className="text-base md:text-lg font-bold">Activité mensuelle</CardTitle>
+                                <p className="text-xs text-muted-foreground">Vues, ventes et locations sur 12 mois</p>
+                            </div>
                         </div>
                     </CardHeader>
+                    <CardContent className="p-4 md:p-6 pt-2">
+                        {!stats?.stats_mensuel?.length ? (
+                            <div className="flex flex-col items-center justify-center h-48 text-muted-foreground gap-2">
+                                <BarChart3 className="h-8 w-8 opacity-20" />
+                                <p className="text-sm">Aucune activité enregistrée</p>
+                            </div>
+                        ) : (
+                            <ResponsiveContainer width="100%" height={220}>
+                                <ComposedChart
+                                    data={stats.stats_mensuel.map(d => ({
+                                        mois: d.nom_mois.slice(0, 3),
+                                        vues: d.vues,
+                                        ventes: d.ventes,
+                                        locations: d.locations,
+                                    }))}
+                                    margin={{ left: -10, right: 8, top: 8, bottom: 0 }}
+                                >
+                                    <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#f0f0f0" />
+                                    <XAxis dataKey="mois" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+                                    <YAxis yAxisId="vues" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} width={38} />
+                                    <YAxis yAxisId="trans" orientation="right" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} width={30} />
+                                    <Tooltip
+                                        contentStyle={{ borderRadius: 10, fontSize: 12, border: "1px solid #e4e4e7" }}
+                                        labelStyle={{ fontWeight: 600 }}
+                                    />
+                                    <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
+                                    {/* Vues en barres (axe gauche) */}
+                                    <Bar yAxisId="vues" dataKey="vues" name="Vues" fill="#e4e4e7" radius={[4, 4, 0, 0]} barSize={20} />
+                                    {/* Ventes et locations en lignes (axe droit) */}
+                                    <Line yAxisId="trans" type="monotone" dataKey="ventes" name="Ventes" stroke="#10b981" strokeWidth={2.5} dot={{ r: 3, fill: "#10b981", strokeWidth: 0 }} />
+                                    <Line yAxisId="trans" type="monotone" dataKey="locations" name="Locations" stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 3, fill: "#f59e0b", strokeWidth: 0 }} />
+                                </ComposedChart>
+                            </ResponsiveContainer>
+                        )}
+                    </CardContent>
                 </Card>
 
                 {/* Prochains RDV */}
@@ -772,31 +804,6 @@ const VendeurDashboard = () => {
                 </CardContent>
             </Card>
 
-            {/* ==================== CONSEILS PRO ==================== */}
-            <Card className="rounded-2xl md:rounded-3xl shadow-xl border border-border/40 overflow-hidden animate-in fade-in slide-in-from-bottom duration-500 delay-300 bg-linear-to-br from-zinc-900/5 to-zinc-900/5">
-                <CardContent className="p-4 md:p-6">
-                    <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-8">
-                        <div className="flex items-center gap-4 flex-1">
-                            <div className="w-14 h-14 rounded-2xl bg-zinc-900/10 flex items-center justify-center shrink-0">
-                                <TrendingUp className="h-7 w-7 text-zinc-700" />
-                            </div>
-                            <div>
-                                <h3 className="font-black text-base md:text-lg">Boostez vos ventes</h3>
-                                <p className="text-xs md:text-sm text-muted-foreground mt-1">
-                                    Ajoutez des photos de qualite et une description detaillee a vos annonces pour attirer plus d&apos;acheteurs.
-                                    Les annonces avec photos recoivent 3x plus de vues.
-                                </p>
-                            </div>
-                        </div>
-                        <Link href="/vehicles">
-                            <Button size="sm" className="rounded-xl cursor-pointer bg-zinc-900 hover:bg-zinc-700 text-white font-bold shrink-0">
-                                Optimiser mes annonces
-                                <ArrowRight className="h-4 w-4 ml-2" />
-                            </Button>
-                        </Link>
-                    </div>
-                </CardContent>
-            </Card>
         </div>
 
         {/* ── Dialog modification de profil ── */}

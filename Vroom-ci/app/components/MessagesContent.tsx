@@ -341,7 +341,7 @@ export default function MessagesContent() {
     if (!user) return null
 
     return (
-        <div className="fixed inset-0 pt-16 flex bg-background">
+        <div className="flex h-full bg-background overflow-hidden">
 
             {/* ── Sidebar conversations ─────────────────────────────────── */}
             <aside className={cn(

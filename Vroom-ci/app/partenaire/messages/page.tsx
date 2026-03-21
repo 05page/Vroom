@@ -3,8 +3,10 @@ import MessagesContent from "@/app/components/MessagesContent"
 
 export default function PartenaireMessagesPage() {
     return (
-        <Suspense>
-            <MessagesContent />
-        </Suspense>
+        <div className="h-full flex flex-col">
+            <Suspense>
+                <MessagesContent />
+            </Suspense>
+        </div>
     )
 }

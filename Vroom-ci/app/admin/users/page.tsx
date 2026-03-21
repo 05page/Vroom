@@ -25,6 +25,14 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Separator } from "@/components/ui/separator"
+import {
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetHeader,
+    SheetTitle,
+} from "@/components/ui/sheet"
 import {
     Table,
     TableBody,
@@ -45,6 +53,10 @@ import {
     Clock,
     Building2,
     GraduationCap,
+    Mail,
+    Phone,
+    MapPin,
+    Calendar,
 } from "lucide-react"
 import { toast } from "sonner"
 import { suspendreUser, bannirUser, restaurerUser, validerUser, getUsersPaginated } from "@/src/actions/admin.actions"
@@ -114,6 +126,7 @@ const ACTION_CONFIG: Record<ActionType, { label: string; description: string; de
 
 export default function AdminUsersPage() {
     const searchParams = useSearchParams()
+    const openId = searchParams.get("open")
     const [users, setUsers]               = useState<AdminUser[]>([])
     const [loading, setLoading]           = useState(true)
     const [page, setPage]                 = useState(1)
@@ -125,6 +138,7 @@ export default function AdminUsersPage() {
     const [activeTab, setActiveTab]       = useState(() => searchParams.get("statut") === "en_attente" ? "demandes" : "tous")
     const [pending, setPending]           = useState<PendingAction | null>(null)
     const [acting, setActing]             = useState(false)
+    const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null)
 
     const fetchUsers = useCallback(async () => {
         setLoading(true)
@@ -147,6 +161,14 @@ export default function AdminUsersPage() {
     }, [page, filterRole, filterStatut])
 
     useEffect(() => { fetchUsers() }, [fetchUsers])
+
+    // Ouvre le Sheet de détail si ?open={id} est dans l'URL (depuis les logs)
+    useEffect(() => {
+        if (openId && users.length > 0) {
+            const found = users.find(u => String(u.id) === String(openId))
+            if (found) setSelectedUser(found)
+        }
+    }, [users, openId])
 
     const executeAction = async () => {
         if (!pending) return
@@ -284,7 +306,11 @@ export default function AdminUsersPage() {
                                     </TableCell>
                                 </TableRow>
                             ) : filtered.map((user) => (
-                                <TableRow key={user.id} className={`hover:bg-muted/40 ${isDemandesTab ? "bg-yellow-50/30" : ""}`}>
+                                <TableRow
+                                    key={user.id}
+                                    className={`hover:bg-muted/40 cursor-pointer ${isDemandesTab ? "bg-yellow-50/30" : ""}`}
+                                    onClick={() => setSelectedUser(user)}
+                                >
                                     <TableCell>
                                         <div>
                                             <p className="font-medium text-sm">{user.fullname}</p>
@@ -320,7 +346,7 @@ export default function AdminUsersPage() {
                                     <TableCell className="text-sm text-muted-foreground">
                                         {new Date(user.created_at).toLocaleDateString("fr-FR")}
                                     </TableCell>
-                                    <TableCell>
+                                    <TableCell onClick={e => e.stopPropagation()}>
                                         {/* Les boutons disponibles changent selon le statut actuel */}
                                         <div className="flex items-center justify-end gap-1">
                                             {user.statut === "en_attente" && (
@@ -390,6 +416,111 @@ export default function AdminUsersPage() {
                     </div>
                 </div>
             )}
+
+            {/* Sheet détail utilisateur — ouvert via clic ligne ou ?open= dans l'URL */}
+            <Sheet open={!!selectedUser} onOpenChange={open => !open && setSelectedUser(null)}>
+                <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+                    {selectedUser && (
+                        <>
+                            <SheetHeader className="mb-4">
+                                <SheetTitle>{selectedUser.fullname}</SheetTitle>
+                                <SheetDescription>#{selectedUser.id}</SheetDescription>
+                            </SheetHeader>
+
+                            <div className="space-y-5 text-sm">
+                                {/* Badges rôle + statut */}
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <RoleBadge role={selectedUser.role} partenaireType={selectedUser.partenaire_type} />
+                                    <StatutBadge statut={selectedUser.statut} />
+                                </div>
+
+                                <Separator />
+
+                                {/* Coordonnées */}
+                                <div className="space-y-3">
+                                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Coordonnées</h3>
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-2 text-muted-foreground">
+                                            <Mail className="h-3.5 w-3.5 shrink-0" />
+                                            <span>{selectedUser.email}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-muted-foreground">
+                                            <Calendar className="h-3.5 w-3.5 shrink-0" />
+                                            <span>Inscrit le {new Date(selectedUser.created_at).toLocaleDateString("fr-FR", {
+                                                day: "numeric", month: "long", year: "numeric"
+                                            })}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Infos métier partenaire */}
+                                {(selectedUser.raison_sociale || selectedUser.rccm || selectedUser.numero_agrement) && (
+                                    <>
+                                        <Separator />
+                                        <div className="space-y-3">
+                                            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Informations métier</h3>
+                                            <div className="space-y-2">
+                                                {selectedUser.raison_sociale && (
+                                                    <div className="flex items-center gap-2">
+                                                        {selectedUser.role === "concessionnaire"
+                                                            ? <Building2 className="h-3.5 w-3.5 text-purple-500 shrink-0" />
+                                                            : <GraduationCap className="h-3.5 w-3.5 text-cyan-500 shrink-0" />
+                                                        }
+                                                        <span className="font-medium">{selectedUser.raison_sociale}</span>
+                                                    </div>
+                                                )}
+                                                {selectedUser.rccm && (
+                                                    <p className="text-xs text-muted-foreground">RCCM : {selectedUser.rccm}</p>
+                                                )}
+                                                {selectedUser.numero_agrement && (
+                                                    <p className="text-xs text-muted-foreground">Agrément : {selectedUser.numero_agrement}</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+
+                                <Separator />
+
+                                {/* Actions rapides */}
+                                <div className="space-y-2">
+                                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Actions</h3>
+                                    <div className="flex flex-wrap gap-2">
+                                        {selectedUser.statut === "en_attente" && (
+                                            <Button size="sm" variant="outline"
+                                                className="h-7 text-xs border-green-200 text-green-700 hover:bg-green-50"
+                                                onClick={() => { setPending({ userId: selectedUser.id, userName: selectedUser.fullname, type: "valider" }); setSelectedUser(null) }}>
+                                                <CheckCircle2 className="h-3 w-3 mr-1" /> Valider
+                                            </Button>
+                                        )}
+                                        {selectedUser.statut === "actif" && (
+                                            <Button size="sm" variant="outline"
+                                                className="h-7 text-xs border-orange-200 text-orange-700 hover:bg-orange-50"
+                                                onClick={() => { setPending({ userId: selectedUser.id, userName: selectedUser.fullname, type: "suspendre" }); setSelectedUser(null) }}>
+                                                <ShieldOff className="h-3 w-3 mr-1" /> Suspendre
+                                            </Button>
+                                        )}
+                                        {(selectedUser.statut === "actif" || selectedUser.statut === "suspendu") && (
+                                            <Button size="sm" variant="outline"
+                                                className="h-7 text-xs border-red-200 text-red-700 hover:bg-red-50"
+                                                onClick={() => { setPending({ userId: selectedUser.id, userName: selectedUser.fullname, type: "bannir" }); setSelectedUser(null) }}>
+                                                <UserX className="h-3 w-3 mr-1" /> Bannir
+                                            </Button>
+                                        )}
+                                        {(selectedUser.statut === "suspendu" || selectedUser.statut === "banni") && (
+                                            <Button size="sm" variant="outline"
+                                                className="h-7 text-xs border-blue-200 text-blue-700 hover:bg-blue-50"
+                                                onClick={() => { setPending({ userId: selectedUser.id, userName: selectedUser.fullname, type: "restaurer" }); setSelectedUser(null) }}>
+                                                <UserCheck className="h-3 w-3 mr-1" /> Restaurer
+                                            </Button>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </SheetContent>
+            </Sheet>
 
             {/* Dialog de confirmation avant action de modération */}
             <AlertDialog open={!!pending} onOpenChange={open => !open && setPending(null)}>

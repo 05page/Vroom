@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
+import { useSearchParams } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -89,6 +90,9 @@ function StatutBadge({ statut }: { statut: SignalementAdmin["statut"] }) {
 
 
 export default function AdminSignalementsPage() {
+    const searchParams   = useSearchParams()
+    const openId         = searchParams.get("open")
+
     // ── State liste ──────────────────────────────────────────────────────────
     const [signalements, setSignalements] = useState<SignalementAdmin[]>([])
     const [loading, setLoading]           = useState(true)
@@ -133,6 +137,14 @@ export default function AdminSignalementsPage() {
     }, [page, filterStatut])
 
     useEffect(() => { fetchSignalements() }, [fetchSignalements])
+
+    // Ouvre le drawer de détail si ?open={id} est dans l'URL (depuis les logs)
+    useEffect(() => {
+        if (openId && signalements.length > 0) {
+            const found = signalements.find(s => s.id === openId)
+            if (found) setDetail(found)
+        }
+    }, [signalements, openId])
 
     /**
      * Ouvre la modale pour un signalement donné et remet le state modal

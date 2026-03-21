@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\Favori;
 use App\Models\Notifications;
 use App\Models\Vehicules;
 use App\Models\VehiculesDescription;
@@ -458,5 +459,75 @@ class VehiculesController extends Controller
                 'errors' =>  $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * GET /vehicules/suggestions — Suggestions de véhicules basées sur les favoris.
+     *
+     * Algorithme :
+     * 1. Récupère les favoris de l'utilisateur
+     * 2. Extrait les préférences dominantes (marques, carburant, post_type)
+     * 3. Cherche des véhicules similaires non déjà en favoris
+     * 4. Si pas assez de résultats, complète avec les plus vus
+     * 5. Si aucun favori → retourne les 8 véhicules les plus populaires
+     */
+    public function suggestions(): JsonResponse
+    {
+        $userId = Auth::id();
+
+        // Récupère les favoris avec les descriptions des véhicules
+        $favoris = Favori::where('user_id', $userId)
+            ->with('vehicule.description')
+            ->get();
+
+        if ($favoris->isEmpty()) {
+            // Pas de favoris → fallback sur les véhicules les plus vus
+            $vehicules = Vehicules::with(['description', 'photos'])
+                ->where('status_validation', 'validee')
+                ->where('statut', 'disponible')
+                ->orderByDesc('views_count')
+                ->limit(8)
+                ->get();
+
+            return response()->json(['success' => true, 'data' => $vehicules, 'source' => 'populaire']);
+        }
+
+        // Extrait les préférences dominantes depuis les favoris
+        $marques   = $favoris->pluck('vehicule.description.marque')->filter()->countBy()->sortDesc()->keys()->take(3)->toArray();
+        $carburant = $favoris->pluck('vehicule.description.carburant')->filter()->countBy()->sortDesc()->keys()->first();
+        $postType  = $favoris->pluck('vehicule.post_type')->filter()->countBy()->sortDesc()->keys()->first();
+
+        $favoriIds = $favoris->pluck('vehicule_id')->toArray();
+
+        // Cherche des véhicules similaires (même marque ou carburant) non déjà en favoris
+        $suggestions = Vehicules::with(['description', 'photos'])
+            ->join('vehicules_description', 'vehicules.id', '=', 'vehicules_description.vehicule_id')
+            ->where('vehicules.status_validation', 'validee')
+            ->where('vehicules.statut', 'disponible')
+            ->whereNotIn('vehicules.id', $favoriIds)
+            ->where(function ($q) use ($marques, $carburant) {
+                $q->whereIn('vehicules_description.marque', $marques);
+                if ($carburant) {
+                    $q->orWhere('vehicules_description.carburant', $carburant);
+                }
+            })
+            ->select('vehicules.*')
+            ->orderByDesc('vehicules.views_count')
+            ->limit(8)
+            ->get();
+
+        // Si pas assez de résultats, complète avec les plus vus
+        if ($suggestions->count() < 4) {
+            $extra = Vehicules::with(['description', 'photos'])
+                ->where('status_validation', 'validee')
+                ->where('statut', 'disponible')
+                ->whereNotIn('id', array_merge($favoriIds, $suggestions->pluck('id')->toArray()))
+                ->orderByDesc('views_count')
+                ->limit(8 - $suggestions->count())
+                ->get();
+            $suggestions = $suggestions->concat($extra);
+        }
+
+        return response()->json(['success' => true, 'data' => $suggestions, 'source' => 'favoris']);
     }
 }
