@@ -6,30 +6,41 @@ import { NextRequest, NextResponse } from "next/server"
 export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get("token")
   const role = request.nextUrl.searchParams.get("role")
+  const needsOnboarding = request.nextUrl.searchParams.get("needs_onboarding") === "1"
 
   if (!token) {
     return NextResponse.redirect(new URL("/auth?error=no_token", request.url))
   }
 
-  // Rediriger vers le dashboard selon le role
-  const redirectPath = getDashBoard(role as UserRole)
+  // Nouveau user Google → onboarding avant le dashboard
+  const redirectPath = needsOnboarding ? "/onboarding" : getDashBoard(role as UserRole)
   const response = NextResponse.redirect(new URL(redirectPath, request.url))
 
-  // Attacher les cookies directement sur la réponse de redirection
   response.cookies.set("auth_token", token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: 60 * 60 * 24 * 7, // 7 jours
+    maxAge: 60 * 60 * 24 * 7,
   })
   response.cookies.set("user_role", role || "client", {
     httpOnly: false,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: 60 * 60 * 24 * 7, // 7 jours
+    maxAge: 60 * 60 * 24 * 7,
   })
+
+  // Cookie temporaire pour protéger la route /onboarding dans le middleware
+  if (needsOnboarding) {
+    response.cookies.set("onboarding_pending", "1", {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 10, // 10 minutes — supprimé après complétion
+    })
+  }
 
   return response
 }

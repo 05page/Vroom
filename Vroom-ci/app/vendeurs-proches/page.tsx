@@ -229,7 +229,7 @@ export default function VendeursProchesPage() {
                       {ROLE_LABELS[user.role]}
                     </span>
                     <span className="text-xs text-zinc-400">
-                      {user.distance.toFixed(1)} km
+                      {Number(user.distance).toFixed(1)} km
                     </span>
                   </div>
 
@@ -238,7 +238,7 @@ export default function VendeursProchesPage() {
                     <div className="flex items-center gap-1 mt-1">
                       <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
                       <span className="text-xs text-zinc-500">
-                        {user.note_moyenne.toFixed(1)}
+                        {Number(user.note_moyenne).toFixed(1)}
                       </span>
                     </div>
                   )}
@@ -249,7 +249,7 @@ export default function VendeursProchesPage() {
       </aside>
 
       {/* ── Carte droite ── */}
-      <div className="relative h-[50vh] lg:h-full">
+      <div className="relative h-[50vh] lg:h-full isolate">
         {mapCenter ? (
           <MapView
             center={mapCenter}

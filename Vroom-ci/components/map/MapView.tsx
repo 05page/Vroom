@@ -185,14 +185,14 @@ export default function MapView({
 
                 {/* Distance */}
                 <p className="text-xs text-zinc-500">
-                  {user.distance.toFixed(1)} km
+                  {Number(user.distance).toFixed(1)} km
                 </p>
 
                 {/* Note si disponible */}
                 {user.note_moyenne != null && (
                   <p className="text-xs text-zinc-600 flex items-center gap-1">
                     <span>⭐</span>
-                    <span>{user.note_moyenne.toFixed(1)} / 5</span>
+                    <span>{Number(user.note_moyenne).toFixed(1)} / 5</span>
                   </p>
                 )}
 

@@ -189,8 +189,14 @@ export default function AddVehiclePage() {
             toast.error("Maximum 10 photos autorisées")
             return
         }
-        setPhotos(prev => [...prev, ...files])
-        setPhotoUrls(prev => [...prev, ...files.map(f => URL.createObjectURL(f))])
+        const allowedTypes = ["image/jpeg", "image/png", "image/jpg", "image/gif", "image/svg+xml"];
+        const validFiles = files.filter((file => allowedTypes.includes(file.type)))
+        if(validFiles.length < files.length){
+            toast.error("Format non autorisé")
+        }
+
+        setPhotos(prev => [...prev, ...validFiles])
+        setPhotoUrls(prev => [...prev, ...validFiles.map(f => URL.createObjectURL(f))])
     }
 
     const removePhoto = (index: number) => {
@@ -299,6 +305,7 @@ export default function AddVehiclePage() {
             const data = await res.json()
             if (!res.ok) {
                 toast.error(data.message + data.errors || "Erreur lors de la publication", { id: toastId })
+                console.log(data)
                 return
             }
             toast.success("Véhicule publié !", {
@@ -311,9 +318,6 @@ export default function AddVehiclePage() {
             setIsSubmitting(false)
         }
     }
-
-
-    // ─── Step Indicator ──────────────────────────────────
 
     const renderStepIndicator = () => (
         <Card className={CARD}>
