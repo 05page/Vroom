@@ -148,6 +148,7 @@ export interface RendezVous {
   motif?: string
   lieu?: string
   notes?: string
+  has_avis?: boolean
   vehicule?: vehicule
 }
 
@@ -318,6 +319,7 @@ export interface RendezVous {
   client?: { id: string; fullname: string; avatar?: string | null; telephone?: string | null }
   vendeur?: { id: string; fullname: string; avatar?: string | null; telephone?: string | null }
   vehicule?: vehicule
+  has_avis?: boolean
   created_at: string
   updated_at: string
 }

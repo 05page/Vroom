@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\DataRefresh;
 use App\Models\Avis;
 use App\Models\RendezVous;
 use App\Models\User;
@@ -45,6 +46,11 @@ class AvisController extends Controller
         $vendeur->nb_avis      = Avis::where('vendeur_id', $vendeur->id)->count();
         $vendeur->note_moyenne = Avis::where('vendeur_id', $vendeur->id)->avg('note');
         $vendeur->save();
+
+        // Notifie le vendeur en temps réel (note_moyenne mise à jour)
+        event(new DataRefresh($rdv->vendeur_id, 'avis'));
+        // Notifie le client pour mettre à jour son statut has_avis sur la page RDV
+        event(new DataRefresh($user->id, 'rdv'));
 
         return response()->json(['success' => true, 'message' => 'Avis enregistré', 'data' => $avis], 201);
     }

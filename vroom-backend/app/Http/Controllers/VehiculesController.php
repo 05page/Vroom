@@ -106,7 +106,7 @@ class VehiculesController extends Controller
                 'photos',
             ])
                 ->where('created_by', $user->id)
-                ->whereIn('status_validation', ['validee', 'restauree'])
+                ->whereIn('status_validation', ['validee', 'restauree', 'en_attente'])
                 ->whereIn('statut', ['disponible', 'vendu', 'loué'])
                 ->get();
 

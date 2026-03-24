@@ -16,6 +16,13 @@ export async function api<T = unknown>(
 
   const data = await res.json()
 
+  if (res.status === 401) {
+    if (typeof window !== "undefined" && window.location.pathname !== "/auth") {
+      window.location.href = "/auth"
+    }
+    throw new ApiError("Unauthenticated", 401)
+  }
+
   if (!res.ok) {
     throw new ApiError(data.message || "Erreur serveur", res.status, data.errors)
   }
@@ -45,6 +52,12 @@ api.upload = async <T = unknown>(endpoint: string, formData: FormData): Promise<
     body: formData,
   })
   const data = await res.json()
+  if (res.status === 401) {
+    if (typeof window !== "undefined" && window.location.pathname !== "/auth") {
+      window.location.href = "/auth"
+    }
+    throw new ApiError("Unauthenticated", 401)
+  }
   if (!res.ok) throw new ApiError(data.message || "Erreur serveur", res.status, data.errors)
   return data as ApiResponse<T>
 }

@@ -1,6 +1,7 @@
 "use client"
 
-import { Car, Clock, Mail, CheckCircle2 } from "lucide-react"
+import Image from "next/image"
+import { Clock, Mail, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 
@@ -11,9 +12,7 @@ export default function EnAttentePage() {
 
                 {/* Logo */}
                 <div className="flex items-center justify-center gap-2 mb-2">
-                    <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center shadow-lg shadow-orange-500/20">
-                        <Car className="h-5 w-5 text-white" />
-                    </div>
+                    <Image src="/logo.svg" alt="Move CI" width={56} height={33} />
                     <span className="text-xl font-black text-zinc-900">Move CI</span>
                 </div>
 

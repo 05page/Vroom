@@ -50,11 +50,18 @@ class InscriptionFormationController extends Controller
             $supprimee->update(['statut_eleve' => InscriptionFormation::STATUT_PREINSCRIT]);
             $inscription = $supprimee->fresh();
         } else {
-            $inscription = InscriptionFormation::create([
-                'client_id'    => $user->id,
-                'formation_id' => $id,
-                'statut_eleve' => InscriptionFormation::STATUT_PREINSCRIT,
-            ]);
+            try {
+                $inscription = InscriptionFormation::create([
+                    'client_id'    => $user->id,
+                    'formation_id' => $id,
+                    'statut_eleve' => InscriptionFormation::STATUT_PREINSCRIT,
+                ]);
+            } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+                // Race condition : deux requêtes simultanées ont toutes les deux passé
+                // le check $existante avant qu'une insertion soit faite → on retourne
+                // proprement "déjà inscrit" sans laisser remonter l'erreur PostgreSQL.
+                return response()->json(['success' => false, 'message' => 'Vous êtes déjà inscrit à cette formation'], 422);
+            }
         }
 
         // Notifie l'auto-école de la nouvelle préinscription

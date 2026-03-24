@@ -536,9 +536,7 @@ export default function LandingPage() {
                         {/* Logo + tagline */}
                         <div>
                             <div className="flex items-center gap-2 mb-4">
-                                <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
-                                    <Car className="h-4 w-4 text-white fill-white" />
-                                </div>
+                                <Image src="/logo.svg" alt="Move CI" width={48} height={28} />
                                 <span className="font-bold text-white text-lg" style={{ fontFamily: "var(--font-syne, sans-serif)" }}>Move</span>
                             </div>
                             <p className="text-xs text-zinc-500 max-w-45 leading-relaxed">

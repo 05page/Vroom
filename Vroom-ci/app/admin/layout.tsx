@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
 import {
@@ -86,11 +87,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                             <SidebarMenuItem>
                                 <SidebarMenuButton size="lg" asChild>
                                     <Link href="/admin/dashboard">
-                                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-                                            <Shield className="h-4 w-4 text-primary-foreground" />
-                                        </div>
+                                        <Image src="/logo.svg" alt="Move CI" width={52} height={30} />
                                         <div className="flex flex-col gap-0.5 leading-none">
-                                            <span className="font-bold">Move CI</span>
                                             <Badge className="bg-primary/20 text-primary border-primary/30 text-[10px] w-fit">
                                                 admin
                                             </Badge>

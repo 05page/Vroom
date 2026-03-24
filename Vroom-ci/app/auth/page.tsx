@@ -11,7 +11,6 @@ import {
     ArrowLeft,
     ArrowRight,
     Building2,
-    Car,
     Eye,
     EyeOff,
     GraduationCap,
@@ -20,7 +19,6 @@ import {
     MapPin,
     Phone,
     Store,
-    User,
     UserCircle,
     Users,
 } from "lucide-react"
@@ -176,10 +174,7 @@ const AuthPage = () => {
                 {/* Mobile logo */}
                 <div className="lg:hidden flex items-center justify-center gap-2 pt-8 pb-4">
                     <Link href="/" className="flex items-center gap-2">
-                        <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center shadow-lg shadow-orange-500/20">
-                            <Car className="h-5 w-5 text-white" />
-                        </div>
-                        <span className="text-xl font-black text-foreground">Move CI</span>
+                        <Image src="/vehicle/mov3.png" alt="Move CI" width={90} height={52} />
                     </Link>
                 </div>
 
@@ -188,10 +183,7 @@ const AuthPage = () => {
                         {/* Desktop logo */}
                         <div className="hidden lg:flex items-center gap-2 mb-10">
                             <Link href="/" className="flex items-center gap-2">
-                                <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center shadow-lg shadow-orange-500/20">
-                                    <Car className="h-5 w-5 text-white" />
-                                </div>
-                                <span className="text-xl font-black text-foreground">Move CI</span>
+                                <Image src="/vehicle/mov3.png" alt="Move CI" width={90} height={52} />
                             </Link>
                         </div>
 

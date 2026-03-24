@@ -20,3 +20,4 @@ Schedule::command('tendances:check')->hourly();
  * déverrouille les véhicules bloqués et pénalise les vendeurs qui n'ont pas confirmé.
  */
 Schedule::command('transactions:expirer')->hourly();
+Schedule::command('sanctum:pruned-expired --hours=168')->daily();

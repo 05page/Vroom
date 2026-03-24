@@ -1,4 +1,5 @@
 "use client"
+import { useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -22,6 +23,30 @@ import { fr } from "date-fns/locale"
 import { formatDistanceToNow } from "date-fns"
 import { useUser } from "@/src/context/UserContext"
 import { useNotification } from "@/src/context/NotificationContext"
+
+/**
+ * Retourne la route vers laquelle naviguer quand l'utilisateur clique
+ * sur une notification, selon son type et son rôle.
+ * Retourne null si aucune redirection pertinente.
+ */
+function getNotificationLink(type: Notifications["type"], role?: string): string | null {
+    switch (type) {
+        case "transaction":
+            if (role === "vendeur" || role === "concessionnaire") return "/vendeur/transactions"
+            return "/client/transactions"
+        case "rdv":
+            if (role === "vendeur" || role === "concessionnaire") return "/vendeur/rdv"
+            return "/client/rdv"
+        case "formation":
+            if (role === "auto_ecole") return "/partenaire/formations"
+            return "/client/formations"
+        case "tendance":
+            if (role === "auto_ecole") return "/partenaire/formations"
+            return "/vendeur/vehicles"
+        default:
+            return null
+    }
+}
 
 function NotificationsLoading() {
     return (
@@ -98,9 +123,17 @@ function EmptyState({ icon: Icon, title, description }: { icon: React.ComponentT
     )
 }
 
-function NotificationItem({ notification, onRead }: { notification: Notifications, onRead: (id: number) => void }) {
+function NotificationItem({ notification, onRead, role }: { notification: Notifications, onRead: (id: number) => void, role?: string }) {
+    const router = useRouter()
+
+    const handleClick = () => {
+        if (!notification.is_read) onRead(notification.id)
+        const link = getNotificationLink(notification.type, role)
+        if (link) router.push(link)
+    }
+
     return (
-        <Card onClick={() => !notification.is_read && onRead(notification.id)} className={`rounded-2xl shadow-sm border border-border/40 hover:shadow-md transition-all duration-300 cursor-pointer group ${!notification.is_read ? 'bg-primary/5 border-primary/20' : 'bg-card/50'}`}>
+        <Card onClick={handleClick} className={`rounded-2xl shadow-sm border border-border/40 hover:shadow-md transition-all duration-300 cursor-pointer group ${!notification.is_read ? 'bg-primary/5 border-primary/20' : 'bg-card/50'}`}>
             <CardContent className="p-4">
                 <div className="flex items-start gap-4">
                     <div className={`w-12 h-12 rounded-xl ${getIconBgByType(notification.type)} flex items-center justify-center shrink-0`}>
@@ -277,7 +310,7 @@ export function NotificationsContent() {
                         ) : (
                             <div className="space-y-3">
                                 {notifs.map((notification) => (
-                                    <NotificationItem key={notification.id} notification={notification} onRead={markAsRead} />
+                                    <NotificationItem key={notification.id} notification={notification} onRead={markAsRead} role={user?.role} />
                                 ))}
                             </div>
                         )}

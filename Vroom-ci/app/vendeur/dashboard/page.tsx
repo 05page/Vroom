@@ -80,12 +80,16 @@ const VendeurDashboard = () => {
     const [avisData, setAvisData] = useState<{ avis: Avis[]; note_moyenne: number; total: number } | null>(null)
 
     // Fetch des avis — séparé car user.id arrive de façon asynchrone via UserContext
-    useEffect(() => {
+    const fetchAvis = useCallback(() => {
         if (!user?.id) return
         getAvisVendeur(user.id)
             .then(res => setAvisData(res.data ?? null))
-            .catch(() => {}) // silencieux si pas d'avis
+            .catch(() => {})
     }, [user?.id])
+
+    useEffect(() => {
+        fetchAvis()
+    }, [fetchAvis])
 
     const fetchData = useCallback(async () => {
         try {
@@ -111,6 +115,8 @@ const VendeurDashboard = () => {
     // Recharge en temps réel via Reverb quand un RDV ou véhicule change
     useDataRefresh("rdv", fetchData)
     useDataRefresh("vehicule", fetchData)
+    // Recharge les avis quand un client en laisse un nouveau
+    useDataRefresh("avis", fetchAvis)
 
     const handleRefresh = () => {
         setRefreshing(true)

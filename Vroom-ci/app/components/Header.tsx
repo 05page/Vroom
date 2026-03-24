@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
     Bell,
@@ -82,16 +83,8 @@ const Header = () => {
                 <div className="relative w-full max-w-7xl mx-auto flex h-14 items-center justify-between px-6">
 
                     {/* Logo */}
-                    <Link href="/" className="flex items-center gap-2 shrink-0 group">
-                        <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center shadow-sm group-hover:shadow-amber-200 group-hover:shadow-md transition-shadow duration-200">
-                            <Car className="h-4 w-4 text-white fill-white" />
-                        </div>
-                        <span
-                            className="text-base font-bold text-zinc-900 tracking-tight"
-                            style={{ fontFamily: "var(--font-syne, sans-serif)" }}
-                        >
-                            Move
-                        </span>
+                    <Link href="/" className="flex items-center gap-2 shrink-0">
+                        <Image src="/logo.svg" alt="Move CI" width={52} height={30} priority />
                     </Link>
 
                     {/* Nav center */}
@@ -212,12 +205,7 @@ const Header = () => {
 
                 <div className="relative flex h-14 items-center justify-between px-4">
                     <Link href="/" className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-lg bg-amber-500 flex items-center justify-center">
-                            <Car className="h-3.5 w-3.5 text-white fill-white" />
-                        </div>
-                        <span className="text-sm font-bold text-zinc-900" style={{ fontFamily: "var(--font-syne, sans-serif)" }}>
-                            Move
-                        </span>
+                        <Image src="/logo.svg" alt="Move CI" width={46} height={26} priority />
                     </Link>
 
                     <div className="flex items-center gap-1">

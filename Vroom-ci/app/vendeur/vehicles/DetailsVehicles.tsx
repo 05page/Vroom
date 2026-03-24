@@ -9,22 +9,20 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import {
     Car, Tag, Key, Calendar, Fuel, Settings, Palette, DoorOpen, Users,
     Gauge, Check, Edit, Trash2, Eye,
-    Clock, Shield, MapPin, Sparkles, ChevronLeft, ChevronRight, Download,
+    Clock, Shield, MapPin, Sparkles, ChevronLeft, ChevronRight,
 } from "lucide-react"
 import { VehiculeDescription, vehicule } from "@/src/types"
 import Image from "next/image"
 import { useState } from "react"
 import dynamic from "next/dynamic"
-import { FicheVehiculePDF } from "@/components/pdf/FicheVehiculePDF"
 
 /**
- * PDFDownloadLink doit être chargé côté client uniquement.
- * @react-pdf/renderer accède à des APIs navigateur (window, canvas).
- * On utilise dynamic() avec ssr: false pour éviter l'erreur SSR.
+ * PDFDownloadButton regroupe PDFDownloadLink + FicheVehiculePDF dans un seul
+ * dynamic import. Sans ça, l'import statique de FicheVehiculePDF charge
+ * @react-pdf/renderer côté serveur → double instance React → hooks cassés.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const PDFDownloadLink = dynamic<any>(
-    () => import("@react-pdf/renderer").then((mod) => mod.PDFDownloadLink),
+const PDFDownloadButton = dynamic(
+    () => import("@/components/pdf/PDFDownloadButton"),
     { ssr: false }
 )
 
@@ -224,28 +222,10 @@ const DetailsCard = ({ isOpen, onClose, vehicule, onEdit, onDelete }: Props) => 
 
                     {/* ── Bouton télécharger PDF ── */}
                     <div className="pt-2 border-t border-border/30">
-                        <PDFDownloadLink
-                            document={
-                                <FicheVehiculePDF
-                                    vehicule={vehicule}
-                                    backendUrl={process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000"}
-                                />
-                            }
-                            fileName={`vroom-${vehicule.description?.marque ?? "vehicule"}-${vehicule.description?.modele ?? ""}-${vehicule.id.slice(0, 8)}.pdf`.toLowerCase()}
-                        >
-                            {/* PDFDownloadLink passe { loading } en render prop */}
-                            {({ loading }: { loading: boolean }) => (
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={loading}
-                                    className="gap-2 cursor-pointer"
-                                >
-                                    <Download className="h-4 w-4" />
-                                    {loading ? "Génération…" : "Télécharger la fiche PDF"}
-                                </Button>
-                            )}
-                        </PDFDownloadLink>
+                        <PDFDownloadButton
+                            vehicule={vehicule}
+                            backendUrl={process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000"}
+                        />
                     </div>
 
                 </div>

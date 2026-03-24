@@ -1,12 +1,12 @@
 "use client"
 
+import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
 import {
     BarChart3,
     Bell,
     BookOpen,
-    Car,
     HelpCircle,
     MessageSquare,
     Home,
@@ -80,11 +80,8 @@ export default function PartenaireLayout({
                         <SidebarMenuItem>
                             <SidebarMenuButton size="lg" asChild>
                                 <Link href="/partenaire/dashboard">
-                                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-600">
-                                        <Car className="h-4 w-4 text-white" />
-                                    </div>
+                                    <Image src="/logo.svg" alt="Move CI" width={52} height={30} />
                                     <div className="flex flex-col gap-0.5 leading-none">
-                                        <span className="font-bold">Move CI</span>
                                         <Badge className="bg-black text-[10px] w-fit">partenaire</Badge>
                                     </div>
                                 </Link>

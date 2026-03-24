@@ -58,13 +58,17 @@ class AuthController extends Controller
                 ]
             );
 
+            // Nouveau user Google = pas encore de rôle → onboarding requis
+            $needsOnboarding = $user->wasRecentlyCreated || $user->role === null;
+
             $token = $user->createToken('auth_token')->plainTextToken;
 
             // Rediriger vers Next.js avec le token pour stockage en cookie httpOnly
             $redirectUrl = config('app.frontend_url', 'http://localhost:3000') . "/api/auth/callback?" . http_build_query([
-                'token' => $token,
-                'data'=> $user,
-                'role' => $user->role ?? 'client',
+                'token'            => $token,
+                'data'             => $user,
+                'role'             => $user->role ?? 'client',
+                'needs_onboarding' => $needsOnboarding ? '1' : '0',
             ]);
 
             return redirect($redirectUrl);
@@ -180,6 +184,44 @@ class AuthController extends Controller
                 'success' => false,
                 'message' => 'Erreur lors de la mise à jour',
                 'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function completeOnboarding(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+
+            $validated = $request->validate([
+                'role'      => 'required|in:client,vendeur',
+                'telephone' => 'required|string|max:20',
+                'adresse'   => 'required|string|max:500',
+            ]);
+
+            DB::beginTransaction();
+
+            $user->update($validated);
+
+            // Géocoder l'adresse pour remplir lat/lng automatiquement
+            $coords = (new GeocodingService())->geocode($validated['adresse']);
+            if ($coords) {
+                $user->update($coords);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'user'    => $user,
+                'role'    => $user->role,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la complétion du profil',
+                'error'   => $e->getMessage(),
             ], 500);
         }
     }

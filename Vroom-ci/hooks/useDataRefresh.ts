@@ -13,6 +13,7 @@ export type DataRefreshType =
     | "transaction"
     | "crm"
     | "message"
+    | "avis"
 
 /**
  * useDataRefresh

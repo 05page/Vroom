@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Events\DataRefresh;
 use App\Http\Requests\StoreRendezVousRequest;
+use App\Models\Avis;
 use App\Models\Notifications;
 use App\Models\RendezVous;
 use App\Models\TransactionConclue;
@@ -25,6 +26,17 @@ class RendezVousController extends Controller
                 ->where('client_id', $user->id)
                 ->orderBy('date_heure', 'desc')
                 ->get();
+
+            // Indique si le client a déjà laissé un avis pour chaque vendeur,
+            // afin d'afficher "Avis envoyé" plutôt que "Laisser un avis" même après rechargement.
+            $vendeurIdsAvecAvis = Avis::where('client_id', $user->id)
+                ->whereIn('vendeur_id', $rdvs->pluck('vendeur_id')->unique())
+                ->pluck('vendeur_id')
+                ->flip(); // flip() pour O(1) lookup au lieu de in_array
+
+            $rdvs->each(function ($rdv) use ($vendeurIdsAvecAvis) {
+                $rdv->has_avis = isset($vendeurIdsAvecAvis[$rdv->vendeur_id]);
+            });
 
             return response()->json(['success' => true, 'data' => $rdvs], 200);
         } catch (\Exception $e) {

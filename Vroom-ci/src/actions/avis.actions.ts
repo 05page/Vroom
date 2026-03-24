@@ -7,7 +7,7 @@ export const getAvisVendeur = (vendeurId: string | number) =>
 
 /** Soumet un avis sur un vendeur après une transaction. */
 export const createAvis = (data: {
-  vendeur_id: string | number
+  rdv_id: string
   note: number
   commentaire?: string
 }) => api.post<Avis>("/avis", data)
