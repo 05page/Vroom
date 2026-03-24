@@ -40,7 +40,7 @@ import { useUser } from "@/src/context/UserContext"
 import VehicleDetails from "./VehicleDetails"
 import { cn } from "@/src/lib/utils"
 import { FadeIn, SlideIn, StaggerList, StaggerItem } from "@/components/ui/motion-primitives"
-
+import { useRouter } from "next/navigation"
 interface Filters {
     search: string
     carburant: string
@@ -66,6 +66,11 @@ const VehiclesPage = () => {
     const [favLoading, setFavLoading] = useState<string  |  null>(null)
     const [compareIds, setCompareIds] = useState<string[]>([])
 
+    const router = useRouter();
+
+    const navigate = () => {
+        router.push('/vendeur/addVehicle')
+    }
     /** Ajoute ou retire un véhicule de la sélection de comparaison (max 3). */
     const toggleCompare = (id: string) => {
         setCompareIds(prev => {
@@ -264,6 +269,15 @@ const VehiclesPage = () => {
                         <div>
                             <h3 className="font-bold text-base text-zinc-900">{v.description?.marque} {v.description?.modele}</h3>
                             <p className="text-xs text-zinc-500">{v.description?.annee} &middot; {v.description?.kilometrage} km &middot; {v.description?.carburant}</p>
+                            {v.creator && (
+                                <Link
+                                    href={`/profil/${v.creator.id}`}
+                                    className="text-xs text-zinc-400 hover:text-zinc-700 hover:underline transition-colors mt-0.5 inline-block"
+                                    onClick={e => e.stopPropagation()}
+                                >
+                                    {v.creator.fullname}
+                                </Link>
+                            )}
                         </div>
                         <p className="text-lg font-black text-zinc-900">{v.prix?.toLocaleString()} <span className="text-xs font-normal text-zinc-500">FCFA</span></p>
                         <Separator />
@@ -405,7 +419,7 @@ const VehiclesPage = () => {
 
                         <div className="flex gap-2">
                             {isVendeur && (
-                                <Button size="sm" className="rounded-xl cursor-pointer bg-zinc-900 hover:bg-zinc-800 text-white">
+                                <Button size="sm" className="rounded-xl cursor-pointer bg-zinc-900 hover:bg-zinc-800 text-white" onClick={() => navigate()}>
                                     <Plus className="h-4 w-4 mr-2" />
                                     <span className="hidden sm:inline">Publier un véhicule</span>
                                     <span className="sm:hidden">Publier</span>
@@ -773,7 +787,7 @@ const VehiclesPage = () => {
                                     }
                                 </p>
                                 {isVendeur ? (
-                                    <Button className="rounded-xl cursor-pointer bg-zinc-900 hover:bg-zinc-800 text-white">
+                                    <Button className="rounded-xl cursor-pointer bg-zinc-900 hover:bg-zinc-800 text-white" onClick={() => navigate()}>
                                         <Plus className="h-4 w-4 mr-2" />
                                         Publier mon premier véhicule
                                     </Button>

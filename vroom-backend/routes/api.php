@@ -57,10 +57,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/geo/geocode',   [GeolocalisationController::class, 'geocodeAdresse']);
 
     // Profil
-    Route::get('/me',         [AuthController::class, 'getInfoUser']);
-    Route::put('/me/update',  [AuthController::class, 'update']);
-    Route::put('/me/contact', [AuthController::class, 'updatePhoneAndAddress']);
-    Route::post('/logout',    [AuthController::class, 'logout']);
+    Route::get('/me',                      [AuthController::class, 'getInfoUser']);
+    Route::put('/me/update',               [AuthController::class, 'update']);
+    Route::put('/me/contact',              [AuthController::class, 'updatePhoneAndAddress']);
+    Route::post('/auth/complete-onboarding', [AuthController::class, 'completeOnboarding']);
+    Route::post('/logout',                 [AuthController::class, 'logout']);
 
     // Véhicules — suggestions basées sur les favoris (avant les routes dynamiques)
     Route::get('/vehicules/suggestions', [VehiculesController::class, 'suggestions']);
@@ -82,6 +83,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('role:vendeur,concessionnaire,auto_ecole')->group(function() {
         Route::get('/stats/mes-stats', [VendeurStatsController::class, 'mesStats']);
     });
+
+    // Profil public vendeur/concessionnaire (accessible à tous les connectés)
+    Route::get('/users/{id}/profil', [VendeurStatsController::class, 'profil']);
 
     // Notifications
     Route::prefix('notifications')->group(function () {

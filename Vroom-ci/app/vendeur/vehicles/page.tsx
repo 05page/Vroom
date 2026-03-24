@@ -71,7 +71,8 @@ export default function VehiclesPage() {
     // Recharge en temps réel via Reverb quand un véhicule change (ex: validation admin)
     useDataRefresh("vehicule", fetchVendeurVehicles)
 
-    const getStatutColor = (statut: string) => {
+    const getStatutColor = (statut: string, status_validation?: string) => {
+        if (status_validation === "en_attente") return "bg-orange-500/10 text-orange-600 border-orange-500/20"
         switch (statut) {
             case "disponible": return "bg-zinc-900/10 text-zinc-700 border-zinc-900/20"
             case "réservé": return "bg-amber-500/10 text-amber-600 border-amber-500/20"
@@ -82,7 +83,8 @@ export default function VehiclesPage() {
         }
     }
 
-    const getStatutLabel = (statut: string) => {
+    const getStatutLabel = (statut: string, status_validation?: string) => {
+        if (status_validation === "en_attente") return "En attente de validation"
         switch (statut) {
             case "disponible": return "Disponible"
             case "réservé": return "Réservé"
@@ -102,8 +104,9 @@ export default function VehiclesPage() {
 
     const filterVehicles = (tab: string) => {
         let filtered = mesvehicules
-        if (tab === "vente") filtered = mesvehicules.filter(v => v.post_type === "vente")
-        else if (tab === "location") filtered = mesvehicules.filter(v => v.post_type === "location")
+        if (tab === "en_attente") filtered = mesvehicules.filter(v => v.status_validation === "en_attente")
+        else if (tab === "vente") filtered = mesvehicules.filter(v => v.post_type === "vente" && v.status_validation !== "en_attente")
+        else if (tab === "location") filtered = mesvehicules.filter(v => v.post_type === "location" && v.status_validation !== "en_attente")
         else if (tab === "vendus") filtered = mesvehicules.filter(v => v?.statut === "vendu" || v.statut === "loué")
         if (searchQuery) {
             filtered = filtered.filter(v =>
@@ -164,8 +167,8 @@ export default function VehiclesPage() {
                             <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
 
                             {/* Badges statut + type */}
-                            <Badge className={cn("absolute top-3 left-3 rounded-full text-xs font-semibold", getStatutColor(v?.statut))}>
-                                {getStatutLabel(v?.statut)}
+                            <Badge className={cn("absolute top-3 left-3 rounded-full text-xs font-semibold", getStatutColor(v?.statut, v?.status_validation))}>
+                                {getStatutLabel(v?.statut, v?.status_validation)}
                             </Badge>
                             <Badge className={cn(
                                 "absolute top-3 right-3 rounded-full text-xs font-semibold",
@@ -297,9 +300,10 @@ export default function VehiclesPage() {
                         <TabsTrigger value="vente" className="rounded-lg cursor-pointer data-[state=active]:bg-white data-[state=active]:text-black">En vente</TabsTrigger>
                         <TabsTrigger value="location" className="rounded-lg cursor-pointer data-[state=active]:bg-white data-[state=active]:text-black">En location</TabsTrigger>
                         <TabsTrigger value="vendus" className="rounded-lg cursor-pointer data-[state=active]:bg-white data-[state=active]:text-black">Vendus/Loués</TabsTrigger>
+                        <TabsTrigger value="en_attente" className="rounded-lg cursor-pointer data-[state=active]:bg-white data-[state=active]:text-black">En attente</TabsTrigger>
                     </TabsList>
 
-                    {["tous", "vente", "location", "vendus"].map(tab => (
+                    {["tous", "vente", "location", "vendus", "en_attente"].map(tab => (
                         <TabsContent key={tab} value={tab}>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {filterVehicles(tab).map((v, i) => <VehicleCard key={v.id} v={v} index={i} />)}

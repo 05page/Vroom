@@ -30,6 +30,7 @@ import { useDataRefresh } from "@/hooks/useDataRefresh"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 import { FadeIn, SlideIn, StaggerList, StaggerItem } from "@/components/ui/motion-primitives"
+import Link from "next/link"
 
 // Formate un datetime ISO en date lisible : "25 février 2026"
 const formatDate = (dt: string) =>
@@ -53,8 +54,8 @@ const MesRdv = () => {
     const [avisRdv, setAvisRdv] = useState<RendezVous | null>(null)
     const [avisForm, setAvisForm] = useState({ note: 0, commentaire: "" })
     const [avisLoading, setAvisLoading] = useState(false)
-    // Ensemble des rdv_id pour lesquels un avis a déjà été soumis cette session
-    const [avisSubmis, setAvisSubmis] = useState<Set<string>>(new Set())
+    // vendeur_ids pour lesquels un avis a été soumis cette session (avant que le DataRefresh arrive)
+    const [avisSubmisLocal, setAvisSubmisLocal] = useState<Set<string>>(new Set())
 
     const fetchRdvs = useCallback(async () => {
         try {
@@ -100,11 +101,12 @@ const MesRdv = () => {
         setAvisLoading(true)
         try {
             await createAvis({
-                vendeur_id: avisRdv.vendeur_id,
+                rdv_id: avisRdv.id,
                 note: avisForm.note,
                 commentaire: avisForm.commentaire || undefined,
             })
-            setAvisSubmis(prev => new Set([...prev, avisRdv.id]))
+            // Optimistic update : marque le vendeur comme déjà noté pendant que le DataRefresh arrive
+            setAvisSubmisLocal(prev => new Set([...prev, avisRdv.vendeur_id]))
             toast.success("Avis enregistré, merci !")
             setAvisRdv(null)
             setAvisForm({ note: 0, commentaire: "" })
@@ -210,7 +212,10 @@ const MesRdv = () => {
                         <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                             <span className="flex items-center gap-1">
                                 <User className="h-3 w-3" />
-                                {rdv.vendeur?.fullname ?? "—"}
+                                {rdv.vendeur?.id
+                                    ? <Link href={`/profil/${rdv.vendeur.id}`} className="hover:underline hover:text-zinc-700 transition-colors">{rdv.vendeur.fullname}</Link>
+                                    : (rdv.vendeur?.fullname ?? "—")
+                                }
                             </span>
                             {rdv.vendeur?.telephone && (
                                 <span className="flex items-center gap-1">
@@ -237,7 +242,7 @@ const MesRdv = () => {
                                         {cancelling === rdv.id ? "..." : "Annuler"}
                                     </Button>
                                 )}
-                                {rdv.statut === "terminé" && !avisSubmis.has(rdv.id) && (
+                                {rdv.statut === "terminé" && !rdv.has_avis && !avisSubmisLocal.has(rdv.vendeur_id) && (
                                     <Button
                                         variant="ghost"
                                         size="sm"
@@ -248,7 +253,7 @@ const MesRdv = () => {
                                         Laisser un avis
                                     </Button>
                                 )}
-                                {rdv.statut === "terminé" && avisSubmis.has(rdv.id) && (
+                                {rdv.statut === "terminé" && (rdv.has_avis || avisSubmisLocal.has(rdv.vendeur_id)) && (
                                     <span className="text-xs text-zinc-400 flex items-center gap-1">
                                         <Star className="h-3 w-3 fill-zinc-300" />
                                         Avis envoyé

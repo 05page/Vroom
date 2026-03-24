@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Avis;
 use App\Models\RendezVous;
 use App\Models\Transactions;
+use App\Models\User;
 use App\Models\Vehicules;
 use App\Models\VehiculeView;
 use App\Models\VehiculeVue;
@@ -110,6 +112,54 @@ class VendeurStatsController extends Controller
                 'message'=> "Erreur survenue",
                 'errors'=> $e->getMessage()
             ]);
+    }
+
+    /**
+     * Retourne le profil public d'un vendeur ou concessionnaire.
+     * Accessible uniquement aux utilisateurs connectés (auth:sanctum).
+     * Contient : infos de base, véhicules disponibles, avis clients.
+     */
+    public function profil(string $id)
+    {
+        try {
+            $vendeur = User::whereIn('role', ['vendeur', 'concessionnaire', 'auto_ecole'])
+                ->findOrFail($id);
+
+            $vehicules = Vehicules::with(['description', 'photos'])
+                ->where('created_by', $vendeur->id)
+                ->where('statut', Vehicules::STATUS_DISPONIBLE)
+                ->where('status_validation', 'validee')
+                ->latest()
+                ->get();
+
+            $avis = Avis::with('client:id,fullname')
+                ->where('vendeur_id', $vendeur->id)
+                ->latest()
+                ->take(10)
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'vendeur' => [
+                        'id'           => $vendeur->id,
+                        'fullname'     => $vendeur->fullname,
+                        'adresse'      => $vendeur->adresse,
+                        'telephone'    => $vendeur->telephone,
+                        'role'         => $vendeur->role,
+                        'note_moyenne' => round((float) $vendeur->note_moyenne, 1),
+                        'nb_avis'      => $avis->count(),
+                    ],
+                    'vehicules' => $vehicules,
+                    'avis'      => $avis,
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Vendeur introuvable',
+            ], 404);
+        }
     }
 }
 
