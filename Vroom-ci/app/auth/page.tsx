@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { Suspense, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
@@ -45,7 +45,7 @@ interface FormLogin {
     password: string,
 }
 
-const AuthPage = () => {
+const AuthContent = () => {
     const router = useRouter()
     const searchParams = useSearchParams()
     const [showPassword, setShowPassword] = useState(false)
@@ -647,5 +647,11 @@ const AuthPage = () => {
         </div>
     )
 }
+
+const AuthPage = () => (
+    <Suspense>
+        <AuthContent />
+    </Suspense>
+)
 
 export default AuthPage

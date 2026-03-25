@@ -212,7 +212,7 @@ export default function VehiclesPage() {
                                     {v?.description.marque} {v?.description.modele}
                                 </h3>
                                 <p className="text-xs text-muted-foreground mt-0.5">
-                                    {v?.description.annee} · {v?.description.kilometrage?.toLocaleString("fr-FR")} km · {v?.description.carburant}
+                                    {v?.description.annee} · {Number(v?.description.kilometrage)?.toLocaleString("fr-FR")} km · {v?.description.carburant}
                                 </p>
                             </div>
 

@@ -143,7 +143,7 @@ const VendeurDashboard = () => {
                 updateContact({ telephone: editForm.telephone, adresse: editForm.adresse }),
             ])
             // Met à jour le contexte user localement pour éviter un rechargement
-            setUser((prev: User | null) => prev ? { ...prev, ...editForm } : prev)
+            if (user) setUser({ ...user, ...editForm })
             toast.success("Profil mis à jour")
             setEditOpen(false)
         } catch {

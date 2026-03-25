@@ -137,21 +137,6 @@ export interface CrmClientDetail {
   }
 }
 
-export interface RendezVous {
-  id: string
-  client_id: string
-  vendeur_id: string
-  vehicule_id: string
-  date_heure: string
-  type: string
-  statut: string
-  motif?: string
-  lieu?: string
-  notes?: string
-  has_avis?: boolean
-  vehicule?: vehicule
-}
-
 export interface DescriptionFormation {
   id: string
   formation_id: string
