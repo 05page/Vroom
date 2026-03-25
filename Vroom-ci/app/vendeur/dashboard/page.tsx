@@ -60,6 +60,7 @@ import { getMesStats } from "@/src/actions/stats.actions"
 import { getAvisVendeur } from "@/src/actions/avis.actions"
 import { updateProfile, updateContact } from "@/src/actions/auth.actions"
 import { useUser } from "@/src/context/UserContext"
+import type { User } from "@/src/types"
 
 const VendeurDashboard = () => {
     const [isLoading, setIsLoading] = useState(true)
@@ -142,7 +143,7 @@ const VendeurDashboard = () => {
                 updateContact({ telephone: editForm.telephone, adresse: editForm.adresse }),
             ])
             // Met à jour le contexte user localement pour éviter un rechargement
-            setUser(prev => prev ? { ...prev, ...editForm } : prev)
+            setUser((prev: User | null) => prev ? { ...prev, ...editForm } : prev)
             toast.success("Profil mis à jour")
             setEditOpen(false)
         } catch {
