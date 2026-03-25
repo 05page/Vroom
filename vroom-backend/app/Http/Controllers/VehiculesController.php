@@ -404,10 +404,16 @@ class VehiculesController extends Controller
     public function deleteVehicule($id)
     {
         try {
-            $user = Auth::user();
+            $user     = Auth::user();
+            $vehicule = Vehicules::findOrFail($id);
 
-            $this->authorize('delete', Vehicules::findOrFail($id));
-             $vehicule = Vehicules::findOrFail($id);
+            // Seul le propriétaire du véhicule peut le supprimer
+            if ($vehicule->created_by !== $user->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Non autorisé',
+                ], 403);
+            }
 
             $vehicule->delete();
 
@@ -419,7 +425,7 @@ class VehiculesController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Erreur lors de la suppression du véhicule',
-                'errors' =>  $e->getMessage(),
+                'errors'  => $e->getMessage(),
             ], 500);
         }
     }
