@@ -110,7 +110,7 @@ export default function TrendPage() {
     // Charge les tendances depuis l'API au montage du composant
     useEffect(() => {
         api.get<TendancesResponse>("/tendances")
-            .then((data) => setTendances(data))
+            .then((data) => setTendances(data.data ?? null))
             .catch((err) => console.error("Erreur chargement tendances :", err))
             .finally(() => setLoading(false))
     }, [])
