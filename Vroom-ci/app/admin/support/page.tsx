@@ -102,7 +102,7 @@ export default function AdminSupportPage() {
         const tab = TABS.find(t => t.value === activeTab)
         try {
             const res = await getAdminTickets(tab?.filtre)
-            setTickets(res.data ?? [])
+            setTickets((res.data as unknown as { data: SupportTicket[] })?.data ?? [])
         } catch {
             toast.error("Impossible de charger les tickets")
         } finally {
