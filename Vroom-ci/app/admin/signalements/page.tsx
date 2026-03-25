@@ -125,7 +125,7 @@ export default function AdminSignalementsPage() {
 
             const res = await getSignalementsPaginated(params)
             if (res.data) {
-                setSignalements(res.data.data as SignalementAdmin[])
+                setSignalements(res.data.data as unknown as SignalementAdmin[])
                 setTotalPages(res.data.last_page)
                 setTotal(res.data.total)
             }
