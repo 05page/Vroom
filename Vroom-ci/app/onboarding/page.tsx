@@ -36,7 +36,7 @@ export default function OnboardingPage() {
             })
 
             // Mettre à jour le cookie user_role côté client
-            document.cookie = `user_role=${res.role}; path=/; max-age=${60 * 60 * 24 * 7}`
+            document.cookie = `user_role=${res.data?.role}; path=/; max-age=${60 * 60 * 24 * 7}`
             // Supprimer le cookie onboarding_pending
             document.cookie = "onboarding_pending=; path=/; max-age=0"
 
