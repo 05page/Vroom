@@ -2,57 +2,57 @@ import type Echo from "laravel-echo"
 
 // Echo<"reverb"> : on précise le broadcaster utilisé pour que TypeScript
 // connaisse les méthodes disponibles (private, leave, etc.)
-let echoInstance: Echo<"reverb"> | null = null
+// En production NEXT_PUBLIC_PUSHER_KEY est défini → on utilise Pusher
+// En développement NEXT_PUBLIC_REVERB_APP_KEY est défini → on utilise Reverb
+const usePusher = !!process.env.NEXT_PUBLIC_PUSHER_KEY
+
+type Broadcaster = "pusher" | "reverb"
+let echoInstance: Echo<Broadcaster> | null = null
 
 /**
- * Retourne l'instance Echo connectée au serveur Reverb.
- * Crée la connexion au premier appel, retourne le singleton ensuite.
+ * Retourne l'instance Echo connectée.
+ * - Développement : Reverb local (NEXT_PUBLIC_REVERB_*)
+ * - Production    : Pusher (NEXT_PUBLIC_PUSHER_*)
  *
- * Utilise des imports dynamiques pour éviter les erreurs SSR :
- * pusher-js et laravel-echo accèdent à `window`, qui n'existe pas côté serveur (Next.js).
+ * Utilise des imports dynamiques pour éviter les erreurs SSR.
  */
-export async function getEcho(): Promise<Echo<"reverb">> {
-  // Si l'instance existe déjà, on la retourne directement (pas de reconnexion)
+export async function getEcho(): Promise<Echo<Broadcaster>> {
   if (echoInstance) return echoInstance
 
-  // Guard SSR : on ne peut pas créer une connexion WebSocket sans navigateur
   if (typeof window === "undefined") {
     throw new Error("getEcho() ne peut être appelé que côté client (navigateur)")
   }
 
-  // Import dynamique : ces modules ne sont chargés QUE dans le navigateur
   const [{ default: EchoClass }, { default: Pusher }] = await Promise.all([
     import("laravel-echo"),
     import("pusher-js"),
   ])
 
-  // Laravel Echo attend que Pusher soit disponible sur window
-  // Double cast via unknown : TypeScript interdit de caster directement Window
-  // vers un type incompatible, on passe par unknown pour forcer l'assignation
   ;(window as unknown as { Pusher: unknown }).Pusher = Pusher
 
-  // Création de la connexion Echo vers le serveur Reverb
-  echoInstance = new EchoClass({
-    broadcaster: "reverb", // Reverb utilise le protocole Pusher en interne
-
-    // Clé publique de l'app Reverb (doit correspondre à REVERB_APP_KEY backend)
-    key: process.env.NEXT_PUBLIC_REVERB_APP_KEY,
-
-    // Adresse du serveur Reverb (ws://localhost:8080 en développement)
-    wsHost: process.env.NEXT_PUBLIC_REVERB_HOST ?? "localhost",
-    wsPort: Number(process.env.NEXT_PUBLIC_REVERB_PORT ?? 8080),
-    wssPort: Number(process.env.NEXT_PUBLIC_REVERB_PORT ?? 8080),
-
-    // forceTLS = true uniquement en HTTPS (production), false en HTTP (développement)
-    forceTLS: (process.env.NEXT_PUBLIC_REVERB_SCHEME ?? "http") === "https",
-
-    // On active uniquement WebSocket (ws/wss), pas de fallback Sockjs
-    enabledTransports: ["ws", "wss"],
-
-    // Route Next.js qui proxifie l'authentification des canaux privés vers Laravel.
-    // Echo envoie un POST ici avec socket_id + channel_name pour vérifier les droits.
-    authEndpoint: "/api/auth/broadcasting",
-  })
+  if (usePusher) {
+    // ── Production : Pusher ──────────────────────────────────────────────────
+    echoInstance = new EchoClass({
+      broadcaster: "pusher",
+      key: process.env.NEXT_PUBLIC_PUSHER_KEY,
+      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER ?? "mt1",
+      forceTLS: true,
+      enabledTransports: ["ws", "wss"],
+      authEndpoint: "/api/auth/broadcasting",
+    })
+  } else {
+    // ── Développement : Reverb local ─────────────────────────────────────────
+    echoInstance = new EchoClass({
+      broadcaster: "reverb",
+      key: process.env.NEXT_PUBLIC_REVERB_APP_KEY,
+      wsHost: process.env.NEXT_PUBLIC_REVERB_HOST ?? "localhost",
+      wsPort: Number(process.env.NEXT_PUBLIC_REVERB_PORT ?? 8080),
+      wssPort: Number(process.env.NEXT_PUBLIC_REVERB_PORT ?? 8080),
+      forceTLS: (process.env.NEXT_PUBLIC_REVERB_SCHEME ?? "http") === "https",
+      enabledTransports: ["ws", "wss"],
+      authEndpoint: "/api/auth/broadcasting",
+    })
+  }
 
   return echoInstance
 }

@@ -6,12 +6,14 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["pusher-js", "motion", "@react-pdf/renderer"],
   images: {
     unoptimized: true,
-    remotePatterns: [{
-      protocol: 'http',
-      hostname: 'localhost',
-      port: '8000',
-      pathname: '/storage/**'
-    }]
+    remotePatterns: [
+      // Développement local
+      { protocol: 'http', hostname: 'localhost', port: '8000', pathname: '/storage/**' },
+      // Production Render (*.onrender.com)
+      { protocol: 'https', hostname: '*.onrender.com', pathname: '/storage/**' },
+      // Production Railway (*.railway.app)
+      { protocol: 'https', hostname: '*.railway.app', pathname: '/storage/**' },
+    ]
   }
 };
 
