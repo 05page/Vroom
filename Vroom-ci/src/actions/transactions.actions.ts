@@ -28,3 +28,7 @@ export const confirmerClient = (id: string, code: string) =>
 /** Client — refuse la transaction. */
 export const refuserTransaction = (id: string) =>
   api.post<void>(`/transactions-conclues/${id}/refuser`, {})
+
+/** Vendeur — refuse de confirmer la transaction. */
+export const refuserTransactionVendeur = (id: string) =>
+  api.post<void>(`/transactions-conclues/${id}/refuser-vendeur`, {})

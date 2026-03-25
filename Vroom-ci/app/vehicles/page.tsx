@@ -58,7 +58,7 @@ const STATUTS = ["Tous", "Disponible", "Réservé", "Vendu", "Loué"]
 const VehiclesPage = () => {
     const [isLoading, setIsLoading] = useState(true)
     const [showFilters, setShowFilters] = useState(false)
-    const { user } = useUser();
+    const { user, loading: userLoading } = useUser();
     const [vehiculesList, setVehiculesList] = useState<vehicule[]>([])
     const [stats, setStats] = useState<VehiculeStats | null>(null)
     const [selectedVehicule, setSelectedVehicule] = useState<vehicule | null>(null)
@@ -79,30 +79,25 @@ const VehiclesPage = () => {
             return [...prev, id]
         })
     }
+    // Charge les véhicules au montage — accessible sans connexion
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                setIsLoading(true)
-                // Promise.allSettled : les véhicules chargent même si l'user n'est pas connecté (favoris = 401)
-                const [vehiculeRes, favorisRes] = await Promise.allSettled([
-                    getVehicules(),
-                    getFavoris(),
-                ]);
-                if (vehiculeRes.status === 'fulfilled') {
-                    setVehiculesList(vehiculeRes.value?.data?.vehicules ?? [])
-                    setStats(vehiculeRes.value?.data?.statsVehicules ?? null)
-                } else {
-                    toast.error("Erreur lors du chargement des véhicules")
-                }
-                if (favorisRes.status === 'fulfilled') {
-                    setIsFavori(new Set((favorisRes.value?.data ?? []).map((f: Favori) => f.vehicule_id)))
-                }
-            } finally {
-                setIsLoading(false)
-            }
-        }
-        fetchData()
+        setIsLoading(true)
+        getVehicules()
+            .then(res => {
+                setVehiculesList(res?.data?.vehicules ?? [])
+                setStats(res?.data?.statsVehicules ?? null)
+            })
+            .catch(() => toast.error("Erreur lors du chargement des véhicules"))
+            .finally(() => setIsLoading(false))
     }, [])
+
+    // Charge les favoris uniquement quand on sait que l'user est connecté
+    useEffect(() => {
+        if (userLoading || !user) return
+        getFavoris()
+            .then(res => setIsFavori(new Set((res?.data ?? []).map((f: Favori) => f.vehicule_id))))
+            .catch(() => {/* silencieux si favoris indisponibles */})
+    }, [user, userLoading])
 
     // Écoute le canal public "vehicules" pour afficher les nouveaux véhicules validés en temps réel
     // Canal public = pas besoin d'auth, même les visiteurs non connectés reçoivent l'event

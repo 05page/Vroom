@@ -21,7 +21,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     // Récupère l'utilisateur connecté pour connaître son ID de canal WebSocket
     const { user } = useUser()
 
+    // Charge les notifications uniquement si l'utilisateur est connecté
     useEffect(() => {
+        if (!user) { setIsLoading(false); return }
         setIsLoading(true)
         api.get<MesNotifs>("/notifications/mes-notifs")
             .then((res) => {
@@ -31,7 +33,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             })
             .catch(() => setNotifications([]))
             .finally(() => setIsLoading(false))
-    }, []);
+    }, [user]);
 
     // Abonnement WebSocket : écoute les nouvelles notifs en temps réel via Reverb
     // Se déclenche uniquement quand user?.id change (connexion/déconnexion)

@@ -17,8 +17,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    api.get<User>("/me")
-      .then((res) => setUser(res?.data ?? null))
+    // Fetch direct sans passer par api.ts pour éviter la redirection /auth
+    // sur les pages publiques — un visiteur non connecté doit pouvoir naviguer
+    fetch("/api/proxy/me", { headers: { Accept: "application/json" } })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => setUser(data?.data ?? null))
       .catch(() => setUser(null))
       .finally(() => setLoading(false))
   }, [])

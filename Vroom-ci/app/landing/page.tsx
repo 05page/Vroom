@@ -1,36 +1,83 @@
 "use client"
+import React from "react"
 import { motion } from "motion/react"
 import Link from "next/link"
 import Image from "next/image"
 import { useState } from "react"
 import {
     ArrowRight,
+    BarChart3,
+    BookOpen,
+    Building2,
+    CalendarCheck,
+    CalendarDays,
+    Camera,
     Car,
+    ChevronLeft,
     ChevronRight,
     Clock,
     Eye,
     Fuel,
+    GraduationCap,
     HandCoins,
     Handshake,
     HeartHandshake,
     KeyRound,
     MapPin,
     MessageCircle,
+    PlusCircle,
     Search,
     Shield,
     ShieldCheck,
     Star,
+    Store,
     TrendingUp,
+    Trophy,
+    UserPlus,
     Users,
+    Warehouse,
 } from "lucide-react"
 import { DevenirPartenaire } from "../components/DevenirPartenaire"
 
 /* ── DATA ── */
-const howItWorks = [
-    { step: "01", icon: Search, title: "Recherchez", desc: "Parcourez notre catalogue et filtrez par marque, prix, type ou localisation." },
-    { step: "02", icon: Eye, title: "Comparez", desc: "Consultez les détails, photos et avis sur chaque véhicule pour faire le bon choix." },
-    { step: "03", icon: MessageCircle, title: "Contactez", desc: "Échangez directement avec le vendeur via notre messagerie sécurisée." },
-    { step: "04", icon: Handshake, title: "Finalisez", desc: "Prenez rendez-vous, visitez le véhicule et finalisez la transaction en confiance." },
+type ProfileKey = "client" | "vendeur" | "concessionnaire" | "auto_ecole"
+
+const HOW_IT_WORKS: Record<ProfileKey, { icon: React.ElementType; title: string; desc: string; tip: string }[]> = {
+    client: [
+        { icon: UserPlus,      title: "Créez votre compte",       desc: "Inscrivez-vous gratuitement en tant que client en quelques secondes.",                                                          tip: "Gratuit & rapide" },
+        { icon: Search,        title: "Explorez le catalogue",     desc: "Parcourez des centaines de véhicules vérifiés. Filtrez par marque, prix, type ou localisation.",                               tip: "Filtres avancés" },
+        { icon: MessageCircle, title: "Contactez le vendeur",      desc: "Échangez directement avec le vendeur via notre messagerie sécurisée intégrée.",                                                tip: "Messagerie sécurisée" },
+        { icon: CalendarCheck, title: "Planifiez une visite",      desc: "Prenez rendez-vous en ligne pour voir le véhicule. Le vendeur confirme directement depuis son dashboard.",                     tip: "RDV en ligne" },
+        { icon: Handshake,     title: "Finalisez en confiance",    desc: "Visitez le véhicule et concluez la transaction en toute sérénité.",                                                            tip: "Transaction sécurisée" },
+    ],
+    vendeur: [
+        { icon: UserPlus,      title: "Créez votre compte vendeur", desc: "Inscrivez-vous en quelques secondes et complétez votre profil vendeur.",                                                     tip: "Gratuit" },
+        { icon: Camera,        title: "Publiez votre annonce",      desc: "Ajoutez photos, description et prix. Notre IA vérifie automatiquement la cohérence de votre annonce.",                       tip: "Validation par IA" },
+        { icon: MessageCircle, title: "Recevez des messages",       desc: "Les acheteurs intéressés vous contactent directement via la messagerie. Notifications en temps réel.",                       tip: "Temps réel" },
+        { icon: CalendarCheck, title: "Gérez vos rendez-vous",      desc: "Confirmez ou refusez les demandes de visite depuis votre tableau de bord.",                                                  tip: "Dashboard dédié" },
+        { icon: Handshake,     title: "Concluez la vente",          desc: "Finalisez la transaction et marquez votre véhicule comme vendu. Vos statistiques se mettent à jour automatiquement.",       tip: "Suivi automatique" },
+    ],
+    concessionnaire: [
+        { icon: Building2,     title: "Créez votre compte pro",     desc: "Inscrivez-vous avec votre RCCM. Notre équipe valide votre compte professionnel sous 24-48h.",                              tip: "Validation sous 48h" },
+        { icon: Warehouse,     title: "Accédez à votre garage",     desc: "Gérez l'intégralité de votre stock depuis votre espace concessionnaire dédié.",                                             tip: "Stock centralisé" },
+        { icon: PlusCircle,    title: "Publiez vos véhicules",      desc: "Ajoutez autant de véhicules que vous souhaitez — neuf ou occasion, vente ou location.",                                     tip: "Illimité" },
+        { icon: CalendarCheck, title: "Gérez vos rendez-vous",      desc: "Centralisez toutes les demandes de visite et organisez votre agenda client depuis un seul endroit.",                        tip: "Agenda centralisé" },
+        { icon: BarChart3,     title: "Analysez vos performances",  desc: "Suivez vos ventes, vues, revenus et tendances marché depuis votre tableau de bord en temps réel.",                         tip: "Stats en temps réel" },
+    ],
+    auto_ecole: [
+        { icon: GraduationCap, title: "Créez votre compte auto-école", desc: "Inscrivez-vous avec votre numéro d'agrément. Notre équipe valide votre compte sous 24-48h.",                           tip: "Validation sous 48h" },
+        { icon: BookOpen,      title: "Créez vos formations",          desc: "Publiez vos formations permis avec programme, tarifs et nombre de places disponibles.",                                  tip: "Flexible" },
+        { icon: Users,         title: "Gérez les inscriptions",        desc: "Suivez vos élèves inscrits, consultez leurs profils et gérez leurs dossiers individuellement.",                          tip: "Suivi individuel" },
+        { icon: CalendarDays,  title: "Planifiez les examens",         desc: "Organisez les dates d'examens pour vos élèves et envoyez des rappels automatiques.",                                     tip: "Agenda intégré" },
+        { icon: Trophy,        title: "Suivez les résultats",          desc: "Enregistrez les résultats d'examen et consultez votre taux de réussite global par formation.",                           tip: "Taux de réussite" },
+    ],
+}
+
+const PROFILES: { id: ProfileKey; label: string; icon: React.ElementType }[] = [
+    { id: "client",          label: "Client",          icon: Users },
+    { id: "vendeur",         label: "Vendeur",          icon: Store },
+    { id: "concessionnaire", label: "Concessionnaire",  icon: Building2 },
+    { id: "auto_ecole",      label: "Auto-école",       icon: GraduationCap },
 ]
 
 const temoignages = [
@@ -61,6 +108,8 @@ const metrics = [
 /* ── COMPONENT ── */
 export default function LandingPage() {
     const [partenaireDialog, setPartenaireDialog] = useState(false)
+    const [selectedProfile, setSelectedProfile] = useState<ProfileKey>("client")
+    const [carouselIndex, setCarouselIndex] = useState(0)
 
     return (
         <div className="min-h-screen bg-white">
@@ -234,41 +283,108 @@ export default function LandingPage() {
 
             <section className="py-24 px-6 bg-zinc-50 relative overflow-hidden">
                 <div className="absolute inset-0 bg-line-grid opacity-60" />
-                <div className="relative max-w-6xl mx-auto">
+                <div className="relative max-w-4xl mx-auto">
+                    {/* Header */}
                     <div className="flex items-center gap-3 mb-4">
                         <div className="h-px flex-1 bg-zinc-200" />
                         <span className="text-xs font-bold text-amber-600 uppercase tracking-widest">Comment ça marche</span>
                         <div className="h-px flex-1 bg-zinc-200" />
                     </div>
-                    <h2 className="text-2xl md:text-4xl font-extrabold text-center text-zinc-900 tracking-tight mb-16 max-w-2xl mx-auto"
+                    <h2 className="text-2xl md:text-4xl font-extrabold text-center text-zinc-900 tracking-tight mb-3 max-w-2xl mx-auto"
                         style={{ fontFamily: "var(--font-syne, sans-serif)" }}>
                         Simple, rapide, <span className="text-gradient-gold">efficace</span>
                     </h2>
+                    <p className="text-center text-zinc-400 text-sm mb-10">
+                        Sélectionnez votre profil pour découvrir votre expérience Move
+                    </p>
 
-                    <div className="grid md:grid-cols-4 gap-6">
-                        {howItWorks.map((item, i) => (
-                            <div key={item.step} className="relative group text-center">
-                                {/* Connector */}
-                                {i < howItWorks.length - 1 && (
-                                    <div className="hidden md:block absolute top-6 left-[calc(50%+28px)] right-0 h-px bg-zinc-200 z-0" />
-                                )}
-                                <div className="relative z-10">
-                                    <div className="relative inline-flex mb-5">
-                                        <div className="w-12 h-12 rounded-xl bg-white border border-zinc-200 shadow-sm flex items-center justify-center group-hover:border-amber-200 group-hover:shadow-amber-50 group-hover:shadow-md transition-all duration-300">
-                                            <item.icon className="h-5 w-5 text-zinc-500 group-hover:text-amber-600 transition-colors" />
+                    {/* Profile selector */}
+                    <div className="flex flex-wrap justify-center gap-2 mb-12">
+                        {PROFILES.map((p) => {
+                            const isActive = selectedProfile === p.id
+                            return (
+                                <button
+                                    key={p.id}
+                                    onClick={() => { setSelectedProfile(p.id); setCarouselIndex(0) }}
+                                    className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold border transition-all duration-200 cursor-pointer ${
+                                        isActive
+                                            ? "bg-amber-500 text-white border-amber-500 shadow-md shadow-amber-500/20"
+                                            : "bg-white text-zinc-600 border-zinc-200 hover:border-amber-300 hover:text-amber-700"
+                                    }`}
+                                >
+                                    <p.icon className="h-4 w-4" />
+                                    {p.label}
+                                </button>
+                            )
+                        })}
+                    </div>
+
+                    {/* Carousel */}
+                    {(() => {
+                        const steps = HOW_IT_WORKS[selectedProfile]
+                        const current = steps[carouselIndex]
+                        const StepIcon = current.icon
+                        return (
+                            <div>
+                                {/* Dot indicators */}
+                                <div className="flex gap-1.5 justify-center mb-8">
+                                    {steps.map((_, i) => (
+                                        <button
+                                            key={i}
+                                            onClick={() => setCarouselIndex(i)}
+                                            className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
+                                                i === carouselIndex ? "w-8 bg-amber-500" : "w-4 bg-zinc-200 hover:bg-zinc-300"
+                                            }`}
+                                        />
+                                    ))}
+                                </div>
+
+                                {/* Step card */}
+                                <div className="bg-white rounded-3xl border border-zinc-200 p-8 md:p-12 shadow-sm">
+                                    <div className="flex flex-col md:flex-row items-center gap-8">
+                                        <div className="flex-shrink-0">
+                                            <div className="relative">
+                                                <div className="w-24 h-24 rounded-3xl bg-amber-50 border-2 border-amber-100 flex items-center justify-center">
+                                                    <StepIcon className="h-12 w-12 text-amber-500" />
+                                                </div>
+                                                <span className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center text-sm font-bold text-white shadow-lg shadow-amber-500/30">
+                                                    {carouselIndex + 1}
+                                                </span>
+                                            </div>
                                         </div>
-                                        <span className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center text-[10px] font-bold text-white">
-                                            {i + 1}
-                                        </span>
+                                        <div className="flex-1 text-center md:text-left">
+                                            <span className="inline-block mb-3 px-3 py-1 rounded-full bg-amber-50 border border-amber-100 text-xs font-semibold text-amber-600">
+                                                {current.tip}
+                                            </span>
+                                            <h3 className="text-2xl font-extrabold text-zinc-900 mb-3" style={{ fontFamily: "var(--font-syne, sans-serif)" }}>
+                                                {current.title}
+                                            </h3>
+                                            <p className="text-zinc-500 leading-relaxed">{current.desc}</p>
+                                        </div>
                                     </div>
-                                    <h3 className="text-base font-bold text-zinc-900 mb-2" style={{ fontFamily: "var(--font-syne, sans-serif)" }}>
-                                        {item.title}
-                                    </h3>
-                                    <p className="text-sm text-zinc-500 leading-relaxed">{item.desc}</p>
+                                </div>
+
+                                {/* Navigation */}
+                                <div className="flex justify-between items-center mt-6">
+                                    <button
+                                        onClick={() => setCarouselIndex(Math.max(0, carouselIndex - 1))}
+                                        disabled={carouselIndex === 0}
+                                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-zinc-200 text-zinc-500 text-sm font-medium hover:border-zinc-300 hover:text-zinc-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
+                                    >
+                                        <ChevronLeft className="h-4 w-4" /> Précédent
+                                    </button>
+                                    <span className="text-xs text-zinc-400 font-medium">{carouselIndex + 1} / {steps.length}</span>
+                                    <button
+                                        onClick={() => setCarouselIndex(Math.min(steps.length - 1, carouselIndex + 1))}
+                                        disabled={carouselIndex === steps.length - 1}
+                                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-zinc-200 text-zinc-500 text-sm font-medium hover:border-zinc-300 hover:text-zinc-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
+                                    >
+                                        Suivant <ChevronRight className="h-4 w-4" />
+                                    </button>
                                 </div>
                             </div>
-                        ))}
-                    </div>
+                        )
+                    })()}
                 </div>
             </section>
 

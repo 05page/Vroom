@@ -161,6 +161,11 @@ class Vehicules extends Model
 
     public function registerView(?User $user, string $ip = null): void
     {
+        // Le propriétaire du véhicule ne génère pas de vue
+        if ($user && $this->created_by === $user->id) {
+            return;
+        }
+
         // Évite de compter plusieurs vues du même user dans la même heure
         $dejaVu = $this->vues()
             ->where('user_id', $user?->id)

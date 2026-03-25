@@ -145,6 +145,8 @@ const AuthPage = () => {
                 toast.success("Demande envoyée ! Votre compte est en attente de validation par notre équipe.")
                 router.push("/auth/en-attente")
             } else {
+                const data = await res.json()
+                console.log("data reçu:", data)
                 toast.success(data.message || "Compte créé avec succès !")
                 router.push(getDashBoard(data.role as UserRole))
             }
@@ -330,10 +332,10 @@ const AuthPage = () => {
                                                 <p className="text-xs text-zinc-400">Choisissez le type de compte qui vous correspond</p>
                                                 <div className="grid grid-cols-2 gap-3">
                                                     {([
-                                                        { role: "client",          label: "Client",          sub: "Acheter ou louer",       Icon: UserCircle },
-                                                        { role: "vendeur",         label: "Vendeur",         sub: "Vendre des véhicules",   Icon: Store },
-                                                        { role: "concessionnaire", label: "Concessionnaire", sub: "Réseau de vente pro",    Icon: Building2 },
-                                                        { role: "auto_ecole",      label: "Auto-école",      sub: "Formations au permis",   Icon: GraduationCap },
+                                                        { role: "client", label: "Client", sub: "Acheter ou louer", Icon: UserCircle },
+                                                        { role: "vendeur", label: "Vendeur", sub: "Vendre des véhicules", Icon: Store },
+                                                        { role: "concessionnaire", label: "Concessionnaire", sub: "Réseau de vente pro", Icon: Building2 },
+                                                        { role: "auto_ecole", label: "Auto-école", sub: "Formations au permis", Icon: GraduationCap },
                                                     ] as const).map(({ role, label, sub, Icon }) => {
                                                         const active = formDataRegister.role === role
                                                         return (
@@ -618,7 +620,7 @@ const AuthPage = () => {
 
                                             <Button
                                                 type="button"
-                                                onClick={()=> handleAuthGoogle()}
+                                                onClick={() => handleAuthGoogle()}
                                                 variant="outline"
                                                 className="w-full h-12 rounded-xl border-gray-200 bg-white hover:bg-gray-50 text-zinc-700 font-bold text-sm cursor-pointer"
                                             >

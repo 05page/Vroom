@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
         const data = await res.json()
         if (!res.ok) {
             return NextResponse.json({
-                message: data.errors || "Erreur survenue lors de l'inscription", errors: data.error
+                message: data.message || "Erreur survenue lors de l'inscription", errors: data.error
             },
                 { status: res.status })
         }

@@ -274,8 +274,8 @@ export function AddVehicule({ isOpen, onClose, onSubmit }: EditVehiculeProps) {
             <DialogContent className="max-w-7xl sm:max-w-3xl w-[95vw] max-h-[90vh] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden p-0 gap-0 rounded-2xl border-border/40">
                 <DialogHeader className="p-5 pb-0">
                     <DialogTitle className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center">
-                            <Car className="h-5 w-5 text-green-600" />
+                        <div className="w-10 h-10 rounded-xl bg-[#efbf04]/10 flex items-center justify-center">
+                            <Car className="h-5 w-5 text-[#efbf04]" />
                         </div>
                         <div>
                             <span className="text-lg font-bold">Ajouter un véhicule</span>
@@ -295,18 +295,18 @@ export function AddVehicule({ isOpen, onClose, onSubmit }: EditVehiculeProps) {
                                     className={cn(
                                         "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
                                         currentStep === step.id
-                                            ? "bg-green-500/10 text-green-600"
+                                            ? "bg-[#efbf04]/10 text-[#efbf04]"
                                             : currentStep > step.id
-                                                ? "text-green-600 cursor-pointer hover:bg-green-500/5"
+                                                ? "text-[#efbf04] cursor-pointer hover:bg-[#efbf04]/5"
                                                 : "text-muted-foreground",
                                     )}
                                 >
                                     <div className={cn(
                                         "w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-bold",
                                         currentStep > step.id
-                                            ? "bg-green-500 text-white"
+                                            ? "bg-[#efbf04] text-white"
                                             : currentStep === step.id
-                                                ? "bg-green-500/20 text-green-600 ring-1 ring-green-500/30"
+                                                ? "bg-[#efbf04]/20 text-[#efbf04] ring-1 ring-[#efbf04]/30"
                                                 : "bg-muted/50 text-muted-foreground",
                                     )}>
                                         {currentStep > step.id ? <Check className="h-3 w-3" /> : step.id}
@@ -316,7 +316,7 @@ export function AddVehicule({ isOpen, onClose, onSubmit }: EditVehiculeProps) {
                                 {index < STEPS.length - 1 && (
                                     <div className={cn(
                                         "flex-1 h-0.5 rounded-full",
-                                        currentStep > step.id ? "bg-green-500" : "bg-border/60",
+                                        currentStep > step.id ? "bg-[#efbf04]" : "bg-border/60",
                                     )} />
                                 )}
                             </Fragment>
@@ -341,17 +341,17 @@ export function AddVehicule({ isOpen, onClose, onSubmit }: EditVehiculeProps) {
                                         className={cn(
                                             "relative p-5 rounded-xl border-2 text-left transition-all",
                                             formData.typePublication === "vente"
-                                                ? "border-green-500 bg-green-500/5"
-                                                : "border-border/40 hover:border-green-500/30",
+                                                ? "border-[#efbf04] bg-[#efbf04]/5"
+                                                : "border-border/40 hover:border-[#efbf04]/30",
                                         )}
                                     >
                                         {formData.typePublication === "vente" && (
-                                            <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
+                                            <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-[#efbf04] flex items-center justify-center">
                                                 <Check className="h-3 w-3 text-white" />
                                             </div>
                                         )}
-                                        <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center mb-3">
-                                            <ShoppingBag className="h-5 w-5 text-green-600" />
+                                        <div className="w-10 h-10 rounded-xl bg-[#efbf04]/10 flex items-center justify-center mb-3">
+                                            <ShoppingBag className="h-5 w-5 text-[#efbf04]" />
                                         </div>
                                         <h4 className="font-bold text-sm mb-1">Vente</h4>
                                         <p className="text-xs text-muted-foreground">Mettre en vente</p>
@@ -363,12 +363,12 @@ export function AddVehicule({ isOpen, onClose, onSubmit }: EditVehiculeProps) {
                                         className={cn(
                                             "relative p-5 rounded-xl border-2 text-left transition-all",
                                             formData.typePublication === "location"
-                                                ? "border-green-500 bg-green-500/5"
-                                                : "border-border/40 hover:border-green-500/30",
+                                                ? "border-[#efbf04] bg-[#efbf04]/5"
+                                                : "border-border/40 hover:border-[#efbf04]/30",
                                         )}
                                     >
                                         {formData.typePublication === "location" && (
-                                            <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
+                                            <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-[#efbf04] flex items-center justify-center">
                                                 <Check className="h-3 w-3 text-white" />
                                             </div>
                                         )}
@@ -393,12 +393,12 @@ export function AddVehicule({ isOpen, onClose, onSubmit }: EditVehiculeProps) {
                                             className={cn(
                                                 "relative p-4 rounded-xl border-2 text-left transition-all",
                                                 formData.typeVehicule === type
-                                                    ? "border-green-500 bg-green-500/5"
-                                                    : "border-border/40 hover:border-green-500/30",
+                                                    ? "border-[#efbf04] bg-[#efbf04]/5"
+                                                    : "border-border/40 hover:border-[#efbf04]/30",
                                             )}
                                         >
                                             {formData.typeVehicule === type && (
-                                                <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
+                                                <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-[#efbf04] flex items-center justify-center">
                                                     <Check className="h-3 w-3 text-white" />
                                                 </div>
                                             )}
@@ -554,7 +554,7 @@ export function AddVehicule({ isOpen, onClose, onSubmit }: EditVehiculeProps) {
                                         onKeyDown={e => { if (e.key === "Enter") fileInputRef.current?.click() }}
                                         role="button"
                                         tabIndex={0}
-                                        className="border-2 border-dashed border-border/60 rounded-xl p-5 text-center hover:border-green-500/50 hover:bg-green-500/5 transition-all cursor-pointer"
+                                        className="border-2 border-dashed border-border/60 rounded-xl p-5 text-center hover:border-[#efbf04]/50 hover:bg-[#efbf04]/5 transition-all cursor-pointer"
                                     >
                                         <ImagePlus className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
                                         <p className="text-xs font-medium">Cliquez pour ajouter des photos</p>
@@ -582,7 +582,7 @@ export function AddVehicule({ isOpen, onClose, onSubmit }: EditVehiculeProps) {
                                                         <X className="h-2.5 w-2.5 text-white" />
                                                     </button>
                                                     {i === 0 && (
-                                                        <Badge className="absolute bottom-1 left-1 bg-green-500 text-white text-[8px] rounded-full px-1.5 py-0">
+                                                        <Badge className="absolute bottom-1 left-1 bg-[#efbf04] text-white text-[8px] rounded-full px-1.5 py-0">
                                                             Principale
                                                         </Badge>
                                                     )}
@@ -602,7 +602,7 @@ export function AddVehicule({ isOpen, onClose, onSubmit }: EditVehiculeProps) {
                                         Équipements & Options
                                     </h3>
                                     {formData.equipements.length > 0 && (
-                                        <Badge className="bg-green-500/10 text-green-600 border-green-500/20 rounded-full text-xs">
+                                        <Badge className="bg-[#efbf04]/10 text-[#efbf04] border-[#efbf04]/20 rounded-full text-xs">
                                             {formData.equipements.length} sélectionnés
                                         </Badge>
                                     )}
@@ -618,13 +618,13 @@ export function AddVehicule({ isOpen, onClose, onSubmit }: EditVehiculeProps) {
                                                 className={cn(
                                                     "flex items-center gap-2.5 p-2.5 rounded-lg border text-left text-xs transition-all",
                                                     selected
-                                                        ? "border-green-500/40 bg-green-500/10 text-green-700 dark:text-green-400"
-                                                        : "border-border/40 hover:border-green-500/20 hover:bg-muted/30",
+                                                        ? "border-[#efbf04]/40 bg-[#efbf04]/10 text-[#efbf04] dark:text-[#efbf04]"
+                                                        : "border-border/40 hover:border-[#efbf04]/20 hover:bg-muted/30",
                                                 )}
                                             >
                                                 <div className={cn(
                                                     "w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all",
-                                                    selected ? "bg-green-500 border-green-500 text-white" : "border-border/60",
+                                                    selected ? "bg-[#efbf04] border-[#efbf04] text-white" : "border-border/60",
                                                 )}>
                                                     {selected && <Check className="h-2.5 w-2.5" />}
                                                 </div>
@@ -656,7 +656,7 @@ export function AddVehicule({ isOpen, onClose, onSubmit }: EditVehiculeProps) {
                                         </div>
                                         {formData.dateDisponibilite && (
                                             <div className="text-center">
-                                                <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 rounded-full px-3 py-1">
+                                                <Badge variant="outline" className="bg-[#efbf04]/10 text-[#efbf04] border-[#efbf04]/20 rounded-full px-3 py-1">
                                                     Disponible à partir du {formatDate(formData.dateDisponibilite)}
                                                 </Badge>
                                             </div>
@@ -806,7 +806,7 @@ export function AddVehicule({ isOpen, onClose, onSubmit }: EditVehiculeProps) {
                                         </span>
 
                                         <span className="text-muted-foreground">Prix</span>
-                                        <span className="font-bold text-green-600">{formatMontant(formData.prix)} FCFA</span>
+                                        <span className="font-bold text-[#efbf04]">{formatMontant(formData.prix)} FCFA</span>
 
                                         <span className="text-muted-foreground">Photos</span>
                                         <span className="font-medium">{photos.length} photo(s)</span>
@@ -837,7 +837,7 @@ export function AddVehicule({ isOpen, onClose, onSubmit }: EditVehiculeProps) {
                         <Button
                             size="sm"
                             onClick={goToNext}
-                            className="gap-1.5 bg-green-500 hover:bg-green-600 text-white font-bold cursor-pointer rounded-lg"
+                            className="gap-1.5 bg-[#efbf04] hover:bg-[#d4aa03] text-white font-bold cursor-pointer rounded-lg"
                         >
                             Suivant
                             <ChevronRight className="h-3.5 w-3.5" />
@@ -847,7 +847,7 @@ export function AddVehicule({ isOpen, onClose, onSubmit }: EditVehiculeProps) {
                             size="sm"
                             onClick={handleSubmit}
                             disabled={isSubmitting}
-                            className="gap-1.5 bg-green-500 hover:bg-green-600 text-white font-bold cursor-pointer rounded-lg px-6"
+                            className="gap-1.5 bg-[#efbf04] hover:bg-[#d4aa03] text-white font-bold cursor-pointer rounded-lg px-6"
                         >
                             <Send className="h-3.5 w-3.5" />
                             Enregistrer

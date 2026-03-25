@@ -25,7 +25,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { VendeurStats } from "@/src/types";
 import { vehicule, MesVehicules } from "@/src/types";
 import { getMesStats } from "@/src/actions/stats.actions";
-import { getMesVehicules } from "@/src/actions/vehicules.actions";
+import { getMesVehicules, deleteVehicule } from "@/src/actions/vehicules.actions";
 
 const CARD = "rounded-2xl md:rounded-3xl shadow-xl border border-border/40 overflow-hidden bg-card/50 backdrop-blur-sm"
 export default function VehiclesPage() {
@@ -40,13 +40,19 @@ export default function VehiclesPage() {
     const [deleteOpen, setDeleteOpen] = useState(false);
 
 
-    const handleDelete = () => {
+    const handleDelete = async () => {
         if (!vehicleToDelete) return
-        toast.success("Véhicule supprimé", {
-            description: `${vehicleToDelete?.description?.marque} ${vehicleToDelete?.description?.modele} a été supprimé.`,
-        })
-        setDeleteOpen(false)
-        setVehicleToDelete(null)
+        try {
+            await deleteVehicule(vehicleToDelete.id)
+            toast.success("Véhicule supprimé", {
+                description: `${vehicleToDelete.description?.marque} ${vehicleToDelete.description?.modele} a été supprimé.`,
+            })
+            setDeleteOpen(false)
+            setVehicleToDelete(null)
+            fetchVendeurVehicles()
+        } catch {
+            toast.error("Erreur lors de la suppression du véhicule")
+        }
     }
     const fetchVendeurVehicles = useCallback(async () => {
         try {
@@ -72,6 +78,7 @@ export default function VehiclesPage() {
     useDataRefresh("vehicule", fetchVendeurVehicles)
 
     const getStatutColor = (statut: string, status_validation?: string) => {
+        if (status_validation === "rejetee")  return "bg-red-500/10 text-red-600 border-red-500/20"
         if (status_validation === "en_attente") return "bg-orange-500/10 text-orange-600 border-orange-500/20"
         switch (statut) {
             case "disponible": return "bg-zinc-900/10 text-zinc-700 border-zinc-900/20"
@@ -84,6 +91,7 @@ export default function VehiclesPage() {
     }
 
     const getStatutLabel = (statut: string, status_validation?: string) => {
+        if (status_validation === "rejetee")  return "Rejeté"
         if (status_validation === "en_attente") return "En attente de validation"
         switch (statut) {
             case "disponible": return "Disponible"
@@ -105,8 +113,9 @@ export default function VehiclesPage() {
     const filterVehicles = (tab: string) => {
         let filtered = mesvehicules
         if (tab === "en_attente") filtered = mesvehicules.filter(v => v.status_validation === "en_attente")
-        else if (tab === "vente") filtered = mesvehicules.filter(v => v.post_type === "vente" && v.status_validation !== "en_attente")
-        else if (tab === "location") filtered = mesvehicules.filter(v => v.post_type === "location" && v.status_validation !== "en_attente")
+        else if (tab === "rejetee") filtered = mesvehicules.filter(v => v.status_validation === "rejetee")
+        else if (tab === "vente") filtered = mesvehicules.filter(v => v.post_type === "vente" && !["en_attente", "rejetee"].includes(v.status_validation ?? ""))
+        else if (tab === "location") filtered = mesvehicules.filter(v => v.post_type === "location" && !["en_attente", "rejetee"].includes(v.status_validation ?? ""))
         else if (tab === "vendus") filtered = mesvehicules.filter(v => v?.statut === "vendu" || v.statut === "loué")
         if (searchQuery) {
             filtered = filtered.filter(v =>
@@ -301,9 +310,16 @@ export default function VehiclesPage() {
                         <TabsTrigger value="location" className="rounded-lg cursor-pointer data-[state=active]:bg-white data-[state=active]:text-black">En location</TabsTrigger>
                         <TabsTrigger value="vendus" className="rounded-lg cursor-pointer data-[state=active]:bg-white data-[state=active]:text-black">Vendus/Loués</TabsTrigger>
                         <TabsTrigger value="en_attente" className="rounded-lg cursor-pointer data-[state=active]:bg-white data-[state=active]:text-black">En attente</TabsTrigger>
+                        <TabsTrigger value="rejetee" className="rounded-lg cursor-pointer data-[state=active]:bg-white data-[state=active]:text-red-600">
+                            Rejetés {mesvehicules.filter(v => v.status_validation === "rejetee").length > 0 && (
+                                <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 text-[10px] font-bold">
+                                    {mesvehicules.filter(v => v.status_validation === "rejetee").length}
+                                </span>
+                            )}
+                        </TabsTrigger>
                     </TabsList>
 
-                    {["tous", "vente", "location", "vendus", "en_attente"].map(tab => (
+                    {["tous", "vente", "location", "vendus", "en_attente", "rejetee"].map(tab => (
                         <TabsContent key={tab} value={tab}>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {filterVehicles(tab).map((v, i) => <VehicleCard key={v.id} v={v} index={i} />)}

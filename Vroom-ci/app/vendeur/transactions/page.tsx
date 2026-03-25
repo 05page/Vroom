@@ -21,7 +21,7 @@ import {
     FileText, XCircle, Car, CircleDollarSign, KeyRound,
 } from "lucide-react"
 import { TransactionConclue } from "@/src/types"
-import { getMesTransactions, confirmerVendeur } from "@/src/actions/transactions.actions"
+import { getMesTransactions, confirmerVendeur, refuserTransactionVendeur } from "@/src/actions/transactions.actions"
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL ?? ""
 
@@ -45,6 +45,7 @@ export default function TransactionsVendeurPage() {
     const [isLoading, setIsLoading]       = useState(true)
     const [forms, setForms]               = useState<Record<string, ConfirmForm>>({})
     const [confirmLoading, setConfirmLoading] = useState<string | null>(null)
+    const [refusLoading, setRefusLoading]     = useState<string | null>(null)
 
     const fetchData = useCallback(() => {
         getMesTransactions()
@@ -91,6 +92,19 @@ export default function TransactionsVendeurPage() {
             toast.error("Code incorrect ou transaction expirée")
         } finally {
             setConfirmLoading(null)
+        }
+    }
+
+    const handleRefuserVendeur = async (t: TransactionConclue) => {
+        setRefusLoading(t.id)
+        try {
+            await refuserTransactionVendeur(t.id)
+            toast.success("Transaction refusée — le véhicule est de nouveau disponible")
+            fetchData()
+        } catch {
+            toast.error("Erreur lors du refus de la transaction")
+        } finally {
+            setRefusLoading(null)
         }
     }
 
@@ -263,11 +277,20 @@ export default function TransactionsVendeurPage() {
                                                 </div>
                                                 <Button
                                                     onClick={() => handleConfirmerVendeur(t)}
-                                                    disabled={confirmLoading === t.id}
+                                                    disabled={confirmLoading === t.id || refusLoading === t.id}
                                                     className="gap-1.5"
                                                 >
                                                     <CheckCircle2 className="h-4 w-4" />
                                                     {confirmLoading === t.id ? "Envoi..." : "Confirmer"}
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    onClick={() => handleRefuserVendeur(t)}
+                                                    disabled={confirmLoading === t.id || refusLoading === t.id}
+                                                    className="gap-1.5 text-red-500 hover:text-red-600 hover:border-red-200"
+                                                >
+                                                    <XCircle className="h-4 w-4" />
+                                                    {refusLoading === t.id ? "Refus..." : "Refuser"}
                                                 </Button>
                                             </div>
                                         </CardContent>
@@ -295,7 +318,7 @@ export default function TransactionsVendeurPage() {
                                         <CardContent className="pt-0">
                                             <p className="text-sm text-red-500 flex items-center gap-2">
                                                 <XCircle className="h-4 w-4" />
-                                                Le client a refusé la transaction
+                                                Transaction refusée — le véhicule est de nouveau disponible
                                             </p>
                                         </CardContent>
                                     )}

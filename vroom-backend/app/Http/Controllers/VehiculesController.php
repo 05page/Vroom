@@ -106,7 +106,7 @@ class VehiculesController extends Controller
                 'photos',
             ])
                 ->where('created_by', $user->id)
-                ->whereIn('status_validation', ['validee', 'restauree', 'en_attente'])
+                ->whereIn('status_validation', ['validee', 'restauree', 'en_attente', 'rejetee'])
                 ->whereIn('statut', ['disponible', 'vendu', 'loué'])
                 ->get();
 
@@ -339,50 +339,14 @@ class VehiculesController extends Controller
             ]);
 
             // Validation avec Gemini pour vérifier la cohérence des données
-            $prompt = "Analysez ce véhicule " . ($validatedData['type'] == 'occasion' ? 'd\'occasion' : 'neuf') . " : " .
-                "marque {$validatedData['marque']}, modèle {$validatedData['modele']}, année {$validatedData['annee']}, " .
-                "carburant {$validatedData['carburant']}, kilométrage {$validatedData['kilometrage']} km, " .
-                "historique d'accidents: {$validatedData['historique_accidents']}, " .
-                "équipements: " . implode(', ', $validatedData['equipements'] ?? []) . ". " .
-                "Répondez au format JSON strict : {\"valide\": true/false, \"prix_suggere\": nombre, \"explication\": \"texte\"}. " .
-                "Le prix doit être en FCFA (XOF) basé sur le marché ivoirien. " .
-                "Si invalide, mettez valide à false et expliquez pourquoi.";
-
-            try {
-                $geminiResponse = retry(3, function () use ($prompt) {
-                    return Gemini::generativeModel(model: 'gemini-2.5-flash')
-                        ->generateContent($prompt);
-                }, 2000);
-
-                $responseText = trim($geminiResponse->text());
-                $responseText = preg_replace('/```json\n?|\n?```/', '', $responseText);
-                $aiResult = json_decode($responseText, true);
-                if (!$aiResult || !isset($aiResult['valide'])) {
-                    throw new \Exception('Format de réponse invalide de l\'IA');
-                }
-
-                if (!$aiResult['valide']) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Le véhicule n\'a pas été validé',
-                        'details' => $aiResult['explication'] ?? 'Données incohérentes',
-                    ], 400);
-                }
-            } catch (\Exception $e) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Erreur lors de la validation avec Gemini: ' . $e->getMessage(),
-                ], 500);
-            }
             DB::beginTransaction();
             $vehicule->update([
                 'created_by' => $user->id,
                 'post_type' => $validatedData['post_type'],
                 'type' => $validatedData['type'],
                 'statut' => Vehicules::STATUS_DISPONIBLE,
-                'status_validation' => Vehicules::STATUS_VALIDATED,
+                'status_validation' => Vehicules::STATUS_PENDING,
                 'prix' => $validatedData['prix'],
-                'prix_suggere' => $aiResult['prix_suggere'],
                 'negociable' => false,
                 'date_disponibilite' => now(),
             ]);
@@ -418,15 +382,14 @@ class VehiculesController extends Controller
             ]);
 
             DB::commit();
+            ValidateVehiculeWithGemini::dispatch($vehicule);
             return response()->json([
                 'success' => true,
                 'message' => 'Véhicule modifié avec succès',
                 'data' => [
                     'vehicule' => $vehicule,
                     'description' => $vehicule->description,
-                    'photos' => $vehicule->photos,
-                    'prix_suggere' => $aiResult['prix_suggere'],
-                    'explication_prix' => $aiResult['explication'],
+                    'photos' => $vehicule->photos
                 ],
             ], 201);
         } catch (\Exception $e) {

@@ -95,9 +95,22 @@ class AuthController extends Controller
         }
 
         /** @var \App\Models\User $user */
-        $user  = Auth::user();
-        $token = $user->createToken('auth_token')->plainTextToken;
+        $user = Auth::user();
 
+        if (!$user->isActif()) {
+            Auth::logout();
+            return response()->json([
+                'success' => false,
+                'message' => match ($user->statut) {
+                    User::EN_ATTENTE => 'Votre compte est en attente de validation par notre équipe.',
+                    User::SUSPENDU   => 'Votre compte a été suspendu.',
+                    User::BANNI      => 'Votre compte a été banni.',
+                    default          => 'Accès refusé.',
+                },
+            ], 403);
+        }
+
+        $token = $user->createToken('auth_token')->plainTextToken;
         return response()->json([
             'success' => true,
             'token'   => $token,
@@ -235,9 +248,9 @@ class AuthController extends Controller
             }
 
             return response()->json([
-                'success'=> true,
-                'data'=> $user
-                ], 200);
+                'success' => true,
+                'data' => $user
+            ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

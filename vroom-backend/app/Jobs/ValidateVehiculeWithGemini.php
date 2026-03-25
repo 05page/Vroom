@@ -16,8 +16,16 @@ class ValidateVehiculeWithGemini implements ShouldQueue
     /**
      * Nombre de tentatives si le job échoue (timeout Gemini, etc.)
      */
+    /**
+     * Nombre de tentatives si le job échoue (timeout Gemini, etc.)
+     */
     public int $tries = 3;
 
+    /**
+     * Durée max d'exécution en secondes.
+     * Si Gemini ne répond pas dans ce délai, le job est tué — le véhicule reste en_attente.
+     */
+    public int $timeout = 60;
     /**
      * Laravel sérialise uniquement l'ID du modèle en base.
      * Quand le worker traite le job, il recharge le véhicule depuis la DB.
@@ -96,11 +104,15 @@ class ValidateVehiculeWithGemini implements ShouldQueue
                 'lu'         => false,
                 'date_envoi' => now(),
             ]);
-
         } catch (\Exception $e) {
             // --- Étape 3c : Erreur Gemini → on loggue, le véhicule reste en_attente ---
             // L'admin pourra le modérer manuellement via le panel
             Log::error("ValidateVehiculeWithGemini : erreur Gemini pour véhicule {$this->vehicule->id} : " . $e->getMessage());
         }
+    }
+    
+    public function failed(\Throwable $e): void
+    {
+        Log::error("ValidateVehiculeWithGemini : job échoué définitivement pour véhicule {$this->vehicule->id} : " . $e->getMessage());
     }
 }

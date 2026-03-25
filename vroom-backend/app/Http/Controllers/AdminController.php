@@ -288,14 +288,35 @@ class AdminController extends Controller
 
             if ($cibleUserId) {
                 $isCibleVehicule = (bool) $signalement->cible_vehicule_id;
-                $titre = $isCibleVehicule
-                    ? 'Action de modération sur votre annonce'
-                    : 'Action de modération sur votre compte';
 
-                $lignes = [$titre . '.'];
-                if ($actionCible && $actionCible !== 'aucune') {
-                    $lignes[] = "Mesure appliquée : {$actionCible}.";
-                }
+                [$titre, $messageAction] = match ($actionCible) {
+                    'avertissement' => [
+                        'Avertissement de notre équipe',
+                        $isCibleVehicule
+                            ? 'Votre annonce a fait l\'objet d\'un signalement. Ceci est un avertissement.'
+                            : 'Votre compte a fait l\'objet d\'un signalement. Ceci est un avertissement.',
+                    ],
+                    'suspendre' => [
+                        $isCibleVehicule ? 'Annonce suspendue' : 'Compte suspendu',
+                        $isCibleVehicule
+                            ? 'Votre annonce a été suspendue suite à un signalement.'
+                            : 'Votre compte a été suspendu suite à un signalement.',
+                    ],
+                    'bannir' => [
+                        $isCibleVehicule ? 'Annonce bannie' : 'Compte banni',
+                        $isCibleVehicule
+                            ? 'Votre annonce a été bannie définitivement suite à un signalement.'
+                            : 'Votre compte a été banni définitivement suite à un signalement.',
+                    ],
+                    default => [
+                        'Action de modération',
+                        $isCibleVehicule
+                            ? 'Une action de modération a été appliquée sur votre annonce.'
+                            : 'Une action de modération a été appliquée sur votre compte.',
+                    ],
+                };
+
+                $lignes = [$messageAction];
                 if ($noteAdmin) {
                     $lignes[] = "Note de l'administrateur : {$noteAdmin}";
                 }
@@ -714,6 +735,32 @@ class AdminController extends Controller
         };
 
         $this->logAction($action, $cibleType, $id, $details);
+
+        // Notifier l'utilisateur du changement de statut de son compte
+        [$titre, $message] = match ($statut) {
+            User::SUSPENDU => [
+                'Compte suspendu',
+                'Votre compte a été suspendu par notre équipe.' . ($details ? ' Motif : ' . $details : ''),
+            ],
+            User::BANNI => [
+                'Compte banni',
+                'Votre compte a été banni définitivement par notre équipe.' . ($details ? ' Motif : ' . $details : ''),
+            ],
+            User::ACTIF => [
+                'Compte réactivé',
+                'Votre compte a été réactivé. Vous pouvez de nouveau accéder à la plateforme.',
+            ],
+        };
+
+        Notifications::create([
+            'user_id'    => $user->id,
+            'type'       => Notifications::TYPE_MODERATION,
+            'title'      => $titre,
+            'message'    => $message,
+            'data'       => [],
+            'lu'         => false,
+            'date_envoi' => now(),
+        ]);
 
         return response()->json(['success' => true, 'message' => 'Statut mis à jour : ' . $statut], 200);
     }
