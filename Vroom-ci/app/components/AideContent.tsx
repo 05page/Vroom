@@ -82,7 +82,7 @@ export default function AideContent() {
     useEffect(() => {
         getMesTickets()
             .then(res => {
-                setTickets(res.data ?? [])
+                setTickets((res.data as unknown as { data: SupportTicket[] })?.data ?? [])
             })
             .catch(() => toast.error("Impossible de charger vos demandes"))
             .finally(() => setLoadingTickets(false))
