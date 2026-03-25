@@ -48,7 +48,7 @@ export default function OnboardingPage() {
             toast.success("Profil complété !")
 
             // Rediriger vers le bon dashboard
-            router.push(res.role === "vendeur" ? "/vendeur/dashboard" : "/client/favorites")
+            router.push(res.data?.role === "vendeur" ? "/vendeur/dashboard" : "/client/favorites")
         } catch {
             toast.dismiss(id)
             toast.error("Une erreur est survenue, réessaie.")
