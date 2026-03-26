@@ -171,7 +171,7 @@ export default function LandingPage() {
 
                     {/* Stats bar */}
                     <div
-                        className="inline-flex flex-wrap justify-center gap-8 px-8 py-4 rounded-2xl border border-zinc-200 bg-white shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-[both]"
+                        className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8 px-8 py-4 rounded-2xl border border-zinc-200 bg-white shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-[both]"
                         style={{ animationDelay: '560ms' }}
                     >
                         {metrics.map((m) => (
@@ -473,7 +473,7 @@ export default function LandingPage() {
                     </div>
 
                     {/* Métriques */}
-                    <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+                    <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(2, 1fr)" }}>
                         {metrics.map((m) => (
                             <div key={m.label}
                                 className="flex flex-col items-center gap-2 p-4 rounded-xl border border-zinc-200 bg-white text-center">
