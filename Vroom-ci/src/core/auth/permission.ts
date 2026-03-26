@@ -41,6 +41,7 @@ export function hasRouteAccess(role:UserRole, pathname:string):boolean
     if (blocked.some(route => pathname.startsWith(route))) return false
 
     const allowedRoutes = ROLE_ROUTES[role];
+    if(!allowedRoutes) return false;
     if(allowedRoutes.includes("*")) return true;
     return allowedRoutes.some(route => pathname.startsWith(route));
 }
