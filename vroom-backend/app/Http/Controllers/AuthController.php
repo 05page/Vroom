@@ -87,36 +87,44 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        if (!Auth::attempt($request->only('email', 'password'))) {
+        try {
+            if (!Auth::attempt($request->only('email', 'password'))) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Email ou mot de passe incorrect',
+                ], 401);
+            }
+
+            /** @var \App\Models\User $user */
+            $user = Auth::user();
+
+            if (!$user->isActif()) {
+                Auth::logout();
+                return response()->json([
+                    'success' => false,
+                    'message' => match ($user->statut) {
+                        User::EN_ATTENTE => 'Votre compte est en attente de validation par notre équipe.',
+                        User::SUSPENDU   => 'Votre compte a été suspendu.',
+                        User::BANNI      => 'Votre compte a été banni.',
+                        default          => 'Accès refusé.',
+                    },
+                ], 403);
+            }
+
+            $token = $user->createToken('auth_token')->plainTextToken;
+            return response()->json([
+                'success' => true,
+                'token'   => $token,
+                'role'    => $user->role,
+                'user'    => $user,
+            ]);
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Email ou mot de passe incorrect',
-            ], 401);
+                'message' => 'Erreur lors de la connexion',
+                'error'   => $e->getMessage(),
+            ], 500);
         }
-
-        /** @var \App\Models\User $user */
-        $user = Auth::user();
-
-        if (!$user->isActif()) {
-            Auth::logout();
-            return response()->json([
-                'success' => false,
-                'message' => match ($user->statut) {
-                    User::EN_ATTENTE => 'Votre compte est en attente de validation par notre équipe.',
-                    User::SUSPENDU   => 'Votre compte a été suspendu.',
-                    User::BANNI      => 'Votre compte a été banni.',
-                    default          => 'Accès refusé.',
-                },
-            ], 403);
-        }
-
-        $token = $user->createToken('auth_token')->plainTextToken;
-        return response()->json([
-            'success' => true,
-            'token'   => $token,
-            'role'    => $user->role,
-            'user'    => $user,
-        ]);
     }
 
     public function register(Request $request): JsonResponse
