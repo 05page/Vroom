@@ -15,6 +15,7 @@ import {
     EyeOff,
     GraduationCap,
     Lock,
+    Loader2,
     Mail,
     MapPin,
     Phone,
@@ -51,6 +52,8 @@ const AuthContent = () => {
     const [showPassword, setShowPassword] = useState(false)
     const [showConfirmPassword, setShowConfirmPassword] = useState(false)
     const [registerStep, setRegisterStep] = useState(1)
+    const [isLoggingIn, setIsLoggingIn] = useState(false)
+    const [isRegistering, setIsRegistering] = useState(false)
     const defaultTab = searchParams.get("tab") === "register" ? "register" : "login"
     const [formDataLogin, setFormDataLogin] = useState<FormLogin>({
         email: "",
@@ -92,6 +95,7 @@ const AuthContent = () => {
 
     const handleLoginSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+        setIsLoggingIn(true)
         try {
             const res = await fetch('/api/auth/login', {
                 method: "POST",
@@ -107,12 +111,14 @@ const AuthContent = () => {
             router.push(getDashBoard(data.role as UserRole))
         } catch (error) {
             toast.error("Erreur de connexion au serveur")
+        } finally {
+            setIsLoggingIn(false)
         }
     }
 
     const handleRegisterSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-
+        setIsRegistering(true)
         try {
             const body: Record<string, string> = {
                 fullname: formDataRegister.fullname,
@@ -152,6 +158,8 @@ const AuthContent = () => {
             }
         } catch (error) {
             toast.error("Erreur de connexion au serveur")
+        } finally {
+            setIsRegistering(false)
         }
     }
     const handleAuthGoogle = () => {
@@ -260,9 +268,13 @@ const AuthContent = () => {
 
                                     <Button
                                         type="submit"
+                                        disabled={isLoggingIn}
                                         className="w-full h-12 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-sm cursor-pointer shadow-lg shadow-orange-500/20"
                                     >
-                                        Se connecter
+                                        {isLoggingIn
+                                            ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Connexion...</>
+                                            : "Se connecter"
+                                        }
                                     </Button>
 
                                     <div className="relative my-2">
@@ -603,9 +615,13 @@ const AuthContent = () => {
                                                 </Button>
                                                 <Button
                                                     type="submit"
+                                                    disabled={isRegistering}
                                                     className="flex-1 h-12 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-sm cursor-pointer shadow-lg shadow-orange-500/20"
                                                 >
-                                                    Creer mon compte
+                                                    {isRegistering
+                                                        ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Création...</>
+                                                        : "Creer mon compte"
+                                                    }
                                                 </Button>
                                             </div>
 

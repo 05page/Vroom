@@ -17,6 +17,7 @@ import {
     Bell,
     BellOff,
     Trash2,
+    Loader2,
 } from "lucide-react"
 import { useEffect, useState, useCallback } from "react"
 import { toast } from "sonner"
@@ -32,6 +33,9 @@ const FavoritesPage = () => {
     const [favoris, setFavoris] = useState<Favori[]>([])
     const [alertes, setAlertes] = useState<Alerte[]>([])
     const [isLoading, setIsLoading] = useState(true)
+    const [removingId, setRemovingId] = useState<string | null>(null)
+    const [deletingId, setDeletingId] = useState<string | null>(null)
+    const [togglingId, setTogglingId] = useState<string | null>(null)
 
     const fetchData = useCallback(async () => {
         try {
@@ -58,28 +62,35 @@ const FavoritesPage = () => {
     useDataRefresh("vehicule", fetchData)
 
     const handleRemoveFavori = async (vehiculeId: string) => {
+        setRemovingId(vehiculeId)
         try {
             await removeFavori(vehiculeId)
             setFavoris(favoris.filter(f => f.vehicule_id !== vehiculeId))
             toast.success("Véhicule retiré des favoris")
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Erreur serveur")
+        } finally {
+            setRemovingId(null)
         }
     }
 
     // Supprime une alerte et met à jour la liste locale
     const handleDeleteAlerte = async (id: string) => {
+        setDeletingId(id)
         try {
             await deleteAlerte(id)
             setAlertes(prev => prev.filter(a => a.id !== id))
             toast.success("Alerte supprimée")
         } catch {
             toast.error("Impossible de supprimer l'alerte")
+        } finally {
+            setDeletingId(null)
         }
     }
 
     // Active ou désactive une alerte via PUT /alertes/{id}
     const handleToggleAlerte = async (alerte: Alerte) => {
+        setTogglingId(alerte.id)
         try {
             await updateAlerte(alerte.id, { active: !alerte.active })
             setAlertes(prev =>
@@ -87,6 +98,8 @@ const FavoritesPage = () => {
             )
         } catch {
             toast.error("Impossible de modifier l'alerte")
+        } finally {
+            setTogglingId(null)
         }
     }
 
@@ -121,12 +134,17 @@ const FavoritesPage = () => {
                         <Switch
                             checked={a.active}
                             onCheckedChange={() => handleToggleAlerte(a)}
+                            disabled={togglingId === a.id}
                         />
                         <button
                             onClick={() => handleDeleteAlerte(a.id)}
-                            className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center hover:bg-red-100 transition-colors cursor-pointer"
+                            disabled={deletingId === a.id}
+                            className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center hover:bg-red-100 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            <Trash2 className="h-4 w-4 text-red-500" />
+                            {deletingId === a.id
+                                ? <Loader2 className="h-4 w-4 text-red-500 animate-spin" />
+                                : <Trash2 className="h-4 w-4 text-red-500" />
+                            }
                         </button>
                     </div>
                 </div>
@@ -156,9 +174,13 @@ const FavoritesPage = () => {
                     </Badge>
                     <button
                         onClick={() => handleRemoveFavori(f.vehicule_id)}
-                        className="absolute top-3 right-3 w-8 h-8 rounded-full bg-red-500/10 flex items-center justify-center hover:bg-red-500/20 transition-colors cursor-pointer"
+                        disabled={removingId === f.vehicule_id}
+                        className="absolute top-3 right-3 w-8 h-8 rounded-full bg-red-500/10 flex items-center justify-center hover:bg-red-500/20 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        <Heart className="h-4 w-4 text-red-500 fill-red-500" />
+                        {removingId === f.vehicule_id
+                            ? <Loader2 className="h-4 w-4 text-red-500 animate-spin" />
+                            : <Heart className="h-4 w-4 text-red-500 fill-red-500" />
+                        }
                     </button>
                 </div>
                 <div className="p-4 space-y-3">
