@@ -473,10 +473,10 @@ export default function LandingPage() {
                     </div>
 
                     {/* Métriques */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         {metrics.map((m) => (
                             <div key={m.label}
-                                className="flex flex-col items-center gap-2 p-6 rounded-xl border border-zinc-200 bg-white text-center">
+                                className="flex flex-col items-center gap-2 p-4 md:p-6 rounded-xl border border-zinc-200 bg-white text-center">
                                 <div className="w-9 h-9 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center">
                                     <m.icon className="h-4 w-4 text-amber-600" />
                                 </div>
