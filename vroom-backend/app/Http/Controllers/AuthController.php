@@ -98,6 +98,13 @@ class AuthController extends Controller
             /** @var \App\Models\User $user */
             $user = Auth::user();
 
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Utilisateur introuvable.',
+                ], 404);
+            }
+
             if (!$user->isActif()) {
                 Auth::logout();
                 return response()->json([
