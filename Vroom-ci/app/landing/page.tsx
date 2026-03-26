@@ -653,7 +653,6 @@ export default function LandingPage() {
                         <div>
                             <div className="flex items-center gap-2 mb-4">
                                 <Image src="/logo.svg" alt="Move CI" width={48} height={28} />
-                                <span className="font-bold text-white text-lg" style={{ fontFamily: "var(--font-syne, sans-serif)" }}>Move</span>
                             </div>
                             <p className="text-xs text-zinc-500 max-w-45 leading-relaxed">
                                 Marketplace automobile de référence en Côte d&apos;Ivoire.
