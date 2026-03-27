@@ -38,6 +38,9 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { api } from "@/src/lib/api"
 import { useUser } from "@/src/context/UserContext"
+import { useNotification } from "@/src/context/NotificationContext"
+import { getConversations } from "@/src/actions/conversations.actions"
+import { useState, useEffect } from "react"
 
 // Tous les items de nav avec leur restriction éventuelle par rôle
 const ALL_NAV_ITEMS = [
@@ -64,6 +67,21 @@ export default function PartenaireLayout({
     const navItems = ALL_NAV_ITEMS.filter(item =>
         item.roles === null || item.roles.includes(user?.role ?? "")
     )
+
+    const { unreadCount } = useNotification()
+    const [unreadMessages, setUnreadMessages] = useState(0)
+
+    // Charge le total des messages non lus au montage
+    useEffect(() => {
+        if (!user) return
+        getConversations()
+            .then(res => {
+                const convs = res.data?.conversations ?? []
+                const total = convs.reduce((sum, c) => sum + (c.unread_count ?? 0), 0)
+                setUnreadMessages(total)
+            })
+            .catch(() => {})
+    }, [user])
 
     const isAutoEcole      = user?.role === "auto_ecole"
     const roleLabel        = isAutoEcole ? "Auto-école" : "Concessionnaire"
@@ -166,9 +184,19 @@ export default function PartenaireLayout({
                     <div className="ml-auto flex items-center gap-4">
                         <Link href="/partenaire/messages" className="relative text-muted-foreground hover:text-foreground transition-colors">
                             <MessageSquare className="h-5 w-5" />
+                            {unreadMessages > 0 && (
+                                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                                    {unreadMessages > 9 ? "9+" : unreadMessages}
+                                </span>
+                            )}
                         </Link>
                         <Link href="/partenaire/notifications" className="relative text-muted-foreground hover:text-foreground transition-colors">
                             <Bell className="h-5 w-5" />
+                            {unreadCount > 0 && (
+                                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                                    {unreadCount > 9 ? "9+" : unreadCount}
+                                </span>
+                            )}
                         </Link>
                         <span className="text-sm font-medium text-muted-foreground">
                             Espace Partenaire
