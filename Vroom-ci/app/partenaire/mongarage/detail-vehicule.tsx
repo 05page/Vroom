@@ -7,10 +7,12 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import Image from "next/image"
+import { useState } from "react"
 import {
     Car, Tag, Key, Calendar, Fuel, Settings, Palette, DoorOpen, Users,
     Gauge, Check, Edit, Trash2, Eye,
     Clock, Shield, MapPin, Sparkles,
+    ChevronLeft, ChevronRight,
 } from "lucide-react"
 
 interface DetailsVehicules {
@@ -69,8 +71,9 @@ const formatDate = (date: Date | undefined) => {
 export default function DetailVehicule ({ isOpen, onClose, vehicule, onEdit, onDelete }: Props){
     const isVente    = vehicule.typePublication === "vente"
     const isLocation = vehicule.typePublication === "location"
-    const primaryPhoto = vehicule.photos?.find(p => p.is_primary) ?? vehicule.photos?.[0]
-    const imageUrl     = primaryPhoto ? getPhotoUrl(primaryPhoto.path) : null
+    const photos     = vehicule.photos ?? []
+    const [photoIndex, setPhotoIndex] = useState(0)
+    const imageUrl = photos[photoIndex] ? getPhotoUrl(photos[photoIndex].path) : null
 
     const infos = [
         { label: "Année", value: vehicule.annee, icon: Calendar },
@@ -92,10 +95,41 @@ export default function DetailVehicule ({ isOpen, onClose, vehicule, onEdit, onD
                 {/* Hero image + badges */}
                 <div className="relative h-52 md:h-64 bg-linear-to-br from-muted/60 to-muted/20 flex items-center justify-center overflow-hidden group">
                     {imageUrl
-                        ? <Image src={imageUrl} alt={`${vehicule.marque} ${vehicule.modele}`} fill className="object-cover" unoptimized />
-                        : <Car className="h-20 w-20 text-muted-foreground/15 transition-transform duration-500 group-hover:scale-110" />
+                        ? <Image src={imageUrl} alt={`${vehicule.marque} ${vehicule.modele}`} fill className="object-cover transition-all duration-300" unoptimized />
+                        : <Car className="h-20 w-20 text-muted-foreground/15" />
                     }
                     <div className="absolute inset-0 bg-linear-to-t from-black/30 to-transparent" />
+
+                    {/* Navigation entre photos */}
+                    {photos.length > 1 && (
+                        <>
+                            <button
+                                onClick={() => setPhotoIndex(i => (i - 1 + photos.length) % photos.length)}
+                                className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1.5 transition-colors"
+                            >
+                                <ChevronLeft className="h-4 w-4" />
+                            </button>
+                            <button
+                                onClick={() => setPhotoIndex(i => (i + 1) % photos.length)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1.5 transition-colors"
+                            >
+                                <ChevronRight className="h-4 w-4" />
+                            </button>
+                            {/* Points indicateurs */}
+                            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+                                {photos.map((_, i) => (
+                                    <button
+                                        key={i}
+                                        onClick={() => setPhotoIndex(i)}
+                                        className={cn(
+                                            "w-1.5 h-1.5 rounded-full transition-colors",
+                                            i === photoIndex ? "bg-white" : "bg-white/40"
+                                        )}
+                                    />
+                                ))}
+                            </div>
+                        </>
+                    )}
 
                     <div className="absolute top-4 left-4 flex gap-2">
                         <Badge className={cn(
