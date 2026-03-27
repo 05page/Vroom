@@ -60,20 +60,6 @@ return [
             'report' => false,
         ],
 
-        // Supabase Storage (compatible S3)
-        'supabase' => [
-            'driver' => 's3',
-            'key' => env('SUPABASE_S3_ACCESS_KEY'),
-            'secret' => env('SUPABASE_S3_SECRET_KEY'),
-            'region' => 'eu-west-1',
-            'bucket' => env('SUPABASE_BUCKET'),
-            'endpoint' => env('SUPABASE_S3_ENDPOINT'),
-            'use_path_style_endpoint' => true,
-            'url' => env('SUPABASE_PUBLIC_URL'),
-            'visibility' => 'public',
-            'throw' => true,
-            'report' => false,
-        ],
 
     ],
 

@@ -14,9 +14,9 @@ use Carbon\Carbon;
 use Gemini\Laravel\Facades\Gemini;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use App\Services\SupabaseStorageService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class VehiculesController extends Controller
@@ -233,11 +233,10 @@ class VehiculesController extends Controller
 
             //Uploader les photos si présentes
             if ($request->hasFile('photos')) {
+                $supabase = new SupabaseStorageService();
                 foreach ($request->file('photos') as $index => $photo) {
-                    // Stockage sur Supabase Storage (S3-compatible)
-                    $path = $photo->store('vehicules_photos', 'supabase');
-                    // URL publique directe Supabase
-                    $url = Storage::disk('supabase')->url($path);
+                    // Upload vers Supabase via API REST et récupère l'URL publique
+                    $url = $supabase->upload($photo);
 
                     VehiculesPhotos::create([
                         'vehicule_id' => $vehicule->id,
