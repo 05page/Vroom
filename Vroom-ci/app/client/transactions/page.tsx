@@ -122,7 +122,7 @@ export default function TransactionsClientPage() {
                                         {photo ? (
                                             <div className="relative h-14 w-20 rounded-lg overflow-hidden shrink-0">
                                                 <Image
-                                                    src={`${BACKEND_URL}/storage/${photo.path}`}
+                                                    src={photo.path.startsWith('http') ? photo.path : `${BACKEND_URL}/storage/${photo.path}`}
                                                     alt="véhicule"
                                                     fill className="object-cover"
                                                 />

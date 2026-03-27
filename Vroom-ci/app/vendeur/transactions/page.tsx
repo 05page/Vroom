@@ -193,7 +193,7 @@ export default function TransactionsVendeurPage() {
                                                 {photo ? (
                                                     // eslint-disable-next-line @next/next/no-img-element
                                                     <img
-                                                        src={`${BACKEND_URL}/storage/${photo.path}`}
+                                                        src={photo.path.startsWith('http') ? photo.path : `${BACKEND_URL}/storage/${photo.path}`}
                                                         alt="véhicule"
                                                         className="h-14 w-20 object-cover rounded-lg shrink-0"
                                                     />

@@ -375,7 +375,7 @@ export function ProfileContent() {
                         ) : (
                             <div className="space-y-3">
                                 {mesVoituresLouees.map(t => {
-                                    const photo = t.vehicule?.photos?.[0]?.path ? `${BACKEND_URL}/storage/${t.vehicule.photos[0].path}` : null
+                                    const photo = t.vehicule?.photos?.[0]?.path ? (t.vehicule.photos[0].path.startsWith('http') ? t.vehicule.photos[0].path : `${BACKEND_URL}/storage/${t.vehicule.photos[0].path}`) : null
                                     return (
                                         <div key={t.id} className="flex items-center gap-4 p-4 rounded-2xl border border-zinc-100 bg-zinc-50 hover:bg-white hover:shadow-sm transition-all duration-200">
                                             <div className="w-16 h-12 rounded-xl overflow-hidden bg-zinc-200 shrink-0">
@@ -422,7 +422,7 @@ export function ProfileContent() {
                         ) : (
                             <div className="space-y-3">
                                 {mesVoituresAchetees.map(t => {
-                                    const photo = t.vehicule?.photos?.[0]?.path ? `${BACKEND_URL}/storage/${t.vehicule.photos[0].path}` : null
+                                    const photo = t.vehicule?.photos?.[0]?.path ? (t.vehicule.photos[0].path.startsWith('http') ? t.vehicule.photos[0].path : `${BACKEND_URL}/storage/${t.vehicule.photos[0].path}`) : null
                                     return (
                                         <div key={t.id} className="flex items-center gap-4 p-4 rounded-2xl border border-zinc-100 bg-zinc-50 hover:bg-white hover:shadow-sm transition-all duration-200">
                                             <div className="w-16 h-12 rounded-xl overflow-hidden bg-zinc-200 shrink-0">

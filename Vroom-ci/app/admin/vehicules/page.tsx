@@ -120,10 +120,7 @@ function labelStatut(statut: string) {
     }
 }
 
-// Formate un chemin de photo en URL complète vers le storage Laravel
-function photoUrl(path: string) {
-    return `${process.env.NEXT_PUBLIC_BACKEND_URL}/storage/${path}`
-}
+const photoUrl = (path: string) => path.startsWith('http') ? path : `${process.env.NEXT_PUBLIC_BACKEND_URL}/storage/${path}`
 
 export default function AdminVehiculesPage() {
     const [vehicules, setVehicules] = useState<Vehicule[]>([])

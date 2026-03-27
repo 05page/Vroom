@@ -38,7 +38,7 @@ import { getVehicules } from "@/src/actions/vehicules.actions"
 import { getFavoris, removeFavori, addFavori } from "@/src/actions/favoris.actions"
 import { useUser } from "@/src/context/UserContext"
 import VehicleDetails from "./VehicleDetails"
-import { cn } from "@/src/lib/utils"
+import { cn, getPhotoUrl } from "@/src/lib/utils"
 import { FadeIn, SlideIn, StaggerList, StaggerItem } from "@/components/ui/motion-primitives"
 import { useRouter } from "next/navigation"
 interface Filters {
@@ -234,9 +234,7 @@ const VehiclesPage = () => {
 
     const VehicleCard = ({ v }: { v: vehicule }) => {
         const primaryPhoto = v.photos?.find(p => p.is_primary) ?? v.photos?.[0]
-        const imageUrl = primaryPhoto
-            ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/storage/${primaryPhoto.path}`
-            : null
+        const imageUrl = primaryPhoto ? getPhotoUrl(primaryPhoto.path) : null
         return (
             <Card className="rounded-2xl md:rounded-3xl shadow-sm border border-zinc-200 bg-white hover:shadow-lg transition-all duration-300 hover:-translate-y-1 overflow-hidden">
                 <CardContent className="p-0">

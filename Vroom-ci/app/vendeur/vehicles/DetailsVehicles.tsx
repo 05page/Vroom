@@ -1,6 +1,6 @@
 "use client"
 
-import { cn } from "@/src/lib/utils"
+import { cn, getPhotoUrl } from "@/src/lib/utils"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -45,9 +45,7 @@ const DetailsCard = ({ isOpen, onClose, vehicule, onEdit, onDelete }: Props) => 
     const photos = vehicule.photos ?? []
     const [photoIndex, setPhotoIndex] = useState(0)
     const currentPhoto = photos[photoIndex]
-    const imageUrl = currentPhoto
-        ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/storage/${currentPhoto.path}`
-        : null
+    const imageUrl = currentPhoto ? getPhotoUrl(currentPhoto.path) : null
     const infos = [
         { label: "Kilométrage", value: `${vehicule.description?.kilometrage} km`, icon: Gauge },
         { label: "Carburant", value: vehicule.description?.carburant, icon: Fuel },

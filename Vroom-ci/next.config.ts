@@ -13,6 +13,8 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: '*.onrender.com', pathname: '/storage/**' },
       // Production Railway (*.railway.app)
       { protocol: 'https', hostname: '*.railway.app', pathname: '/storage/**' },
+      // Supabase Storage
+      { protocol: 'https', hostname: '*.supabase.co', pathname: '/storage/**' },
     ]
   }
 };

@@ -1,6 +1,6 @@
 "use client"
 
-import { cn } from "@/src/lib/utils"
+import { cn, getPhotoUrl } from "@/src/lib/utils"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -193,9 +193,7 @@ const VehicleDetails = ({ isOpen, onClose, vehicule }: Props) => {
     }
 
     const currentPhoto = photos[photoIndex]
-    const imageUrl = currentPhoto
-        ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/storage/${currentPhoto.path}`
-        : null
+    const imageUrl = currentPhoto ? getPhotoUrl(currentPhoto.path) : null
 
     const infos = [
         { label: "Kilométrage", value: `${vehicule.description?.kilometrage} km`, icon: Gauge },

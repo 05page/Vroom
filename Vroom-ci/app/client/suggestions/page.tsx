@@ -39,7 +39,7 @@ const formatPrix = (prix: number): string =>
 const getPhotoUrl = (v: vehicule): string | null => {
   const photo = v.photos?.find((p) => p.is_primary) ?? v.photos?.[0]
   if (!photo) return null
-  return `${process.env.NEXT_PUBLIC_BACKEND_URL}/storage/${photo.path}`
+  return photo.path.startsWith('http') ? photo.path : `${process.env.NEXT_PUBLIC_BACKEND_URL}/storage/${photo.path}`
 }
 
 // ─── Sous-composant : skeleton d'une card ────────────────────────────────────

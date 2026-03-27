@@ -16,6 +16,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\Rule;
 
 class VehiculesController extends Controller
@@ -230,16 +231,33 @@ class VehiculesController extends Controller
                 'equipements' => $validatedData['equipements'] ?? null,
             ]);
 
-            //Uploader les photos si présentes
+            //Uploader les photos vers Supabase Storage
             if ($request->hasFile('photos')) {
+                $supabaseUrl = config('services.supabase.url');
+                $supabaseKey = config('services.supabase.service_key');
+                $bucket      = config('services.supabase.bucket');
+
                 foreach ($request->file('photos') as $index => $photo) {
-                    $path = $photo->store('vehicules_photos', 'public');
+                    $filename    = uniqid('photo_', true) . '.' . $photo->getClientOriginalExtension();
+                    $storagePath = 'vehicules/' . $filename;
+
+                    // Envoi du fichier vers l'API REST de Supabase Storage
+                    Http::withHeaders([
+                        'Authorization' => "Bearer {$supabaseKey}",
+                        'Content-Type'  => $photo->getMimeType(),
+                    ])->withBody(
+                        file_get_contents($photo->getRealPath()),
+                        $photo->getMimeType()
+                    )->post("{$supabaseUrl}/storage/v1/object/{$bucket}/{$storagePath}");
+
+                    // URL publique directement accessible sans authentification
+                    $publicUrl = "{$supabaseUrl}/storage/v1/object/public/{$bucket}/{$storagePath}";
 
                     VehiculesPhotos::create([
                         'vehicule_id' => $vehicule->id,
-                        'path' => $path,
-                        'is_primary' => $index === 0,
-                        'position' => $index + 1,
+                        'path'        => $publicUrl,
+                        'is_primary'  => $index === 0,
+                        'position'    => $index + 1,
                     ]);
                 }
             }

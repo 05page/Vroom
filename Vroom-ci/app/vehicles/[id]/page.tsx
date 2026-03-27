@@ -41,7 +41,7 @@ import { toast } from "sonner"
 import { vehicule, Avis } from "@/src/types"
 import { getVehicule } from "@/src/actions/vehicules.actions"
 import { useUser } from "@/src/context/UserContext"
-import { cn } from "@/src/lib/utils"
+import { cn, getPhotoUrl } from "@/src/lib/utils"
 import { api } from "@/src/lib/api"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
@@ -340,9 +340,7 @@ const VehicleDetailPage = () => {
     const isVente = vehiculeData.post_type === "vente"
     const photos = vehiculeData.photos ?? []
     const currentPhoto = photos[photoIndex]
-    const imageUrl = currentPhoto
-        ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/storage/${currentPhoto.path}`
-        : null
+    const imageUrl = currentPhoto ? getPhotoUrl(currentPhoto.path) : null
 
     /** Grille des 6 caractéristiques techniques affichées sous la galerie. */
     const specs = [

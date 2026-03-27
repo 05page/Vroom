@@ -461,7 +461,7 @@ export default function AdminSignalementsPage() {
                                             {detail.cible_vehicule.photos.map((photo, i) => (
                                                 <img
                                                     key={i}
-                                                    src={`${process.env.NEXT_PUBLIC_BACKEND_URL}/storage/${photo.path}`}
+                                                    src={photo.path.startsWith('http') ? photo.path : `${process.env.NEXT_PUBLIC_BACKEND_URL}/storage/${photo.path}`}
                                                     alt={`Photo ${i + 1}`}
                                                     className="w-full h-32 object-cover rounded-md border"
                                                 />

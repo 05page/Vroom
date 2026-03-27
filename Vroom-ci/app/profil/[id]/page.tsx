@@ -143,7 +143,7 @@ export default function ProfilVendeurPage() {
                             {vehicules.map(v => {
                                 const primaryPhoto = v.photos?.find(p => p.is_primary) ?? v.photos?.[0]
                                 const imageUrl = primaryPhoto
-                                    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/storage/${primaryPhoto.path}`
+                                    ? (primaryPhoto.path.startsWith('http') ? primaryPhoto.path : `${process.env.NEXT_PUBLIC_BACKEND_URL}/storage/${primaryPhoto.path}`)
                                     : null
 
                                 return (
