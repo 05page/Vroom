@@ -1,11 +1,12 @@
 "use client"
 
-import { cn } from "@/src/lib/utils"
+import { cn, getPhotoUrl } from "@/src/lib/utils"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import Image from "next/image"
 import {
     Car, Tag, Key, Calendar, Fuel, Settings, Palette, DoorOpen, Users,
     Gauge, Check, Edit, Trash2, Eye,
@@ -31,6 +32,7 @@ interface DetailsVehicules {
     prix: string
     prixParJour: string
     negociable: boolean
+    photos?: { path: string; is_primary: boolean }[]
 }
 
 interface Props {
@@ -65,8 +67,10 @@ const formatDate = (date: Date | undefined) => {
 }
 
 export default function DetailVehicule ({ isOpen, onClose, vehicule, onEdit, onDelete }: Props){
-    const isVente = vehicule.typePublication === "vente"
+    const isVente    = vehicule.typePublication === "vente"
     const isLocation = vehicule.typePublication === "location"
+    const primaryPhoto = vehicule.photos?.find(p => p.is_primary) ?? vehicule.photos?.[0]
+    const imageUrl     = primaryPhoto ? getPhotoUrl(primaryPhoto.path) : null
 
     const infos = [
         { label: "Année", value: vehicule.annee, icon: Calendar },
@@ -87,21 +91,24 @@ export default function DetailVehicule ({ isOpen, onClose, vehicule, onEdit, onD
 
                 {/* Hero image + badges */}
                 <div className="relative h-52 md:h-64 bg-linear-to-br from-muted/60 to-muted/20 flex items-center justify-center overflow-hidden group">
-                    <div className="absolute inset-0 bg-linear-to-t from-black/20 to-transparent" />
-                    <Car className="h-20 w-20 text-muted-foreground/15 transition-transform duration-500 group-hover:scale-110" />
+                    {imageUrl
+                        ? <Image src={imageUrl} alt={`${vehicule.marque} ${vehicule.modele}`} fill className="object-cover" unoptimized />
+                        : <Car className="h-20 w-20 text-muted-foreground/15 transition-transform duration-500 group-hover:scale-110" />
+                    }
+                    <div className="absolute inset-0 bg-linear-to-t from-black/30 to-transparent" />
 
                     <div className="absolute top-4 left-4 flex gap-2">
                         <Badge className={cn(
                             "rounded-full font-bold shadow-sm",
                             isVente
-                                ? "bg-green-500/15 text-green-600 border-green-500/25"
-                                : "bg-blue-500/15 text-blue-600 border-blue-500/25"
+                                ? "bg-zinc-900 text-white border-zinc-900"
+                                : "bg-white text-zinc-900 border-zinc-300"
                         )}>
                             {isVente ? <Tag className="h-3 w-3 mr-1" /> : <Key className="h-3 w-3 mr-1" />}
                             {isVente ? "Vente" : "Location"}
                         </Badge>
                         {vehicule.negociable && (
-                            <Badge className="rounded-full bg-amber-500/15 text-amber-600 border-amber-500/25 font-bold shadow-sm">
+                            <Badge className="rounded-full bg-primary/15 text-primary border-primary/25 font-bold shadow-sm">
                                 Négociable
                             </Badge>
                         )}
@@ -110,7 +117,7 @@ export default function DetailVehicule ({ isOpen, onClose, vehicule, onEdit, onD
                     {/* Price overlay */}
                     <div className="absolute bottom-4 right-4">
                         <div className="bg-white/90 dark:bg-black/70 backdrop-blur-md rounded-xl px-4 py-2 shadow-lg">
-                            <p className="text-lg font-black text-green-600">
+                            <p className="text-lg font-black text-foreground">
                                 {isVente ? vehicule.prix : vehicule.prixParJour}
                                 <span className="text-xs font-normal text-muted-foreground ml-1">
                                     FCFA{isLocation ? " / jour" : ""}
@@ -145,8 +152,8 @@ export default function DetailVehicule ({ isOpen, onClose, vehicule, onEdit, onD
                                     key={info.label}
                                     className="flex items-center gap-2.5 p-3 rounded-xl bg-muted/30 border border-border/30 hover:bg-muted/50 transition-colors"
                                 >
-                                    <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center shrink-0">
-                                        <info.icon className="h-4 w-4 text-green-600" />
+                                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                                        <info.icon className="h-4 w-4 text-primary" />
                                     </div>
                                     <div className="min-w-0">
                                         <p className="text-[10px] text-muted-foreground leading-tight">{info.label}</p>
@@ -171,7 +178,7 @@ export default function DetailVehicule ({ isOpen, onClose, vehicule, onEdit, onD
                                         <Badge
                                             key={eq}
                                             variant="outline"
-                                            className="rounded-full px-3 py-1.5 gap-1.5 bg-muted/20 border-border/40 hover:bg-green-500/10 hover:text-green-600 hover:border-green-500/20 transition-colors cursor-default"
+                                            className="rounded-full px-3 py-1.5 gap-1.5 bg-muted/20 border-border/40 hover:bg-primary/10 hover:text-primary hover:border-primary/20 transition-colors cursor-default"
                                         >
                                             <Icon className="h-3 w-3" />
                                             {mapped?.label || eq}
@@ -201,8 +208,8 @@ export default function DetailVehicule ({ isOpen, onClose, vehicule, onEdit, onD
                             <CardContent className="p-4">
                                 {isVente && (
                                     <div className="flex items-center gap-3">
-                                        <div className="w-9 h-9 rounded-lg bg-green-500/10 flex items-center justify-center">
-                                            <Calendar className="h-4 w-4 text-green-600" />
+                                        <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                                            <Calendar className="h-4 w-4 text-primary" />
                                         </div>
                                         <div>
                                             <p className="text-xs text-muted-foreground">Disponible à partir du</p>

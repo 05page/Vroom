@@ -205,6 +205,7 @@ function ActionsCell({ vehicule: v, onRefresh }: { vehicule: vehicule; onRefresh
         prix:       v.post_type === "vente"     ? String(v.prix) : "",
         prixParJour: v.post_type === "location" ? String(v.prix) : "",
         negociable: v.negociable ?? false,
+        photos:     v.photos ?? [],
     }
 
     return (

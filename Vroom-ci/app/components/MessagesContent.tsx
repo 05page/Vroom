@@ -29,15 +29,15 @@ import {
     deleteMessage,
 } from "@/src/actions/conversations.actions"
 import type { Conversation, Message } from "@/src/types"
-import { cn } from "@/src/lib/utils"
+import { cn, getPhotoUrl } from "@/src/lib/utils"
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL ?? ""
 
-/** URL d'une photo véhicule depuis son path relatif */
+/** URL d'une photo véhicule — gère les URLs Supabase complètes et les chemins locaux */
 function vehiclePhotoUrl(path?: string): string | null {
-    return path ? `${BACKEND_URL}/storage/${path}` : null
+    return path ? getPhotoUrl(path) : null
 }
 
 /** Formate une date en relatif court ("il y a 5 min") */
