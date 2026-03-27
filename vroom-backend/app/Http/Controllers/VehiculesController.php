@@ -16,6 +16,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class VehiculesController extends Controller
@@ -233,11 +234,14 @@ class VehiculesController extends Controller
             //Uploader les photos si présentes
             if ($request->hasFile('photos')) {
                 foreach ($request->file('photos') as $index => $photo) {
-                    $path = $photo->store('vehicules_photos', 'public');
+                    // Stockage sur Supabase Storage (S3-compatible)
+                    $path = $photo->store('vehicules_photos', 'supabase');
+                    // URL publique directe Supabase
+                    $url = Storage::disk('supabase')->url($path);
 
                     VehiculesPhotos::create([
                         'vehicule_id' => $vehicule->id,
-                        'path' => $path,
+                        'path' => $url,
                         'is_primary' => $index === 0,
                         'position' => $index + 1,
                     ]);
