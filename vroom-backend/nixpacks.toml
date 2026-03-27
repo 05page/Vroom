@@ -5,4 +5,4 @@ nixPkgs = ["php83", "php83Extensions.pdo", "php83Extensions.pdo_pgsql", "php83Ex
 cmds = ["composer install --no-dev --optimize-autoloader"]
 
 [start]
-cmd = "php artisan config:clear && php artisan route:clear && php artisan migrate --force ; php artisan serve --host=0.0.0.0 --port=$PORT"
+cmd = "php artisan serve --host=0.0.0.0 --port=$PORT"
