@@ -242,13 +242,21 @@ class VehiculesController extends Controller
                     $storagePath = 'vehicules/' . $filename;
 
                     // Envoi du fichier vers l'API REST de Supabase Storage
-                    Http::withHeaders([
+                    $response = Http::withHeaders([
                         'Authorization' => "Bearer {$supabaseKey}",
                         'Content-Type'  => $photo->getMimeType(),
                     ])->withBody(
                         file_get_contents($photo->getRealPath()),
                         $photo->getMimeType()
                     )->post("{$supabaseUrl}/storage/v1/object/{$bucket}/{$storagePath}");
+
+                    if (!$response->successful()) {
+                        \Log::error('Supabase upload failed', [
+                            'status' => $response->status(),
+                            'body'   => $response->body(),
+                        ]);
+                        return response()->json(['message' => 'Erreur upload photo: ' . $response->body()], 500);
+                    }
 
                     // URL publique directement accessible sans authentification
                     $publicUrl = "{$supabaseUrl}/storage/v1/object/public/{$bucket}/{$storagePath}";
