@@ -63,6 +63,11 @@ export default function PartenaireLayout({
     const { user } = useUser()
     const isMessagesPage = pathname === "/partenaire/messages"
 
+    // Remet le compteur messages à 0 quand l'utilisateur ouvre la page messages
+    useEffect(() => {
+        if (isMessagesPage) setUnreadMessages(0)
+    }, [isMessagesPage])
+
     // Filtre les items selon le rôle : null = visible par tous
     const navItems = ALL_NAV_ITEMS.filter(item =>
         item.roles === null || item.roles.includes(user?.role ?? "")
@@ -71,17 +76,41 @@ export default function PartenaireLayout({
     const { unreadCount } = useNotification()
     const [unreadMessages, setUnreadMessages] = useState(0)
 
-    // Charge le total des messages non lus au montage
+    // Charge les conversations, calcule le total non lu, puis s'abonne en temps réel
     useEffect(() => {
         if (!user) return
+        let echoRef: Awaited<ReturnType<typeof import("@/src/lib/echo").getEcho>> | null = null
+        const subscribedIds: string[] = []
+
         getConversations()
-            .then(res => {
+            .then(async res => {
                 const convs = res.data?.conversations ?? []
                 const total = convs.reduce((sum, c) => sum + (c.unread_count ?? 0), 0)
                 setUnreadMessages(total)
+
+                // Abonnement Reverb sur chaque conversation pour détecter les nouveaux messages
+                const { getEcho } = await import("@/src/lib/echo")
+                echoRef = await getEcho()
+                convs.forEach(conv => {
+                    subscribedIds.push(conv.id)
+                    echoRef!
+                        .private(`conversation.${conv.id}`)
+                        .listen(".message.sent", (e: { message: { sender_id: string } }) => {
+                            // N'incrémenter que si le message vient de l'autre participant
+                            if (e.message.sender_id !== user.id) {
+                                setUnreadMessages(prev => prev + 1)
+                            }
+                        })
+                })
             })
             .catch(() => {})
-    }, [user])
+
+        return () => {
+            if (echoRef) {
+                subscribedIds.forEach(id => echoRef!.leave(`conversation.${id}`))
+            }
+        }
+    }, [user?.id])
 
     const isAutoEcole      = user?.role === "auto_ecole"
     const roleLabel        = isAutoEcole ? "Auto-école" : "Concessionnaire"
