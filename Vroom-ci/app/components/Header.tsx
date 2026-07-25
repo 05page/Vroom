@@ -8,6 +8,7 @@ import {
     Calendar,
     Car,
     ChevronDown,
+    Compass,
     Heart,
     HelpCircle,
     Home,
@@ -189,6 +190,14 @@ const Header = () => {
                                                     {isVendeur ? "Dashboard" : "Mon compte"}
                                                 </Link>
                                                 <Link
+                                                    href={isVendeur ? "/vendeur/guide" : "/client/guide"}
+                                                    onClick={() => setProfileOpen(false)}
+                                                    className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 transition-all"
+                                                >
+                                                    <Compass className="h-3.5 w-3.5" />
+                                                    Guide
+                                                </Link>
+                                                <Link
                                                     href={isVendeur ? "/vendeur/aide" : "/client/aide"}
                                                     onClick={() => setProfileOpen(false)}
                                                     className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 transition-all"
@@ -344,6 +353,15 @@ const Header = () => {
                             >
                                 <LayoutDashboard className="h-4 w-4 shrink-0" />
                                 {isVendeur ? "Dashboard" : "Mon compte"}
+                            </Link>
+
+                            <Link
+                                href={isVendeur ? "/vendeur/guide" : "/client/guide"}
+                                onClick={() => setMobileOpen(false)}
+                                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50 transition-all"
+                            >
+                                <Compass className="h-4 w-4 shrink-0" />
+                                Guide
                             </Link>
 
                             <Link
