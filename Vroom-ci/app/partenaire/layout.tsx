@@ -7,6 +7,7 @@ import {
     BarChart3,
     Bell,
     BookOpen,
+    Compass,
     HelpCircle,
     MessageSquare,
     Home,
@@ -51,6 +52,7 @@ const ALL_NAV_ITEMS = [
     { href: "/partenaire/trend", label: "Tendances", icon: TrendingUp, roles: null },
     { href: "/partenaire/rdv", label: "Nos Rendez-vous", icon: Calendar, roles: null },
     { href: "/partenaire/formations", label: "Formations", icon: BookOpen, roles: ["auto_ecole"] },
+    { href: "/partenaire/guide", label: "Guide", icon: Compass, roles: null },
     { href: "/partenaire/aide", label: "Aide", icon: HelpCircle, roles: null },
     { href: "/partenaire/settings", label: "Paramètres", icon: Settings, roles: null },
 ]
