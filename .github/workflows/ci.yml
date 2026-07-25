@@ -79,3 +79,34 @@ jobs:
           # une saturation machine plutôt qu'un vrai besoin, mais les runners CI
           # standards (7 Go) bénéficient de cette marge de sécurité.
           NODE_OPTIONS: --max-old-space-size=6144
+
+  deploy-backend:
+    name: Deploy backend (Hostinger)
+    needs: backend
+    # Seulement sur un vrai push vers main, jamais sur une PR (une PR non
+    # mergée ne doit jamais toucher la prod).
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.HOSTINGER_HOST }}
+          username: ${{ secrets.HOSTINGER_USERNAME }}
+          key: ${{ secrets.HOSTINGER_SSH_KEY }}
+          port: ${{ secrets.HOSTINGER_PORT }}
+          script: |
+            set -e
+            cd ${{ secrets.HOSTINGER_DEPLOY_PATH }}
+            git pull origin main
+            composer install --no-dev --optimize-autoloader --no-interaction
+            php artisan migrate --force
+            php artisan storage:link || true
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+            # Pas de redémarrage de queue worker : sur ce plan Hostinger, le
+            # traitement des jobs (modération Gemini) tourne via cron
+            # (`queue:work --stop-when-empty` chaque minute, cf.
+            # docs/CHECKLIST-DEPLOIEMENT.md), pas via un process persistant —
+            # chaque exécution cron repart déjà sur le code fraîchement pullé.
