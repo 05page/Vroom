@@ -90,6 +90,8 @@ const ALLOWED_PATHS = [
   "/tendances",             // /tendances
   "/geo",                   // /geo/proches, /geo/position
   "/logout",                // /logout
+  "/forgot-password",
+  "/reset-password",
 ]
 
 async function proxyToLaravel(request: NextRequest) {
