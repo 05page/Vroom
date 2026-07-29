@@ -23,6 +23,7 @@ class User extends Authenticatable
         'google_refresh_token',
         'google_token_expires_at',
         'avatar',
+        'cover_photo',
         'role',
         'statut',
         // client

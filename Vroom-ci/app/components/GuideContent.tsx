@@ -19,7 +19,6 @@ import {
     Users,
     Warehouse,
 } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 export type GuideSpace = "client" | "vendeur" | "concessionnaire" | "auto_ecole"
 
@@ -98,36 +97,45 @@ const GUIDE_CONTENT: Record<GuideSpace, GuideDefinition> = {
     },
 }
 
-export default function GuideContent({ space }: { space: GuideSpace }) {
+/**
+ * `embedded` : true quand la page hôte a déjà son propre header en flux (ex. layout à sidebar
+ * de l'espace partenaire) — évite le double décalage avec le `pt-20` pensé pour un header fixe.
+ */
+export default function GuideContent({ space, embedded = false }: { space: GuideSpace; embedded?: boolean }) {
     const { title, subtitle, sections } = GUIDE_CONTENT[space]
 
     return (
-        <div className="pt-20 px-4 md:px-6 max-w-3xl mx-auto mb-12 space-y-6">
-            <div className="rounded-2xl bg-zinc-900 p-6 md:p-8 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
-                    <Compass className="h-6 w-6 text-white" />
+        <div className={embedded
+            ? "max-w-5xl space-y-6"
+            : "pt-20 px-4 md:px-6 max-w-5xl mx-auto mb-12 space-y-6"
+        }>
+            <header className="pb-6 border-b border-zinc-200">
+                <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-move-gold mb-2">
+                    <Compass className="h-3.5 w-3.5" />
+                    Guide
                 </div>
-                <div>
-                    <h1 className="text-xl font-semibold text-white">{title}</h1>
-                    <p className="text-zinc-400 text-sm mt-0.5">{subtitle}</p>
-                </div>
-            </div>
+                <h1 className="text-2xl md:text-3xl font-black tracking-tight text-zinc-900">
+                    {title}
+                </h1>
+                <p className="text-sm text-zinc-500 mt-1.5 max-w-lg">
+                    {subtitle}
+                </p>
+            </header>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="rounded-2xl border border-zinc-200 bg-white divide-y divide-zinc-100 overflow-hidden">
                 {sections.map(section => (
-                    <Card key={section.title} className="border-border/60">
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm flex items-center gap-2">
-                                <section.icon className="h-4 w-4 text-muted-foreground shrink-0" />
-                                {section.title}
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-xs text-muted-foreground leading-relaxed">
-                                {section.description}
-                            </p>
-                        </CardContent>
-                    </Card>
+                    <div
+                        key={section.title}
+                        className="group flex items-start gap-4 p-5 sm:p-6 hover:bg-zinc-50 transition-colors"
+                    >
+                        <div className="shrink-0 w-9 h-9 rounded-lg border border-zinc-200 flex items-center justify-center text-zinc-400 group-hover:border-move-gold group-hover:text-move-gold transition-colors">
+                            <section.icon className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 pt-0.5">
+                            <h3 className="text-sm font-semibold text-zinc-900">{section.title}</h3>
+                            <p className="text-sm text-zinc-500 mt-1 leading-relaxed max-w-2xl">{section.description}</p>
+                        </div>
+                    </div>
                 ))}
             </div>
         </div>

@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Progress } from "@/components/ui/progress"
 import {
-    Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger,
+    Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger,
 } from "@/components/ui/sheet"
 import {
     AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -28,7 +28,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
-    BookOpen, Plus, Users, Clock, CircleDollarSign, Trash2, Eye, CheckCircle2, TrendingUp, Pencil, UserRound, Phone, MapPin, Mail, CreditCard, X,
+    BookOpen, Plus, Users, Clock, CircleDollarSign, Trash2, Eye, CheckCircle2, TrendingUp, Pencil, UserRound, Phone, MapPin, Mail, CreditCard, X, Info,
 } from "lucide-react"
 import { Formation, InscriptionFormation, Versement } from "@/src/types"
 import { getMesFormations, createFormation, deleteFormation, getMesInscrits, getMesStats, updateInscrit, getVersements, addVersement, deleteVersement } from "@/src/actions/formations.actions"
@@ -38,6 +38,16 @@ import Link from "next/link"
 import { getPhotoUrl } from "@/src/lib/utils"
 
 const PERMIS = ['A', 'A2', 'B', 'B1', 'C', 'D'] as const
+
+/** Description courte de chaque catégorie — affichée sous le select pour guider les partenaires peu familiers des intitulés officiels. */
+const PERMIS_INFO: Record<string, string> = {
+    A:  "Motos toutes cylindrées.",
+    A2: "Motos de puissance limitée — accessible dès 18 ans.",
+    B:  "Voitures particulières — la catégorie la plus demandée.",
+    B1: "Quadricycles lourds (voiturettes), sans permis B.",
+    C:  "Poids lourds et véhicules de transport de marchandises.",
+    D:  "Transport en commun — bus et autocars.",
+}
 
 const statutBadge: Record<string, { label: string; className: string }> = {
     en_attente: { label: "En attente", className: "bg-amber-100 text-amber-700 border-amber-200" },
@@ -337,54 +347,77 @@ export default function FormationsAutoEcolePage() {
                 </div>
                 <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
                     <SheetTrigger asChild>
-                        <Button className="gap-2 shrink-0">
+                        <Button className="gap-2 shrink-0 bg-move-gold hover:bg-[oklch(0.72_0.175_83)] text-white">
                             <Plus className="h-4 w-4" />
                             Nouvelle formation
                         </Button>
                     </SheetTrigger>
                     <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
-                        <SheetHeader className="pb-4">
-                            <SheetTitle>Créer une formation</SheetTitle>
+                        <SheetHeader className="pb-4 border-b border-zinc-100">
+                            <SheetTitle className="text-xl font-black text-zinc-900">Créer une formation</SheetTitle>
+                            <SheetDescription>
+                                Renseignez les informations de votre offre — elle sera vérifiée avant d&apos;être publiée.
+                            </SheetDescription>
                         </SheetHeader>
 
-                        <div className="space-y-5">
-                            {/* Section — Caractéristiques */}
+                        <div className="px-4 pb-6 space-y-6">
+                            {/* Étape 1 — Type de permis */}
                             <div>
-                                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Caractéristiques</p>
+                                <div className="flex items-center gap-2 mb-3">
+                                    <span className="flex items-center justify-center w-5 h-5 rounded-full bg-move-gold/10 text-move-gold text-[11px] font-bold shrink-0">1</span>
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Type de permis</p>
+                                </div>
+                                <Select value={form.type_permis} onValueChange={v => setForm(p => ({ ...p, type_permis: v }))}>
+                                    <SelectTrigger className="w-full"><SelectValue placeholder="Choisissez une catégorie" /></SelectTrigger>
+                                    <SelectContent>
+                                        {PERMIS.map(p => <SelectItem key={p} value={p}>Permis {p}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                                {/* Rappel du champ d'application de la catégorie choisie — utile si on ne connaît pas les intitulés par cœur */}
+                                {form.type_permis && (
+                                    <p className="flex items-start gap-1.5 text-xs text-zinc-500 mt-2">
+                                        <Info className="h-3.5 w-3.5 shrink-0 mt-0.5 text-move-gold" />
+                                        {PERMIS_INFO[form.type_permis]}
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Étape 2 — Durée & tarif */}
+                            <div>
+                                <div className="flex items-center gap-2 mb-3">
+                                    <span className="flex items-center justify-center w-5 h-5 rounded-full bg-move-gold/10 text-move-gold text-[11px] font-bold shrink-0">2</span>
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Durée &amp; tarif</p>
+                                </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1.5">
-                                        <Label>Type de permis</Label>
-                                        <Select value={form.type_permis} onValueChange={v => setForm(p => ({ ...p, type_permis: v }))}>
-                                            <SelectTrigger><SelectValue placeholder="Sélectionner" /></SelectTrigger>
-                                            <SelectContent>
-                                                {PERMIS.map(p => <SelectItem key={p} value={p}>Permis {p}</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <Label>Durée (heures)</Label>
+                                        <Label>Durée totale (heures)</Label>
                                         <Input
                                             type="number" min={1} placeholder="Ex: 30"
                                             value={form.duree_heures}
                                             onChange={e => setForm(p => ({ ...p, duree_heures: e.target.value }))}
                                         />
+                                        <p className="text-xs text-zinc-400">Théorie + pratique cumulées</p>
                                     </div>
-                                </div>
-                                <div className="mt-4 space-y-1.5">
-                                    <Label>Prix (FCFA)</Label>
-                                    <Input
-                                        type="number" min={0} placeholder="Ex: 250 000"
-                                        value={form.prix}
-                                        onChange={e => setForm(p => ({ ...p, prix: e.target.value }))}
-                                    />
+                                    <div className="space-y-1.5">
+                                        <Label>Prix (FCFA)</Label>
+                                        <Input
+                                            type="number" min={0} placeholder="Ex: 250 000"
+                                            value={form.prix}
+                                            onChange={e => setForm(p => ({ ...p, prix: e.target.value }))}
+                                        />
+                                        <p className="text-xs text-zinc-400">Montant total, tout compris</p>
+                                    </div>
                                 </div>
                             </div>
 
                             <Separator />
 
-                            {/* Section — Contenu */}
+                            {/* Étape 3 — Présentation */}
                             <div>
-                                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Contenu pédagogique</p>
+                                <div className="flex items-center gap-2 mb-3">
+                                    <span className="flex items-center justify-center w-5 h-5 rounded-full bg-move-gold/10 text-move-gold text-[11px] font-bold shrink-0">3</span>
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Présentation</p>
+                                </div>
                                 <div className="space-y-4">
                                     <div className="space-y-1.5">
                                         <Label>Titre de la formation</Label>
@@ -403,13 +436,23 @@ export default function FormationsAutoEcolePage() {
                                             onChange={e => setForm(p => ({ ...p, texte: e.target.value }))}
                                             className="resize-none"
                                         />
+                                        <p className="text-xs text-zinc-400 leading-relaxed">
+                                            Astuce : mentionnez les prérequis (âge, pièces à fournir), le déroulé théorie/pratique, le matériel fourni et les modalités d&apos;examen.
+                                        </p>
                                     </div>
                                 </div>
                             </div>
 
-                            <Button className="w-full" onClick={handleCreate} disabled={submitting}>
+                            <Button
+                                className="w-full bg-move-gold hover:bg-[oklch(0.72_0.175_83)] text-white"
+                                onClick={handleCreate}
+                                disabled={submitting}
+                            >
                                 {submitting ? "Envoi en cours…" : "Soumettre la formation"}
                             </Button>
+                            <p className="text-xs text-zinc-400 text-center -mt-3">
+                                Visible publiquement après validation par notre équipe.
+                            </p>
                         </div>
                     </SheetContent>
                 </Sheet>

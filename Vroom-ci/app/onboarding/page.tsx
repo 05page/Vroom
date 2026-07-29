@@ -6,7 +6,7 @@ import Image from "next/image"
 import { toast } from "sonner"
 import { api } from "@/src/lib/api"
 import { useUser } from "@/src/context/UserContext"
-import {finishOnboarding} from "@/src/actions/onboarding.actions"
+import { User } from "@/src/types"
 
 type Role = "client" | "vendeur"
 
@@ -29,20 +29,19 @@ export default function OnboardingPage() {
         const id = toast.loading("Enregistrement en cours...")
 
         try {
-            const res = await api.post<{ success: boolean; role: string }>("/auth/complete-onboarding", {
+            const res = await api.post<{ user: User; role: string }>("/auth/complete-onboarding", {
                 role,
                 telephone,
                 adresse,
             })
 
-            const finishRes = await finishOnboarding()
             // Mettre à jour le cookie user_role côté client
             document.cookie = `user_role=${res.data?.role}; path=/; max-age=${60 * 60 * 24 * 7}`
             // Supprimer le cookie onboarding_pending
             document.cookie = "onboarding_pending=; path=/; max-age=0"
 
             // Rafraîchir le contexte utilisateur avec les nouvelles données (téléphone, adresse, rôle)
-            setUser(finishRes?.data?.user ?? null)
+            setUser(res.data?.user ?? null)
 
             toast.dismiss(id)
             toast.success("Profil complété !")

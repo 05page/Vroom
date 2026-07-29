@@ -63,10 +63,11 @@ Route::middleware(['auth:sanctum', 'check.statut'])->group(function () {
     Route::post('/geo/position',  [GeolocalisationController::class, 'updatePosition']);
     Route::post('/geo/geocode',   [GeolocalisationController::class, 'geocodeAdresse']);
     Route::put('/me/update',               [AuthController::class, 'update']);
+    Route::post('/me/avatar', [AuthController::class, 'avatarProfile']);
+    Route::post('/me/cover-photo', [AuthController::class, 'coverProfile']);
     Route::put('/me/contact',              [AuthController::class, 'updatePhoneAndAddress']);
     Route::put('/me/change-password',      [AuthController::class, 'changePassword']);
     Route::post('/auth/complete-onboarding', [AuthController::class, 'completeOnboarding']);
-    Route::post('/auth/finish-onboarding',   [AuthController::class, 'finishOnboarding']);
     Route::post('/logout',                 [AuthController::class, 'logout']);
 
     // Véhicules — suggestions basées sur les favoris (avant les routes dynamiques)

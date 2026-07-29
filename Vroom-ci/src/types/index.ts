@@ -6,6 +6,8 @@ export interface User {
   email: string;
   telephone: string;
   adresse: string;
+  avatar: string;
+  cover_photo: string;
   email_verified_at: string;
   account_status: string;
   statut: 'actif' | 'suspendu' | 'banni' | 'en_attente';

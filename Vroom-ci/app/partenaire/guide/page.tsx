@@ -7,5 +7,5 @@ export default function Page() {
     const { user } = useUser()
     const space = user?.role === "auto_ecole" ? "auto_ecole" : "concessionnaire"
 
-    return <GuideContent space={space} />
+    return <GuideContent space={space} embedded />
 }

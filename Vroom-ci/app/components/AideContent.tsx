@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
@@ -24,25 +24,29 @@ import type { SupportTicket } from "@/src/types"
 
 /** Couleurs et labels pour chaque statut de ticket */
 const STATUT_CONFIG: Record<SupportTicket["statut"], { label: string; className: string }> = {
-    ouvert:   { label: "Ouvert",    className: "bg-blue-100 text-blue-700 border-blue-200" },
-    en_cours: { label: "En cours",  className: "bg-yellow-100 text-yellow-700 border-yellow-200" },
-    "résolu": { label: "Résolu",    className: "bg-green-100 text-green-700 border-green-200" },
+    ouvert:   { label: "Ouvert",    className: "bg-blue-50 text-blue-700 border-blue-200" },
+    en_cours: { label: "En cours",  className: "bg-amber-50 text-amber-700 border-amber-200" },
+    "résolu": { label: "Résolu",    className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
     "fermé":  { label: "Fermé",     className: "bg-zinc-100 text-zinc-500 border-zinc-200" },
 }
 
 /** Couleurs pour les niveaux de priorité */
 const PRIORITE_CONFIG: Record<SupportTicket["priorite"], { label: string; className: string }> = {
     basse:    { label: "Basse",    className: "bg-zinc-100 text-zinc-500 border-zinc-200" },
-    normale:  { label: "Normale",  className: "bg-blue-100 text-blue-700 border-blue-200" },
-    haute:    { label: "Haute",    className: "bg-amber-100 text-amber-700 border-amber-200" },
-    urgente:  { label: "Urgente",  className: "bg-red-100 text-red-700 border-red-200" },
+    normale:  { label: "Normale",  className: "bg-blue-50 text-blue-700 border-blue-200" },
+    haute:    { label: "Haute",    className: "bg-amber-50 text-amber-700 border-amber-200" },
+    urgente:  { label: "Urgente",  className: "bg-red-50 text-red-700 border-red-200" },
 }
 
 const DEFAULT_STATUT_CONFIG = { label: "Statut inconnu", className: "bg-zinc-100 text-zinc-500 border-zinc-200" }
 const DEFAULT_PRIORITE_CONFIG = { label: "Priorité inconnue", className: "bg-zinc-100 text-zinc-500 border-zinc-200" }
 
+// Plage Unicode des marques diacritiques combinantes (issues de la décomposition NFD),
+// construite via les codes plutôt qu'un échappement \u en dur pour éviter toute ambiguïté d'encodage.
+const DIACRITICS_RANGE = new RegExp(`[${String.fromCharCode(0x0300)}-${String.fromCharCode(0x036f)}]`, "g")
+
 function normalizeValue(value: string) {
-    return value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    return value.toLowerCase().normalize("NFD").replace(DIACRITICS_RANGE, "")
 }
 
 function resolveStatutConfig(statut: unknown) {
@@ -89,7 +93,7 @@ function TicketsSkeleton() {
     return (
         <div className="space-y-3">
             {[1, 2, 3].map(i => (
-                <div key={i} className="p-4 border border-border/60 rounded-xl space-y-2">
+                <div key={i} className="p-4 border border-zinc-200 rounded-xl space-y-2">
                     <div className="flex items-center gap-2">
                         <Skeleton className="h-5 w-16 rounded-full" />
                         <Skeleton className="h-4 w-48" />
@@ -101,7 +105,11 @@ function TicketsSkeleton() {
     )
 }
 
-export default function AideContent() {
+/**
+ * `embedded` : true quand la page hôte a déjà son propre header en flux (ex. layout à sidebar
+ * de l'espace partenaire) — évite le double décalage avec le `pt-20` pensé pour un header fixe.
+ */
+export default function AideContent({ embedded = false }: { embedded?: boolean }) {
     const [sujet, setSujet] = useState("")
     const [message, setMessage] = useState("")
     const [priorite, setPriorite] = useState<SupportTicket["priorite"]>("normale")
@@ -155,21 +163,27 @@ export default function AideContent() {
     }
 
     return (
-        <div className="pt-20 px-4 md:px-6 max-w-3xl mx-auto mb-12 space-y-6">
-            <div className="rounded-2xl bg-zinc-900 p-6 md:p-8 flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
-                    <HelpCircle className="h-6 w-6 text-white" />
+        <div className={embedded
+            ? "max-w-5xl space-y-6"
+            : "pt-20 px-4 md:px-6 max-w-5xl mx-auto mb-12 space-y-6"
+        }>
+            <header className="pb-6 border-b border-zinc-200">
+                <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-move-gold mb-2">
+                    <HelpCircle className="h-3.5 w-3.5" />
+                    Support
                 </div>
-                <div>
-                    <h1 className="text-xl font-semibold text-white">Centre d&apos;aide</h1>
-                    <p className="text-zinc-400 text-sm mt-0.5">Posez votre question, notre équipe vous répond rapidement</p>
-                </div>
-            </div>
+                <h1 className="text-2xl md:text-3xl font-black tracking-tight text-zinc-900">
+                    Centre d&apos;aide
+                </h1>
+                <p className="text-sm text-zinc-500 mt-1.5 max-w-lg">
+                    Posez votre question, notre équipe vous répond rapidement.
+                </p>
+            </header>
 
-            <Card className="border-border/60">
+            <Card className="rounded-2xl border-zinc-200 shadow-sm">
                 <CardHeader className="pb-4">
-                    <CardTitle className="text-base flex items-center gap-2">
-                        <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                    <CardTitle className="text-base flex items-center gap-2 text-zinc-900">
+                        <MessageSquare className="h-4 w-4 text-zinc-400" />
                         Soumettre une demande
                     </CardTitle>
                 </CardHeader>
@@ -190,7 +204,7 @@ export default function AideContent() {
                         <div className="space-y-1.5">
                             <Label htmlFor="message">
                                 Message
-                                <span className="text-muted-foreground font-normal ml-1">(20 caractères min.)</span>
+                                <span className="text-zinc-400 font-normal ml-1">(20 caractères min.)</span>
                             </Label>
                             <Textarea
                                 id="message"
@@ -202,7 +216,7 @@ export default function AideContent() {
                                 className="resize-none"
                             />
                             {message.length < 20 && message.length > 0 && (
-                                <p className="text-xs text-muted-foreground text-right">
+                                <p className="text-xs text-zinc-400 text-right">
                                     {message.length}/20
                                 </p>
                             )}
@@ -227,7 +241,11 @@ export default function AideContent() {
                             </Select>
                         </div>
 
-                        <Button type="submit" disabled={sending} className="w-full sm:w-auto cursor-pointer">
+                        <Button
+                            type="submit"
+                            disabled={sending}
+                            className="w-full sm:w-auto cursor-pointer bg-move-gold hover:bg-[oklch(0.72_0.175_83)] text-white"
+                        >
                             {sending
                                 ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Envoi en cours…</>
                                 : "Envoyer la demande"
@@ -237,11 +255,11 @@ export default function AideContent() {
                 </CardContent>
             </Card>
 
-            <Card className="border-border/60">
+            <Card className="rounded-2xl border-zinc-200 shadow-sm">
                 <CardHeader className="pb-4">
                     <div className="flex items-center justify-between">
-                        <CardTitle className="text-base flex items-center gap-2">
-                            <Clock className="h-4 w-4 text-muted-foreground" />
+                        <CardTitle className="text-base flex items-center gap-2 text-zinc-900">
+                            <Clock className="h-4 w-4 text-zinc-400" />
                             Mes demandes
                         </CardTitle>
                         {tickets.length > 0 && (
@@ -253,7 +271,7 @@ export default function AideContent() {
                     {loadingTickets ? (
                         <TicketsSkeleton />
                     ) : tickets.length === 0 ? (
-                        <div className="flex flex-col items-center py-10 gap-3 text-muted-foreground">
+                        <div className="flex flex-col items-center py-10 gap-3 text-zinc-400">
                             <MessageSquare className="h-8 w-8 opacity-20" />
                             <p className="text-sm">Aucune demande pour l&apos;instant</p>
                         </div>
@@ -266,7 +284,7 @@ export default function AideContent() {
                                 return (
                                     <div
                                         key={ticket.id}
-                                        className="p-4 border border-border/60 rounded-xl space-y-2 hover:bg-muted/30 transition-colors"
+                                        className="p-4 border border-zinc-200 rounded-xl space-y-2 hover:bg-zinc-50 transition-colors"
                                     >
                                         <div className="flex items-center gap-2 flex-wrap">
                                             <Badge className={`border text-xs shrink-0 ${statutCfg.className}`}>
@@ -275,28 +293,28 @@ export default function AideContent() {
                                             <Badge className={`border text-xs shrink-0 ${prioriteCfg.className}`}>
                                                 {prioriteCfg.label}
                                             </Badge>
-                                            <span className="font-medium text-sm">{ticket.sujet}</span>
+                                            <span className="font-medium text-sm text-zinc-800">{ticket.sujet}</span>
                                         </div>
 
-                                        <p className="text-xs text-muted-foreground">
+                                        <p className="text-xs text-zinc-400">
                                             {timeAgo(ticket.created_at)}
                                         </p>
 
-                                        <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                                        <p className="text-xs text-zinc-500 line-clamp-2 leading-relaxed">
                                             {ticket.message}
                                         </p>
 
                                         {ticket.reponse_admin && (
-                                            <div className="mt-2 p-3 rounded-lg bg-blue-50 border border-blue-100 space-y-1">
-                                                <p className="text-xs font-semibold text-blue-700">
+                                            <div className="mt-2 p-3 rounded-lg bg-zinc-50 border border-zinc-200 space-y-1">
+                                                <p className="text-xs font-semibold text-zinc-700">
                                                     Réponse de l&apos;équipe Move
                                                     {ticket.repondu_at && (
-                                                        <span className="font-normal ml-1 text-blue-500">
+                                                        <span className="font-normal ml-1 text-zinc-400">
                                                             · {timeAgo(ticket.repondu_at)}
                                                         </span>
                                                     )}
                                                 </p>
-                                                <p className="text-xs text-blue-800 leading-relaxed">
+                                                <p className="text-xs text-zinc-600 leading-relaxed">
                                                     {ticket.reponse_admin}
                                                 </p>
                                             </div>

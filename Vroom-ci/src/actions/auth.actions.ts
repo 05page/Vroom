@@ -12,6 +12,13 @@ export const updateProfile = (data: Partial<User>) =>
 export const updateContact = (data: { telephone?: string; adresse?: string }) =>
   api.put<User>("/me/contact", data)
 
+export const updateAvatarProfile = (avatar: FormData) =>
+  api.upload<User>("/me/avatar", avatar)
+
+/** Met à jour la photo de couverture (concessionnaire / auto_ecole uniquement). */
+export const updateCoverPhoto = (coverPhoto: FormData) =>
+  api.upload<User>("/me/cover-photo", coverPhoto)
+
 /**
  * Envoie un email de réinitialisation de mot de passe.
  * La réponse est identique que l'email existe ou non (anti-énumération).
