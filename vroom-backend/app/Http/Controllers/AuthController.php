@@ -281,15 +281,16 @@ class AuthController extends Controller
 
     public function completeOnboarding(Request $request): JsonResponse
     {
+        // Validée hors du try/catch : une ValidationException doit remonter telle quelle
+        // (422 géré par Laravel), pas être avalée par le catch(\Exception) plus bas en 500.
+        $validated = $request->validate([
+            'telephone' => 'required|string|max:20',
+            'adresse'   => 'required|string|max:500',
+            'role'      => 'required|in:client,vendeur',
+        ]);
+
         try {
             $user = $request->user();
-
-            // Onboarding Google — uniquement client/vendeur (les pros passent par register())
-            $validated = $request->validate([
-                'telephone' => 'required|string|max:20',
-                'adresse'   => 'required|string|max:500',
-                'role'      => 'required|in:client,vendeur',
-            ]);
 
             DB::beginTransaction();
 
