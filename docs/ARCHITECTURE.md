@@ -12,12 +12,14 @@ Ce qu'on reconstruit n'est pas une page blanche : le frontend doit consommer un 
 
 | Élément | Quantité |
 |---|---:|
-| Routes API (`vroom-backend/routes/api.php`) | 127 |
+| Routes API actives (`vroom-backend/routes/api.php`) | 125 |
 | Contrôleurs | 26 |
 | Modèles Eloquent | 23 |
 | Rôles utilisateur | 5 |
 
-**Conséquence directe : le backend impose le contrat, le frontend s'y plie.** On ne redéfinit pas un modèle de données côté React. Toute donnée affichée vient d'une des 127 routes, et sa forme est décrite par `docs/API-ENDPOINTS.md` et `docs/MCD-MLD.md`.
+**Conséquence directe : le backend impose le contrat, le frontend s'y plie.** On ne redéfinit pas un modèle de données côté React. Toute donnée affichée vient d'une des 125 routes, et sa forme est décrite par `docs/API-ENDPOINTS.md` et `docs/MCD-MLD.md`.
+
+La correspondance page par page entre ces routes et les écrans à construire est dans [`MODULES.md`](MODULES.md) : 52 pages, chacune avec ses endpoints.
 
 L'ancien frontend faisait **37 354 lignes**. Le reproduire en 4 jours est impossible ; ce n'est pas l'objectif. L'objectif est une base saine et extensible, dont le périmètre initial est volontairement réduit (§6).
 
@@ -154,7 +156,9 @@ Le périmètre est ce qui rend le délai tenable. Ce qui n'est pas listé ici n'
 
 **Hors périmètre :** admin, dashboards pro, messagerie, RDV, transactions, formations, promotions, géolocalisation, notifications temps réel.
 
-Ces domaines représentent l'essentiel des 127 routes. Ils se rajoutent ensuite domaine par domaine, chacun suivant les mêmes 4 couches — c'est précisément l'intérêt d'avoir une architecture répétitive.
+Ces domaines représentent l'essentiel des 125 routes. Ils se rajoutent ensuite domaine par domaine, chacun suivant les mêmes 4 couches — c'est précisément l'intérêt d'avoir une architecture répétitive.
+
+Le découpage exact (ce qui est P1, P2, P3) est détaillé dans [`MODULES.md`](MODULES.md).
 
 **Point de rupture le plus probable : le jour 3.** Les filtres du catalogue sont la première fonctionnalité réellement complexe. Si le retard vient, il vient de là. Sacrifice décidé à l'avance : les filtres passent en « tri simple », la fiche véhicule du jour 4 est prioritaire.
 
@@ -190,7 +194,8 @@ Tokens définis dans `app/globals.css` en oklch : gold `#efbf04`, gris `#b4b4b4`
 
 | Document | Contenu |
 |---|---|
-| `docs/API-ENDPOINTS.md` | Les 127 routes et leurs charges utiles |
+| `docs/MODULES.md` | Les 52 pages à construire et leurs endpoints |
+| `docs/API-ENDPOINTS.md` | Les routes et leurs charges utiles |
 | `docs/MCD-MLD.md` | Modèle de données — fait foi pour les schémas zod |
 | `docs/CHOIX-TECHNIQUES.md` | Justification du stack (Sanctum, Reverb/Pusher, Leaflet, versions) |
 | `docs/CAHIER-DES-CHARGES.md` | Périmètre fonctionnel |
