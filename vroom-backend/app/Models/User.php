@@ -31,18 +31,8 @@ class User extends Authenticatable
         'adresse',
         'latitude',
         'longitude',
-        // vendeur
-        'rccm',
-        'note_moyenne',
-        'nb_avis',
         // concessionnaire / auto_ecole
         'raison_sociale',
-        'badge_officiel',
-        'adresse_showroom',
-        'taux_reussite',
-        'numero_agrement',
-        // admin
-        'niveau_acces',
         // onboarding
         'onboarding_completed_at',
     ];
@@ -58,7 +48,6 @@ class User extends Authenticatable
     {
         return [
             'password'                 => 'hashed',
-            'badge_officiel'           => 'boolean',
             'google_access_token'      => 'array',
             'google_token_expires_at'  => 'datetime',
             'onboarding_completed_at'  => 'datetime',
@@ -122,11 +111,6 @@ class User extends Authenticatable
     public function inscriptions()
     {
         return $this->hasMany(InscriptionFormation::class, 'client_id');
-    }
-
-    public function abonnements()
-    {
-        return $this->hasMany(Abonnement::class, 'user_id');
     }
 
     public function notifications()

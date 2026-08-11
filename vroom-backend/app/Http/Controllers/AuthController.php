@@ -154,8 +154,6 @@ class AuthController extends Controller
             'longitude'     => 'sometimes|numeric|between:-180,180',
             // champs concessionnaire / auto_ecole
             'raison_sociale'  => 'required_if:role,concessionnaire,auto_ecole|string|max:255',
-            'rccm'            => 'sometimes|required_if:role,concessionnaire|string|max:14',
-            'numero_agrement' => 'sometimes|required_if:role,auto_ecole|string|max:50',
         ]);
 
         $isProfessionnel = in_array($request->role, ['concessionnaire', 'auto_ecole']);
@@ -171,8 +169,6 @@ class AuthController extends Controller
             'latitude'        => $request->latitude,
             'longitude'       => $request->longitude,
             'raison_sociale'  => $request->raison_sociale,
-            'rccm'            => $request->rccm,
-            'numero_agrement' => $request->numero_agrement,
             'onboarding_completed_at' => now()
         ]);
 

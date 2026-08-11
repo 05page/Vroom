@@ -191,7 +191,6 @@ class TransactionConclueController extends Controller
      *  - Transaction → statut refusé
      *  - Véhicule → disponible (déverrouillé)
      *  - Signalement automatique créé sur le vendeur (visible admin)
-     *  - Compteur nb_refus_transaction du vendeur incrémenté
      *  - Client notifié
      */
     public function refuserVendeur(Request $request, string $id): JsonResponse
@@ -222,9 +221,6 @@ class TransactionConclueController extends Controller
                 'statut'           => Signalement::STATUT_EN_ATTENTE,
                 'date_signalement' => now(),
             ]);
-
-            // Incrémente le compteur de réputation du vendeur
-            User::where('id', $user->id)->increment('nb_refus_transaction');
 
             // Notifie le client
             $message = 'Le vendeur a refusé de confirmer la transaction. Si vous avez effectué un paiement, contactez le support.';

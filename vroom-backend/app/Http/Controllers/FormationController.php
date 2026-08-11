@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Events\DataRefresh;
 use App\Http\Requests\StoreFormationRequest;
 use App\Http\Requests\UpdateFormationRequest;
-use App\Models\DescriptionFormation;
 use App\Models\Formation;
 use App\Models\InscriptionFormation;
 use App\Models\Notifications;
@@ -23,7 +22,12 @@ class FormationController extends Controller
      */
     public function index(): JsonResponse
     {
-        $formations = Formation::with(['autoEcole:id,fullname,avatar,note_moyenne,nb_avis,taux_reussite', 'description'])
+        // note_moyenne n'est plus une colonne : withAvg la calcule depuis les avis
+        // et l'alias conserve le nom attendu par le front.
+        $formations = Formation::with([
+            'autoEcole' => fn ($q) => $q->select('id', 'fullname', 'avatar')
+                ->withAvg('avisVendeur as note_moyenne', 'note'),
+        ])
             ->where('statut_validation', Formation::STATUT_VALIDE)
             ->withCount('inscriptions')
             ->latest()
@@ -39,8 +43,8 @@ class FormationController extends Controller
     public function show(string $id): JsonResponse
     {
         $formation = Formation::with([
-            'autoEcole:id,fullname,avatar,note_moyenne,nb_avis,taux_reussite,adresse_showroom',
-            'description',
+            'autoEcole' => fn ($q) => $q->select('id', 'fullname', 'avatar')
+                ->withAvg('avisVendeur as note_moyenne', 'note'),
         ])
             ->where('statut_validation', Formation::STATUT_VALIDE)
             ->withCount('inscriptions')
@@ -57,8 +61,7 @@ class FormationController extends Controller
     {
         $user = Auth::user();
 
-        $formations = Formation::with(['description'])
-            ->where('auto_ecole_id', $user->id)
+        $formations = Formation::where('auto_ecole_id', $user->id)
             ->withCount('inscriptions')
             ->latest()
             ->get();
@@ -83,8 +86,7 @@ class FormationController extends Controller
             })
             ->with([
                 'client:id,fullname,email,avatar,telephone,adresse',
-                'formation:id,type_permis,auto_ecole_id',
-                'formation.description:formation_id,titre',
+                'formation:id,type_permis,auto_ecole_id,titre',
             ])
             ->orderByDesc('date_inscription')
             ->get();
@@ -113,32 +115,28 @@ class FormationController extends Controller
     }
 
     /**
-     * Crée une formation avec sa description.
+     * Crée une formation.
      * POST /formations
+     *
+     * Plus de transaction : depuis la fusion de descriptions_formation dans
+     * formations, il n'y a qu'une seule table écrite — Eloquent gère seul
+     * l'atomicité d'un INSERT unique.
      */
     public function store(StoreFormationRequest $request): JsonResponse
     {
         $user      = Auth::user();
         $validated = $request->validated();
 
-        DB::beginTransaction();
         try {
             $formation = Formation::create([
                 'auto_ecole_id'      => $user->id,
+                'titre'              => $validated['titre'],
+                'description'        => $validated['texte'],
                 'type_permis'        => $validated['type_permis'],
                 'prix'               => $validated['prix'],
                 'duree_heures'       => $validated['duree_heures'],
                 'statut_validation'  => Formation::STATUT_EN_ATTENTE,
             ]);
-
-            DescriptionFormation::create([
-                'formation_id' => $formation->id,
-                'titre'        => $validated['titre'],
-                'texte'        => $validated['texte'],
-                'langue'       => $validated['langue'] ?? 'fr',
-            ]);
-
-            DB::commit();
 
             Notifications::notifyAdmins(
                 Notifications::TYPE_FORMATION,
@@ -150,10 +148,9 @@ class FormationController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Formation soumise — en attente de validation admin',
-                'data'    => $formation->load('description'),
+                'data'    => $formation,
             ], 201);
         } catch (\Exception $e) {
-            DB::rollBack();
             return $this->serverError($e, 'Erreur lors du traitement de la formation. Réessayez dans quelques instants.');
         }
     }
@@ -172,21 +169,20 @@ class FormationController extends Controller
 
         $validated = $request->validated();
 
-        DB::beginTransaction();
         try {
-            $formation->update(array_intersect_key($validated, array_flip(['type_permis', 'prix', 'duree_heures'])));
-
-            if (isset($validated['titre']) || isset($validated['texte'])) {
-                $formation->description()->updateOrCreate(
-                    ['formation_id' => $formation->id],
-                    array_intersect_key($validated, array_flip(['titre', 'texte']))
-                );
+            // Le front envoie toujours 'texte' : on le remappe vers la colonne
+            // 'description' sans casser le contrat d'API existant.
+            if (array_key_exists('texte', $validated)) {
+                $validated['description'] = $validated['texte'];
             }
 
-            DB::commit();
-            return response()->json(['success' => true, 'data' => $formation->load('description')]);
+            $formation->update(array_intersect_key(
+                $validated,
+                array_flip(['titre', 'description', 'type_permis', 'prix', 'duree_heures'])
+            ));
+
+            return response()->json(['success' => true, 'data' => $formation]);
         } catch (\Exception $e) {
-            DB::rollBack();
             return $this->serverError($e, 'Erreur lors du traitement de la formation. Réessayez dans quelques instants.');
         }
     }
@@ -240,11 +236,6 @@ class FormationController extends Controller
         ]);
 
         $inscription->update($validated);
-
-        // Quand un élève termine avec un résultat, on recalcule le taux de réussite global de l'auto-école
-        if ($validated['statut_eleve'] === InscriptionFormation::STATUT_TERMINE && array_key_exists('reussite', $validated)) {
-            $this->recalculerTauxReussite($user->id);
-        }
 
         // Notifie le client de l'avancement
         $messages = [
@@ -359,26 +350,4 @@ class FormationController extends Controller
         ]);
     }
 
-    /**
-     * Recalcule le taux_reussite global de l'auto-école et le persiste sur le User.
-     * Appelé après chaque updateInscrit() qui définit un résultat d'examen.
-     */
-    private function recalculerTauxReussite(string $autoEcoleId): void
-    {
-        $formationIds = Formation::where('auto_ecole_id', $autoEcoleId)->pluck('id');
-
-        $stats = InscriptionFormation::whereIn('formation_id', $formationIds)
-            ->where('statut_eleve', InscriptionFormation::STATUT_TERMINE)
-            ->selectRaw("
-                COUNT(*) as termines,
-                SUM(CASE WHEN reussite = true THEN 1 ELSE 0 END) as reussis
-            ")
-            ->first();
-
-        $taux = $stats->termines > 0
-            ? round(($stats->reussis / $stats->termines) * 100, 1)
-            : null;
-
-        \App\Models\User::where('id', $autoEcoleId)->update(['taux_reussite' => $taux]);
-    }
 }

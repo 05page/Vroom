@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\AbonnementController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\SupportController;
@@ -15,6 +14,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AvisController;
 use App\Http\Controllers\FavoriController;
 use App\Http\Controllers\NotificationsController;
+use App\Http\Controllers\PromotionsController;
 use App\Http\Controllers\RendezVousController;
 use App\Http\Controllers\SignalementController;
 use App\Http\Controllers\VehiculesController;
@@ -175,7 +175,17 @@ Route::middleware(['auth:sanctum', 'check.statut'])->group(function () {
             Route::get('/{formationId}/inscrits/{inscriptionId}/versements',             [VersementInscriptionController::class, 'index']);
             Route::post('/{formationId}/inscrits/{inscriptionId}/versements',            [VersementInscriptionController::class, 'store']);
             Route::delete('/{formationId}/inscrits/{inscriptionId}/versements/{versId}', [VersementInscriptionController::class, 'destroy']);
+            // Codes promo — gestion réservée à l'auto-école propriétaire de la formation
+            Route::get('/{formationId}/promotions',                  [PromotionsController::class, 'index']);
+            Route::post('/{formationId}/promotions',                 [PromotionsController::class, 'store']);
+            Route::put('/{formationId}/promotions/{promotionId}',    [PromotionsController::class, 'update']);
+            Route::delete('/{formationId}/promotions/{promotionId}', [PromotionsController::class, 'destroy']);
         });
+        // Validation d'un code promo : accessible au client qui veut s'inscrire,
+        // donc hors du groupe role:auto_ecole. Déclarée avant /{id} car "promotions"
+        // et "valider" sont des segments statiques.
+        Route::post('/{formationId}/promotions/valider', [PromotionsController::class, 'valider']);
+
         // Routes dynamiques après les routes statiques pour éviter les conflits UUID
         Route::get('/{id}',                [FormationController::class, 'show']);
         Route::post('/{id}/inscrire',      [InscriptionFormationController::class, 'store']);
@@ -209,14 +219,6 @@ Route::middleware(['auth:sanctum', 'check.statut'])->group(function () {
             Route::post('/{id}/confirmer-vendeur', [TransactionConclueController::class, 'confirmerVendeur']);
             Route::post('/{id}/refuser-vendeur',   [TransactionConclueController::class, 'refuserVendeur']);
         });
-    });
-
-    // Abonnements
-    Route::middleware('role:vendeur,concessionnaire,auto_ecole')->prefix('abonnements')->group(function () {
-        Route::get('/plans',          [AbonnementController::class, 'plans']);
-        Route::get('/mon-abonnement', [AbonnementController::class, 'monAbonnement']);
-        Route::post('/souscrire',     [AbonnementController::class, 'souscrire']);
-        Route::post('/resilier',      [AbonnementController::class, 'resilier']);
     });
 
     // ── Support — tous les users authentifiés ──────────────
