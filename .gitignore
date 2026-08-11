@@ -1,1 +1,5 @@
-docs/
+# docs/ est volontairement suivi par Git : la documentation d'architecture
+# doit survivre à une perte du répertoire de travail (incident du 2026-08-11).
+# Exception : ce fichier contient des variables d'environnement, il ne doit
+# jamais partir sur le dépôt distant.
+docs/.env.md
