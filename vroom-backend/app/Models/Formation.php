@@ -11,7 +11,7 @@ class Formation extends Model
     use HasUuids, SoftDeletes;
 
     protected $fillable = [
-        'auto_ecole_id', 'type_permis', 'prix', 'duree_heures', 'statut_validation',
+        'auto_ecole_id', 'titre', 'description', 'type_permis', 'prix', 'duree_heures', 'statut_validation',
     ];
 
     protected $casts = ['prix' => 'decimal:2'];
@@ -21,6 +21,5 @@ class Formation extends Model
     const STATUT_REJETE     = 'rejeté';
 
     public function autoEcole()    { return $this->belongsTo(User::class, 'auto_ecole_id'); }
-    public function description()  { return $this->hasOne(DescriptionFormation::class, 'formation_id'); }
     public function inscriptions() { return $this->hasMany(InscriptionFormation::class, 'formation_id'); }
 }

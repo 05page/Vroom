@@ -25,7 +25,7 @@ class AdminController extends Controller
     public function admins(): JsonResponse
     {
         $admins = User::admins()
-            ->select('id', 'fullname', 'email', 'telephone', 'adresse', 'niveau_acces', 'statut', 'created_at')
+            ->select('id', 'fullname', 'email', 'telephone', 'adresse', 'statut', 'created_at')
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -44,7 +44,6 @@ class AdminController extends Controller
             'password'      => 'required|string|min:8',
             'telephone'     => 'sometimes|nullable|string|max:20',
             'adresse'       => 'sometimes|nullable|string|max:500',
-            'niveau_acces'  => 'sometimes|nullable|string|max:50',
         ]);
 
         $admin = User::create([
@@ -55,7 +54,6 @@ class AdminController extends Controller
             'statut'       => User::ACTIF,
             'telephone'    => $request->telephone,
             'adresse'      => $request->adresse,
-            'niveau_acces' => $request->niveau_acces,
         ]);
 
         $this->logAction('CREATE_ADMIN', 'utilisateur', $admin->id, "Création admin : {$admin->email}");
@@ -86,9 +84,7 @@ class AdminController extends Controller
                 'role',
                 'statut',
                 'created_at',
-                'raison_sociale',
-                'rccm',
-                'numero_agrement'
+                'raison_sociale'
             )
             ->orderBy('created_at', 'desc')
             ->paginate(20);
@@ -208,7 +204,7 @@ class AdminController extends Controller
      */
     public function formations(Request $request): JsonResponse
     {
-        $query = Formation::with(['autoEcole:id,fullname,avatar', 'description'])
+        $query = Formation::with(['autoEcole:id,fullname,avatar'])
             ->withCount('inscriptions')
             ->orderBy('created_at', 'desc');
 
