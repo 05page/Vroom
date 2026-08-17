@@ -35,6 +35,8 @@ class User extends Authenticatable
         'raison_sociale',
         // onboarding
         'onboarding_completed_at',
+        // vérification d'identité (vendeur particulier)
+        'identite_verifiee_le',
     ];
 
     protected $hidden = [
@@ -44,6 +46,11 @@ class User extends Authenticatable
         'google_refresh_token',
     ];
 
+    // 1. Ajoute `$appends = ['membre_since']` ici — même principe que
+    //    Notifications.php:28 : expose un champ calculé dans le JSON, sans
+    //    que ce soit une vraie colonne en base.
+    protected $appends = ['membre_since'];
+
     protected function casts(): array
     {
         return [
@@ -51,7 +58,18 @@ class User extends Authenticatable
             'google_access_token'      => 'array',
             'google_token_expires_at'  => 'datetime',
             'onboarding_completed_at'  => 'datetime',
+            'identite_verifiee_le'     => 'datetime',
         ];
+    }
+
+    // 2. Ajoute un accesseur `getMembreSinceAttribute()` (n'importe où dans
+    //    la classe), sur le modèle de Notifications.php:86-89 : renvoie
+    //    `$this->created_at` tel quel — Eloquent le sérialise déjà en ISO
+    //    8601 automatiquement, pas besoin de le formater à la main.
+    //    Exemple :
+    public function getMembreSinceAttribute()
+    {
+        return $this->created_at;
     }
 
     // Constantes rôles
