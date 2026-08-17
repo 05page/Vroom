@@ -59,7 +59,7 @@ class GeolocalisationController extends Controller
         // Sous-requête : calcule la distance pour chaque user éligible
         $inner = User::selectRaw("
                 id, fullname, role, adresse, avatar,
-                note_moyenne, raison_sociale,
+                raison_sociale,
                 latitude, longitude, statut,
                 ({$haversine}) AS distance
             ", [$lat, $lng, $lat])

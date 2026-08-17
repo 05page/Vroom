@@ -23,6 +23,7 @@ class User extends Authenticatable
         'google_refresh_token',
         'google_token_expires_at',
         'avatar',
+        'cover_photo',
         'role',
         'statut',
         // client
@@ -30,20 +31,12 @@ class User extends Authenticatable
         'adresse',
         'latitude',
         'longitude',
-        // vendeur
-        'rccm',
-        'note_moyenne',
-        'nb_avis',
         // concessionnaire / auto_ecole
         'raison_sociale',
-        'badge_officiel',
-        'adresse_showroom',
-        'taux_reussite',
-        'numero_agrement',
-        // admin
-        'niveau_acces',
         // onboarding
         'onboarding_completed_at',
+        // vérification d'identité (vendeur particulier)
+        'identite_verifiee_le',
     ];
 
     protected $hidden = [
@@ -53,15 +46,30 @@ class User extends Authenticatable
         'google_refresh_token',
     ];
 
+    // 1. Ajoute `$appends = ['membre_since']` ici — même principe que
+    //    Notifications.php:28 : expose un champ calculé dans le JSON, sans
+    //    que ce soit une vraie colonne en base.
+    protected $appends = ['membre_since'];
+
     protected function casts(): array
     {
         return [
             'password'                 => 'hashed',
-            'badge_officiel'           => 'boolean',
             'google_access_token'      => 'array',
             'google_token_expires_at'  => 'datetime',
             'onboarding_completed_at'  => 'datetime',
+            'identite_verifiee_le'     => 'datetime',
         ];
+    }
+
+    // 2. Ajoute un accesseur `getMembreSinceAttribute()` (n'importe où dans
+    //    la classe), sur le modèle de Notifications.php:86-89 : renvoie
+    //    `$this->created_at` tel quel — Eloquent le sérialise déjà en ISO
+    //    8601 automatiquement, pas besoin de le formater à la main.
+    //    Exemple :
+    public function getMembreSinceAttribute()
+    {
+        return $this->created_at;
     }
 
     // Constantes rôles
@@ -121,11 +129,6 @@ class User extends Authenticatable
     public function inscriptions()
     {
         return $this->hasMany(InscriptionFormation::class, 'client_id');
-    }
-
-    public function abonnements()
-    {
-        return $this->hasMany(Abonnement::class, 'user_id');
     }
 
     public function notifications()

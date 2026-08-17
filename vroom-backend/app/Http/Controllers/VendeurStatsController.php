@@ -24,8 +24,8 @@ class VendeurStatsController extends Controller
                 'total_vehicule' => Vehicules::disponible()->where('created_by', $user->id)->count(),
                 'total_vehicule_vendu' => Vehicules::vendu()->where('created_by', $user->id)->count(),
                 'total_vehicule_loue' => Vehicules::loue()->where('created_by', $user->id)->count(),
-                'total_vehicule_vente' => Vehicules::vente()->where('created_by', $user->id)->count(),
-                'total_vehicule_location' => Vehicules::location()->where('created_by', $user->id)->count(),
+                //'total_vehicule_vente' => Vehicules::vente()->where('created_by', $user->id)->count(),
+                //'total_vehicule_location' => Vehicules::location()->where('created_by', $user->id)->count(),
                 'total_vues' => Vehicules::where('created_by', $user->id)->sum('views_count'),
                 'total_vues_mois' => Vehicules::where('created_by', $user->id)->whereMonth('created_at', Carbon::now()->month)->sum('views_count'),
                 'total_vues_jour' => VehiculeVue::whereHas('vehicule', function ($q) use ($user) {
@@ -193,7 +193,8 @@ class VendeurStatsController extends Controller
                         'telephone'    => $user->telephone,
                         'role'         => $user->role,
                         'membre_since' => $user->created_at,
-                        'note_moyenne' => round((float) $user->note_moyenne, 1),
+                        // Moyenne calculée sur TOUS les avis du vendeur (et non sur les 10 chargés ci-dessus)
+                        'note_moyenne' => round((float) Avis::where('vendeur_id', $user->id)->avg('note'), 1),
                         'nb_avis'      => $avis->count(),
                     ],
                     'vehicules' => $vehicules,
